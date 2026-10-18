@@ -1,0 +1,17 @@
+PASS UI bulk attendance executes SQL for 15 players
+PASS UI Team Builder executes actual versioned SQL
+PASS UI rules, roles, lineup and START persist
+PASS UI reload restores paused server timer
+PASS UI two goals finish, rotate and test resolution verifies
+PASS UI next match starts from rotated queue
+PASS mobile layout has no horizontal overflow or JS errors
+PASS test match excluded from real profile stats
+PASS menu edits defaults and preserves existing game
+PASS Invite Players creates actual community invitation
+PASS Communities nav opens own memberships
+PASS Career nav shows real personal history with test label
+PASS plus nav offers community and game creation
+PASS desktop menu and new routes have no JS errors or overflow
+PASS Home bell opens actual notifications
+PASS Home bell opens empty inbox without being disabled
+RESULT: 16 browser checks passed with real isolated PostgreSQL RPCs; OAuth and PostgREST transport simulated, not live Supabase.

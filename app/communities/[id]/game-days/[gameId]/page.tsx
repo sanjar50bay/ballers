@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Avatar from "@/app/components/Avatar";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { teamAction, setAttendance, preMatchError, type TeamAction } from "@/lib/pre-match";
@@ -1745,29 +1746,7 @@ function PlayerListSection({
   );
 }
 
-function PlayerAvatar({
-  player,
-}: {
-  player: Player;
-}) {
-  return (
-    <div className="w-10 h-10 rounded-full overflow-hidden bg-[#151824] border border-violet-900/60 shrink-0">
-
-      {player.avatar_url ? (
-        <img
-          src={player.avatar_url}
-          alt={getPlayerName(player)}
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          👤
-        </div>
-      )}
-
-    </div>
-  );
-}
+function PlayerAvatar({player}:{player:Player}) {return <Avatar src={player.avatar_url} name={getPlayerName(player)}/>;}
 
 function getPlayerName(player: Player) {
   return (

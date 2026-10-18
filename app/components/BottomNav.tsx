@@ -1,4 +1,51 @@
 "use client";
 import Link from "next/link";
-import {usePathname} from "next/navigation";
-export default function BottomNav(){const path=usePathname();return <nav aria-label="Основная навигация" className="fixed z-30 bottom-0 left-0 right-0 border-t border-violet-900/50 bg-[#05070d]/95 backdrop-blur-xl"><div className="max-w-md mx-auto grid grid-cols-4 min-h-[76px] pb-[env(safe-area-inset-bottom)]">{[{href:'/',label:'Home',icon:'⌂'},{href:'/communities',label:'Communities',icon:'♙'},{href:'/create',label:'Создать',icon:'+'},{href:'/career',label:'Career',icon:'◫'}].map(x=><Link key={x.href} href={x.href} aria-current={(x.href==='/'?path==='/':path.startsWith(x.href))?'page':undefined} className={`min-h-11 flex flex-col items-center justify-center gap-1 focus-visible:outline-2 focus-visible:outline-violet-400 ${path===x.href?'text-violet-300':'text-gray-300'}`}><span className={x.icon==='+'?'rounded-full bg-violet-600 w-12 h-12 flex items-center justify-center text-3xl':'text-2xl'}>{x.icon==='+'?'+':<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{x.href==='/'?<><path d="M3 10L12 3L21 10V21H15V14H9V21H3Z"/></>:x.href==='/communities'?<><circle cx="9" cy="8" r="3"/><path d="M2 21V18A6 6 0 0 1 14 18V21M16 5A3 3 0 0 1 16 11M18 14A5 5 0 0 1 22 19V21"/></>:<><path d="M4 3H20V21H4Z M8 16V12 M12 16V8 M16 16V10"/></>}</svg>}</span><span className="text-sm">{x.label}</span></Link>)}</div></nav>;}
+import { usePathname } from "next/navigation";
+import { useApp } from "./AppState";
+import Icon from "./Icon";
+export default function BottomNav() {
+  const path = usePathname();
+  const { data } = useApp();
+  const game =
+    data?.games.find((g) => g.attendance_status === "GOING") || data?.games[0];
+  const tone = game?.live
+    ? "live"
+    : game?.attendance_status === "GOING"
+      ? "going"
+      : game
+        ? "invited"
+        : "none";
+  return (
+    <nav aria-label="Основная навигация" className="ballers-nav">
+      <div>
+        {[
+          { href: "/", label: "Главная", icon: "home" },
+          { href: "/my-game", label: "Игра", icon: "ball" },
+          { href: "/communities", label: "Сообщества", icon: "people" },
+          { href: "/profile", label: "Профиль", icon: "profile" },
+        ].map((x) => {
+          const active =
+            x.href === "/"
+              ? path === "/"
+              : path.startsWith(x.href) ||
+                (x.href === "/profile" && path === "/career");
+          return (
+            <Link
+              key={x.href}
+              href={x.href}
+              aria-current={active ? "page" : undefined}
+              className={active ? "active" : ""}
+            >
+              <span className={x.icon === "ball" ? `nav-ball ${tone}` : ""}>
+                <Icon name={x.icon} />
+              </span>
+              <span>
+                {x.icon === "ball" && game?.live ? "Игра · LIVE" : x.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

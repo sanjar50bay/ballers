@@ -1,6 +1,73 @@
 "use client";
-import {useEffect,useState} from "react";
 import Link from "next/link";
-import {supabase} from "@/lib/supabase";
-type C={id:string;name:string;city:string|null;default_format:number};type Row={role:string;communities:C|null};
-export default function MyCommunities({creation=false}:{creation?:boolean}){const [rows,setRows]=useState<Row[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');useEffect(()=>{let active=true;async function load(){const {data:{user}}=await supabase.auth.getUser();if(!user){if(active){setError('Сначала войди на главной странице.');setLoading(false);}return;}const {data:p,error:pe}=await supabase.from('player_profiles').select('id').eq('user_id',user.id).maybeSingle();if(!p){if(active){setError(pe?.message||'Сначала создай профиль игрока.');setLoading(false);}return;}const {data,error:e}=await supabase.from('community_members').select('role, communities(id,name,city,default_format)').eq('player_id',p.id).eq('member_status','REGULAR');if(active){setRows((data||[]) as unknown as Row[]);setError(e?.message||'');setLoading(false);}}void load();return()=>{active=false;};},[]);const shown=creation?rows.filter(r=>['OWNER','MANAGER'].includes(r.role)):rows;return <section className="space-y-4">{loading&&<p>Загрузка…</p>}{error&&<p role="alert" className="text-orange-300 break-words">{error}</p>}{!loading&&!error&&shown.length===0&&<p className="text-gray-300">{creation?'Нет сообществ, в которых ты менеджер. Создай своё или попроси организатора назначить тебя.':'Ты пока не состоишь в сообществах. Создай своё или прими приглашение.'}</p>}{shown.map(r=>r.communities&&<Link key={r.communities.id} href={creation?`/communities/${r.communities.id}/game-days/create`:`/communities/${r.communities.id}`} className="block min-h-11 p-5 rounded-xl border border-emerald-700/50 bg-[#071b15] hover:border-emerald-400 focus-visible:outline-2 focus-visible:outline-violet-400"><h2 className="text-xl font-bold">{r.communities.name}</h2><p className="mt-2 text-gray-300">{r.communities.city||'Город не указан'} · {r.communities.default_format}×{r.communities.default_format} · {r.role}</p><p className="mt-3 text-violet-200">{creation?'Создать игровой день →':'Открыть сообщество →'}</p></Link>)}</section>;}
+import { useApp } from "./AppState";
+export default function MyCommunities({
+  creation = false,
+}: {
+  creation?: boolean;
+}) {
+  const { data, loading, error, session, refresh } = useApp();
+  if (loading) return <p className="ballers-muted">Загружаем сообщества…</p>;
+  if (!session)
+    return (
+      <Link className="text-link" href="/">
+        Войди, чтобы увидеть сообщества →
+      </Link>
+    );
+  return (
+    <>
+      {error && (
+        <div className="error-panel">
+          Не удалось обновить сообщества.{" "}
+          <button onClick={() => void refresh()}>Повторить</button>
+        </div>
+      )}
+      <div className="space-y-3">
+        {(creation
+          ? data?.communities.filter((c) =>
+              ["OWNER", "MANAGER"].includes(c.role),
+            )
+          : data?.communities
+        )?.map((c) => (
+          <section key={c.id} className="neon-panel border-[#2c8768]">
+            <div className="community-row py-0">
+              <span className="community-initial">
+                {c.name
+                  .split(/\s+/)
+                  .slice(0, 2)
+                  .map((w) => w[0])
+                  .join("")}
+              </span>
+              <div>
+                <h2 className="font-bold text-lg">{c.name}</h2>
+                <p className="ballers-muted">
+                  {c.city || "Сообщество"} ·{" "}
+                  {{
+                    OWNER: "организатор",
+                    MANAGER: "менеджер",
+                    MEMBER: "участник",
+                  }[c.role] || "участник"}
+                </p>
+              </div>
+            </div>
+            <Link
+              className="text-link mt-2"
+              href={
+                creation
+                  ? `/communities/${c.id}/game-days/create`
+                  : `/communities/${c.id}`
+              }
+            >
+              {creation ? "Создать игровой день →" : "Открыть сообщество →"}
+            </Link>
+          </section>
+        ))}
+      </div>
+      {!data?.communities.length && !error && (
+        <p className="ballers-muted">
+          Пока нет сообществ. Создай своё или присоединись по приглашению.
+        </p>
+      )}
+    </>
+  );
+}

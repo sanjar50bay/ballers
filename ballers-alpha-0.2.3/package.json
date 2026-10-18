@@ -1,0 +1,34 @@
+{
+  "name": "ballers",
+  "version": "0.2.3-alpha",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test:db": "node tests/database.test.mjs",
+    "test:alpha": "node tests/alpha.test.mjs",
+    "test": "npm run test:db && npm run test:alpha && npm run test:nav && node tests/relationship.test.mjs && npm run test:mobile && node tests/mobile-legacy.test.mjs",
+    "test:nav": "node tests/navigation.test.mjs",
+    "test:mobile": "node tests/mobile.test.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
+    "next": "16.3.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.9",
+    "@netlify/plugin-nextjs": "5.16.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.8",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

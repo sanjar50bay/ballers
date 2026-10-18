@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AppState from "./components/AppState";
 import Notifications from "./components/Notifications";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -15,16 +16,21 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "BALLERS — Play · Connect · Compete",
-  description: "Любительский футбол: игры, команды и подтверждённая история игрока",
+  description:
+    "Любительский футбол: игры, команды и подтверждённая история игрока",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="ru"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}<Notifications /></body>
+      <body className="min-h-full flex flex-col">
+        <AppState>
+          <Notifications>{children}</Notifications>
+        </AppState>
+      </body>
     </html>
   );
 }

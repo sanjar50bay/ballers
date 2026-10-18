@@ -1,0 +1,792 @@
+{
+  "constraints": [
+    {
+      "name": "communities_created_by_fkey",
+      "table": "communities",
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id)"
+    },
+    {
+      "name": "communities_default_format_check",
+      "table": "communities",
+      "definition": "CHECK (((default_format >= 5) AND (default_format <= 11)))"
+    },
+    {
+      "name": "communities_default_team_count_check",
+      "table": "communities",
+      "definition": "CHECK ((default_team_count >= 2))"
+    },
+    {
+      "name": "communities_pkey",
+      "table": "communities",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "community_members_community_id_fkey",
+      "table": "community_members",
+      "definition": "FOREIGN KEY (community_id) REFERENCES communities(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "community_members_community_id_player_id_key",
+      "table": "community_members",
+      "definition": "UNIQUE (community_id, player_id)"
+    },
+    {
+      "name": "community_members_pkey",
+      "table": "community_members",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "community_members_player_id_fkey",
+      "table": "community_members",
+      "definition": "FOREIGN KEY (player_id) REFERENCES player_profiles(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "game_day_team_players_game_day_id_fkey",
+      "table": "game_day_team_players",
+      "definition": "FOREIGN KEY (game_day_id) REFERENCES game_days(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "game_day_team_players_game_day_id_player_id_key",
+      "table": "game_day_team_players",
+      "definition": "UNIQUE (game_day_id, player_id)"
+    },
+    {
+      "name": "game_day_team_players_pkey",
+      "table": "game_day_team_players",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "game_day_team_players_player_id_fkey",
+      "table": "game_day_team_players",
+      "definition": "FOREIGN KEY (player_id) REFERENCES player_profiles(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "game_day_team_players_team_id_fkey",
+      "table": "game_day_team_players",
+      "definition": "FOREIGN KEY (team_id) REFERENCES game_day_teams(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "game_day_teams_game_day_id_fkey",
+      "table": "game_day_teams",
+      "definition": "FOREIGN KEY (game_day_id) REFERENCES game_days(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "game_day_teams_game_day_id_name_key",
+      "table": "game_day_teams",
+      "definition": "UNIQUE (game_day_id, name)"
+    },
+    {
+      "name": "game_day_teams_game_day_id_sort_order_key",
+      "table": "game_day_teams",
+      "definition": "UNIQUE (game_day_id, sort_order)"
+    },
+    {
+      "name": "game_day_teams_pkey",
+      "table": "game_day_teams",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "game_day_teams_team_mode_check",
+      "table": "game_day_teams",
+      "definition": "CHECK ((team_mode = ANY (ARRAY['RANDOM'::text, 'FIXED'::text, 'CORE_PLUS_FILL'::text])))"
+    },
+    {
+      "name": "game_days_community_id_fkey",
+      "table": "game_days",
+      "definition": "FOREIGN KEY (community_id) REFERENCES communities(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "game_days_created_by_fkey",
+      "table": "game_days",
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id)"
+    },
+    {
+      "name": "game_days_format_check",
+      "table": "game_days",
+      "definition": "CHECK (((format >= 5) AND (format <= 11)))"
+    },
+    {
+      "name": "game_days_pkey",
+      "table": "game_days",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "game_days_team_count_check",
+      "table": "game_days",
+      "definition": "CHECK ((team_count >= 2))"
+    },
+    {
+      "name": "game_participants_game_day_id_fkey",
+      "table": "game_participants",
+      "definition": "FOREIGN KEY (game_day_id) REFERENCES game_days(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "game_participants_game_day_id_player_id_key",
+      "table": "game_participants",
+      "definition": "UNIQUE (game_day_id, player_id)"
+    },
+    {
+      "name": "game_participants_pkey",
+      "table": "game_participants",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "game_participants_player_id_fkey",
+      "table": "game_participants",
+      "definition": "FOREIGN KEY (player_id) REFERENCES player_profiles(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "invites_community_id_fkey",
+      "table": "invites",
+      "definition": "FOREIGN KEY (community_id) REFERENCES communities(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "invites_created_by_fkey",
+      "table": "invites",
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id)"
+    },
+    {
+      "name": "invites_game_day_id_fkey",
+      "table": "invites",
+      "definition": "FOREIGN KEY (game_day_id) REFERENCES game_days(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "invites_pkey",
+      "table": "invites",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "invites_token_key",
+      "table": "invites",
+      "definition": "UNIQUE (token)"
+    },
+    {
+      "name": "player_profiles_baller_id_key",
+      "table": "player_profiles",
+      "definition": "UNIQUE (baller_id)"
+    },
+    {
+      "name": "player_profiles_pkey",
+      "table": "player_profiles",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "player_profiles_user_id_fkey",
+      "table": "player_profiles",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "player_profiles_user_id_key",
+      "table": "player_profiles",
+      "definition": "UNIQUE (user_id)"
+    }
+  ],
+  "enums": [
+    {
+      "type": "attendance_status",
+      "order": 1,
+      "value": "INVITED"
+    },
+    {
+      "type": "attendance_status",
+      "order": 2,
+      "value": "GOING"
+    },
+    {
+      "type": "attendance_status",
+      "order": 3,
+      "value": "MAYBE"
+    },
+    {
+      "type": "attendance_status",
+      "order": 4,
+      "value": "DECLINED"
+    },
+    {
+      "type": "attendance_status",
+      "order": 5,
+      "value": "WAITLIST"
+    },
+    {
+      "type": "attendance_status",
+      "order": 6,
+      "value": "CONFIRMED"
+    },
+    {
+      "type": "attendance_status",
+      "order": 7,
+      "value": "PLAYED"
+    },
+    {
+      "type": "attendance_status",
+      "order": 8,
+      "value": "LATE_CANCEL"
+    },
+    {
+      "type": "attendance_status",
+      "order": 9,
+      "value": "NO_SHOW"
+    },
+    {
+      "type": "community_member_status",
+      "order": 1,
+      "value": "REGULAR"
+    },
+    {
+      "type": "community_member_status",
+      "order": 2,
+      "value": "GUEST"
+    },
+    {
+      "type": "community_member_status",
+      "order": 3,
+      "value": "PENDING"
+    },
+    {
+      "type": "community_member_status",
+      "order": 4,
+      "value": "INACTIVE"
+    },
+    {
+      "type": "community_role",
+      "order": 1,
+      "value": "OWNER"
+    },
+    {
+      "type": "community_role",
+      "order": 2,
+      "value": "MANAGER"
+    },
+    {
+      "type": "community_role",
+      "order": 3,
+      "value": "MEMBER"
+    },
+    {
+      "type": "dominant_foot",
+      "order": 1,
+      "value": "RIGHT"
+    },
+    {
+      "type": "dominant_foot",
+      "order": 2,
+      "value": "LEFT"
+    },
+    {
+      "type": "dominant_foot",
+      "order": 3,
+      "value": "BOTH"
+    },
+    {
+      "type": "invite_type",
+      "order": 1,
+      "value": "COMMUNITY"
+    },
+    {
+      "type": "invite_type",
+      "order": 2,
+      "value": "GAME_GUEST"
+    },
+    {
+      "type": "participant_type",
+      "order": 1,
+      "value": "MEMBER"
+    },
+    {
+      "type": "participant_type",
+      "order": 2,
+      "value": "GUEST"
+    },
+    {
+      "type": "player_position",
+      "order": 1,
+      "value": "GK"
+    },
+    {
+      "type": "player_position",
+      "order": 2,
+      "value": "DEF"
+    },
+    {
+      "type": "player_position",
+      "order": 3,
+      "value": "MID"
+    },
+    {
+      "type": "player_position",
+      "order": 4,
+      "value": "ATT"
+    },
+    {
+      "type": "team_mode",
+      "order": 1,
+      "value": "RANDOM"
+    },
+    {
+      "type": "team_mode",
+      "order": 2,
+      "value": "FIXED"
+    },
+    {
+      "type": "team_mode",
+      "order": 3,
+      "value": "MIXED"
+    }
+  ],
+  "functions": [
+    {
+      "name": "add_player_to_community",
+      "definition": "CREATE OR REPLACE FUNCTION public.add_player_to_community(target_community_id uuid, target_player_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\nbegin\r\n  if not exists (\r\n    select 1\r\n    from public.community_members cm\r\n    join public.player_profiles pp\r\n      on pp.id = cm.player_id\r\n    where cm.community_id = target_community_id\r\n      and pp.user_id = auth.uid()\r\n      and cm.role in ('OWNER', 'MANAGER')\r\n  ) then\r\n    raise exception 'Only community owners and managers can add players';\r\n  end if;\r\n\r\n  insert into public.community_members (\r\n    community_id,\r\n    player_id,\r\n    role,\r\n    member_status\r\n  )\r\n  values (\r\n    target_community_id,\r\n    target_player_id,\r\n    'MEMBER',\r\n    'REGULAR'\r\n  )\r\n  on conflict (community_id, player_id)\r\n  do update set\r\n    member_status = 'REGULAR';\r\nend;\r\n$function$\n"
+    },
+    {
+      "name": "get_invite_by_token",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_invite_by_token(invite_token uuid)\n RETURNS TABLE(invite_id uuid, token uuid, invite_type invite_type, community_id uuid, community_name text, game_day_id uuid, game_title text, game_date date, start_time time without time zone, venue text, format integer, capacity integer, is_active boolean)\n LANGUAGE sql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\n  select\r\n    i.id,\r\n    i.token,\r\n    i.invite_type,\r\n    i.community_id,\r\n    c.name,\r\n    i.game_day_id,\r\n    gd.title,\r\n    gd.game_date,\r\n    gd.start_time,\r\n    gd.venue,\r\n    gd.format,\r\n    gd.capacity,\r\n    i.is_active\r\n  from public.invites i\r\n  left join public.communities c\r\n    on c.id = i.community_id\r\n  left join public.game_days gd\r\n    on gd.id = i.game_day_id\r\n  where i.token = invite_token\r\n    and i.is_active = true\r\n    and (\r\n      i.expires_at is null\r\n      or i.expires_at > now()\r\n    )\r\n  limit 1;\r\n$function$\n"
+    }
+  ],
+  "indexes": [
+    {
+      "indexdef": "CREATE UNIQUE INDEX communities_pkey ON public.communities USING btree (id)",
+      "indexname": "communities_pkey",
+      "tablename": "communities",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX community_members_community_id_player_id_key ON public.community_members USING btree (community_id, player_id)",
+      "indexname": "community_members_community_id_player_id_key",
+      "tablename": "community_members",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX community_members_pkey ON public.community_members USING btree (id)",
+      "indexname": "community_members_pkey",
+      "tablename": "community_members",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX game_day_team_players_game_day_id_player_id_key ON public.game_day_team_players USING btree (game_day_id, player_id)",
+      "indexname": "game_day_team_players_game_day_id_player_id_key",
+      "tablename": "game_day_team_players",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX game_day_team_players_pkey ON public.game_day_team_players USING btree (id)",
+      "indexname": "game_day_team_players_pkey",
+      "tablename": "game_day_team_players",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX game_day_teams_game_day_id_name_key ON public.game_day_teams USING btree (game_day_id, name)",
+      "indexname": "game_day_teams_game_day_id_name_key",
+      "tablename": "game_day_teams",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX game_day_teams_game_day_id_sort_order_key ON public.game_day_teams USING btree (game_day_id, sort_order)",
+      "indexname": "game_day_teams_game_day_id_sort_order_key",
+      "tablename": "game_day_teams",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX game_day_teams_pkey ON public.game_day_teams USING btree (id)",
+      "indexname": "game_day_teams_pkey",
+      "tablename": "game_day_teams",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX game_days_pkey ON public.game_days USING btree (id)",
+      "indexname": "game_days_pkey",
+      "tablename": "game_days",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX game_participants_game_day_id_player_id_key ON public.game_participants USING btree (game_day_id, player_id)",
+      "indexname": "game_participants_game_day_id_player_id_key",
+      "tablename": "game_participants",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX game_participants_pkey ON public.game_participants USING btree (id)",
+      "indexname": "game_participants_pkey",
+      "tablename": "game_participants",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX invites_pkey ON public.invites USING btree (id)",
+      "indexname": "invites_pkey",
+      "tablename": "invites",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX invites_token_key ON public.invites USING btree (token)",
+      "indexname": "invites_token_key",
+      "tablename": "invites",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX player_profiles_baller_id_key ON public.player_profiles USING btree (baller_id)",
+      "indexname": "player_profiles_baller_id_key",
+      "tablename": "player_profiles",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX player_profiles_pkey ON public.player_profiles USING btree (id)",
+      "indexname": "player_profiles_pkey",
+      "tablename": "player_profiles",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX player_profiles_user_id_key ON public.player_profiles USING btree (user_id)",
+      "indexname": "player_profiles_user_id_key",
+      "tablename": "player_profiles",
+      "schemaname": "public",
+      "tablespace": null
+    }
+  ],
+  "policies": [
+    {
+      "cmd": "DELETE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM ((game_days gd\n     JOIN community_members cm ON ((cm.community_id = gd.community_id)))\n     JOIN player_profiles pp ON ((pp.id = cm.player_id)))\n  WHERE ((gd.id = game_day_team_players.game_day_id) AND (pp.user_id = auth.uid()) AND (cm.role = ANY (ARRAY['OWNER'::community_role, 'MANAGER'::community_role])))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_day_team_players",
+      "permissive": "PERMISSIVE",
+      "policyname": "Community managers can remove game day team players",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM ((game_days gd\n     JOIN community_members cm ON ((cm.community_id = gd.community_id)))\n     JOIN player_profiles pp ON ((pp.id = cm.player_id)))\n  WHERE ((gd.id = game_day_teams.game_day_id) AND (pp.user_id = auth.uid()) AND (cm.role = ANY (ARRAY['OWNER'::community_role, 'MANAGER'::community_role])))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_day_teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "Community managers can delete game day teams",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "communities",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can create communities",
+      "schemaname": "public",
+      "with_check": "(auth.uid() = created_by)"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "community_members",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can join communities",
+      "schemaname": "public",
+      "with_check": "(player_id IN ( SELECT player_profiles.id\n   FROM player_profiles\n  WHERE (player_profiles.user_id = auth.uid())))"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_day_team_players",
+      "permissive": "PERMISSIVE",
+      "policyname": "Community managers can assign game day team players",
+      "schemaname": "public",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM ((game_days gd\n     JOIN community_members cm ON ((cm.community_id = gd.community_id)))\n     JOIN player_profiles pp ON ((pp.id = cm.player_id)))\n  WHERE ((gd.id = game_day_team_players.game_day_id) AND (pp.user_id = auth.uid()) AND (cm.role = ANY (ARRAY['OWNER'::community_role, 'MANAGER'::community_role])))))"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_day_teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "Community managers can create game day teams",
+      "schemaname": "public",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM ((game_days gd\n     JOIN community_members cm ON ((cm.community_id = gd.community_id)))\n     JOIN player_profiles pp ON ((pp.id = cm.player_id)))\n  WHERE ((gd.id = game_day_teams.game_day_id) AND (pp.user_id = auth.uid()) AND (cm.role = ANY (ARRAY['OWNER'::community_role, 'MANAGER'::community_role])))))"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_days",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can create game days",
+      "schemaname": "public",
+      "with_check": "(auth.uid() = created_by)"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_participants",
+      "permissive": "PERMISSIVE",
+      "policyname": "Community managers can invite members",
+      "schemaname": "public",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM (((game_days gd\n     JOIN community_members manager ON ((manager.community_id = gd.community_id)))\n     JOIN player_profiles manager_profile ON ((manager_profile.id = manager.player_id)))\n     JOIN community_members invited_member ON ((invited_member.community_id = gd.community_id)))\n  WHERE ((gd.id = game_participants.game_day_id) AND (manager_profile.user_id = auth.uid()) AND (manager.role = ANY (ARRAY['OWNER'::community_role, 'MANAGER'::community_role])) AND (invited_member.player_id = game_participants.player_id))))"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_participants",
+      "permissive": "PERMISSIVE",
+      "policyname": "Players can join game days",
+      "schemaname": "public",
+      "with_check": "(player_id IN ( SELECT player_profiles.id\n   FROM player_profiles\n  WHERE (player_profiles.user_id = auth.uid())))"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "invites",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can create invites",
+      "schemaname": "public",
+      "with_check": "(auth.uid() = created_by)"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "player_profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can create their own player profile",
+      "schemaname": "public",
+      "with_check": "(auth.uid() = user_id)"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = created_by)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "invites",
+      "permissive": "PERMISSIVE",
+      "policyname": "Invite creators can read invites",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "true",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "communities",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read communities",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "true",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "community_members",
+      "permissive": "PERMISSIVE",
+      "policyname": "Members can read community memberships",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "true",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_day_team_players",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read game day team players",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "true",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_day_teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read game day teams",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "true",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_days",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read game days",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "true",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_participants",
+      "permissive": "PERMISSIVE",
+      "policyname": "Authenticated users can read game participants",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "true",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "player_profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can read player profiles",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "(auth.uid() = user_id)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "player_profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "Users can update their own player profile",
+      "schemaname": "public",
+      "with_check": "(auth.uid() = user_id)"
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM ((game_days gd\n     JOIN community_members cm ON ((cm.community_id = gd.community_id)))\n     JOIN player_profiles pp ON ((pp.id = cm.player_id)))\n  WHERE ((gd.id = game_day_team_players.game_day_id) AND (pp.user_id = auth.uid()) AND (cm.role = ANY (ARRAY['OWNER'::community_role, 'MANAGER'::community_role])))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_day_team_players",
+      "permissive": "PERMISSIVE",
+      "policyname": "Community managers can update game day team players",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM ((game_days gd\n     JOIN community_members cm ON ((cm.community_id = gd.community_id)))\n     JOIN player_profiles pp ON ((pp.id = cm.player_id)))\n  WHERE ((gd.id = game_day_teams.game_day_id) AND (pp.user_id = auth.uid()) AND (cm.role = ANY (ARRAY['OWNER'::community_role, 'MANAGER'::community_role])))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_day_teams",
+      "permissive": "PERMISSIVE",
+      "policyname": "Community managers can update game day teams",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM ((game_days gd\n     JOIN community_members cm ON ((cm.community_id = gd.community_id)))\n     JOIN player_profiles pp ON ((pp.id = cm.player_id)))\n  WHERE ((gd.id = game_participants.game_day_id) AND (pp.user_id = auth.uid()) AND (cm.role = ANY (ARRAY['OWNER'::community_role, 'MANAGER'::community_role])))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_participants",
+      "permissive": "PERMISSIVE",
+      "policyname": "Community managers can update participants",
+      "schemaname": "public",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM ((game_days gd\n     JOIN community_members cm ON ((cm.community_id = gd.community_id)))\n     JOIN player_profiles pp ON ((pp.id = cm.player_id)))\n  WHERE ((gd.id = game_participants.game_day_id) AND (pp.user_id = auth.uid()) AND (cm.role = ANY (ARRAY['OWNER'::community_role, 'MANAGER'::community_role])))))"
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "(player_id IN ( SELECT player_profiles.id\n   FROM player_profiles\n  WHERE (player_profiles.user_id = auth.uid())))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "game_participants",
+      "permissive": "PERMISSIVE",
+      "policyname": "Players can update their attendance",
+      "schemaname": "public",
+      "with_check": "(player_id IN ( SELECT player_profiles.id\n   FROM player_profiles\n  WHERE (player_profiles.user_id = auth.uid())))"
+    }
+  ],
+  "rls_status": [
+    {
+      "table": "communities",
+      "forced": false,
+      "enabled": true
+    },
+    {
+      "table": "community_members",
+      "forced": false,
+      "enabled": true
+    },
+    {
+      "table": "game_day_team_players",
+      "forced": false,
+      "enabled": true
+    },
+    {
+      "table": "game_day_teams",
+      "forced": false,
+      "enabled": true
+    },
+    {
+      "table": "game_days",
+      "forced": false,
+      "enabled": true
+    },
+    {
+      "table": "game_participants",
+      "forced": false,
+      "enabled": true
+    },
+    {
+      "table": "invites",
+      "forced": false,
+      "enabled": true
+    },
+    {
+      "table": "player_profiles",
+      "forced": false,
+      "enabled": true
+    }
+  ]
+}
