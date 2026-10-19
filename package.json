@@ -1,6 +1,6 @@
 {
   "name": "ballers",
-  "version": "0.2.3-alpha",
+  "version": "0.2.4-alpha",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,7 +11,8 @@
     "test:alpha": "node tests/alpha.test.mjs",
     "test": "npm run test:db && npm run test:alpha && npm run test:nav && node tests/relationship.test.mjs && npm run test:mobile && node tests/mobile-legacy.test.mjs",
     "test:nav": "node tests/navigation.test.mjs",
-    "test:mobile": "node tests/mobile.test.mjs"
+    "test:mobile": "node tests/mobile.test.mjs",
+    "test:registration:browser": "node tests/registration.browser.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

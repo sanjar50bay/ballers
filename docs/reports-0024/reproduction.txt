@@ -1,0 +1,2 @@
+PASS REPRODUCED 0.2.3: successful INSERT -> stale home -> onboarding -> duplicate user_id on retry
+RESULT: 1 registration browser checks passed. Isolated PostgreSQL/RLS; simulated OAuth/HTTP, not live Supabase.

@@ -151,6 +151,8 @@ export default function Notifications({
     <BellContext.Provider value={{ count: feed.unread, show }}>
       {children}
       {session &&
+        path !== "/onboarding" &&
+        !path.startsWith("/join/") &&
         !["/", "/my-game", "/profile", "/communities", "/create"].includes(
           path,
         ) && (

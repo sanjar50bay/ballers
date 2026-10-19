@@ -1,0 +1,43 @@
+
+> ballers@0.2.4-alpha build
+> next build
+
+▲ Next.js 16.3.8 (Turbopack)
+✓ Running next.config.ts took 25ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1466ms
+  Running TypeScript ...
+  Finished TypeScript in 2.2s ...
+  Collecting page data using 1 worker ...
+  Generating static pages using 1 worker (0/13) ...
+  Generating static pages using 1 worker (3/13) 
+  Generating static pages using 1 worker (6/13) 
+  Generating static pages using 1 worker (9/13) 
+✓ Generating static pages using 1 worker (13/13) in 273ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /career
+├ ○ /communities
+├ ƒ /communities/[id]
+├ ƒ /communities/[id]/game-days/[gameId]
+├ ƒ /communities/[id]/game-days/create
+├ ƒ /communities/[id]/games
+├ ○ /communities/create
+├ ○ /create
+├ ƒ /games/[gameId]/play
+├ ƒ /join/[token]
+├ ○ /my-game
+├ ○ /onboarding
+├ ○ /open-games
+├ ƒ /players/[id]
+├ ○ /profile
+└ ○ /profile/edit
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
