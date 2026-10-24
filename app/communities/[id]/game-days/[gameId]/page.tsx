@@ -1,11 +1,19 @@
 "use client";
+import { t as tx, dateLocale, uiError, positionLabel } from "@/lib/i18n";
+
+import { useLocale } from "@/app/components/Language";
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Avatar from "@/app/components/Avatar";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { teamAction, setAttendance, preMatchError, type TeamAction } from "@/lib/pre-match";
+import {
+  teamAction,
+  setAttendance,
+  preMatchError,
+  type TeamAction,
+} from "@/lib/pre-match";
 
 type GameDay = {
   id: string;
@@ -55,14 +63,7 @@ type TeamPlayer = {
 type TeamMode = "RANDOM" | "FIXED" | "CORE_PLUS_FILL";
 
 type TeamColor =
-  | "BLUE"
-  | "RED"
-  | "YELLOW"
-  | "GREEN"
-  | "ORANGE"
-  | "WHITE"
-  | "BLACK"
-  | "PURPLE";
+  "BLUE" | "RED" | "YELLOW" | "GREEN" | "ORANGE" | "WHITE" | "BLACK" | "PURPLE";
 
 const TEAM_COLOR_OPTIONS: { value: TeamColor; label: string }[] = [
   { value: "BLUE", label: "Blue" },
@@ -85,6 +86,8 @@ type GameTeam = {
 };
 
 export default function GameDayPage() {
+  useLocale();
+
   const params = useParams();
   const router = useRouter();
 
@@ -94,7 +97,7 @@ export default function GameDayPage() {
   const [game, setGame] = useState<GameDay | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [communityMembers, setCommunityMembers] = useState<CommunityMember[]>(
-    []
+    [],
   );
   const [teams, setTeams] = useState<GameTeam[]>([]);
 
@@ -109,17 +112,17 @@ export default function GameDayPage() {
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [invitingSelected, setInvitingSelected] = useState(false);
   const [creatingGuestInvite, setCreatingGuestInvite] = useState(false);
-  const [updatingParticipantId, setUpdatingParticipantId] = useState<string | null>(
-    null
-  );
+  const [updatingParticipantId, setUpdatingParticipantId] = useState<
+    string | null
+  >(null);
 
   const [addingToCommunity, setAddingToCommunity] = useState<string | null>(
-    null
+    null,
   );
 
   const [buildingTeams, setBuildingTeams] = useState(false);
   const [assigningPlayerId, setAssigningPlayerId] = useState<string | null>(
-    null
+    null,
   );
   const [randomizing, setRandomizing] = useState(false);
   const [resettingTeams, setResettingTeams] = useState(false);
@@ -131,7 +134,8 @@ export default function GameDayPage() {
   const loadTeams = useCallback(async () => {
     const { data, error } = await supabase
       .from("game_day_teams")
-      .select(`
+      .select(
+        `
         id,
         name,
         color_key,
@@ -151,12 +155,21 @@ export default function GameDayPage() {
             avatar_url
           )
         )
-      `)
+      `,
+      )
       .eq("game_day_id", gameId)
       .order("sort_order", { ascending: true });
 
     if (error) {
-      console.error("Teams error:", JSON.stringify({ code: error.code, message: error.message, details: error.details, hint: error.hint }));
+      console.error(
+        "Teams error:",
+        JSON.stringify({
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        }),
+      );
       setTeamsError(error.message);
       return;
     }
@@ -205,7 +218,8 @@ export default function GameDayPage() {
 
     const { data: participantData, error: participantError } = await supabase
       .from("game_participants")
-      .select(`
+      .select(
+        `
         id,
         attendance_status,
         participant_type,
@@ -218,28 +232,41 @@ export default function GameDayPage() {
           primary_position,
           avatar_url
         )
-      `)
+      `,
+      )
       .eq("game_day_id", gameId);
 
     if (participantError) {
       console.error(participantError);
     }
 
-    const { data: waiting } = await supabase.from("ballers_waitlist").select("player_id").eq("game_day_id", gameId);
-    const waitingIds = new Set((waiting || []).map(item => item.player_id as string));
-    const cleanParticipants = ((participantData || []) as unknown as Participant[]).map(item => waitingIds.has(item.player_profiles?.id || "") ? { ...item, attendance_status: "WAITING" } : item);
+    const { data: waiting } = await supabase
+      .from("ballers_waitlist")
+      .select("player_id")
+      .eq("game_day_id", gameId);
+    const waitingIds = new Set(
+      (waiting || []).map((item) => item.player_id as string),
+    );
+    const cleanParticipants = (
+      (participantData || []) as unknown as Participant[]
+    ).map((item) =>
+      waitingIds.has(item.player_profiles?.id || "")
+        ? { ...item, attendance_status: "WAITING" }
+        : item,
+    );
 
     setParticipants(cleanParticipants);
 
     const mine = cleanParticipants.find(
-      (item) => item.player_profiles?.id === profile.id
+      (item) => item.player_profiles?.id === profile.id,
     );
 
     setMyStatus(mine?.attendance_status ?? null);
 
     const { data: memberData, error: memberError } = await supabase
       .from("community_members")
-      .select(`
+      .select(
+        `
         id,
         role,
         member_status,
@@ -252,20 +279,20 @@ export default function GameDayPage() {
           primary_position,
           avatar_url
         )
-      `)
+      `,
+      )
       .eq("community_id", communityId);
 
     if (memberError) {
       console.error(memberError);
     }
 
-    const cleanMembers =
-      (memberData || []) as unknown as CommunityMember[];
+    const cleanMembers = (memberData || []) as unknown as CommunityMember[];
 
     setCommunityMembers(cleanMembers);
 
     const myMembership = cleanMembers.find(
-      (member) => member.player_profiles?.id === profile.id
+      (member) => member.player_profiles?.id === profile.id,
     );
 
     setMyRole(myMembership?.role ?? null);
@@ -276,7 +303,9 @@ export default function GameDayPage() {
   }, [gameId, communityId, router, loadTeams]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { void loadGame(); }, 0);
+    const timer = window.setTimeout(() => {
+      void loadGame();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [loadGame]);
 
@@ -287,14 +316,16 @@ export default function GameDayPage() {
       const { error } = await setAttendance(gameId, myPlayerId, status);
       if (error) alert(preMatchError(error));
       await loadGame();
-    } finally { setUpdating(false); }
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const toggleSelectedMember = (playerId: string) => {
     setSelectedMemberIds((current) =>
       current.includes(playerId)
         ? current.filter((id) => id !== playerId)
-        : [...current, playerId]
+        : [...current, playerId],
     );
   };
 
@@ -304,7 +335,7 @@ export default function GameDayPage() {
     const existingPlayerIds = new Set(
       participants
         .map((item) => item.player_profiles?.id)
-        .filter((id): id is string => Boolean(id))
+        .filter((id): id is string => Boolean(id)),
     );
 
     const rows = selectedMemberIds
@@ -324,12 +355,10 @@ export default function GameDayPage() {
 
     setInvitingSelected(true);
 
-    const { error } = await supabase
-      .from("game_participants")
-      .insert(rows);
+    const { error } = await supabase.from("game_participants").insert(rows);
 
     if (error) {
-      alert(error.message);
+      alert(uiError(error.message));
       setInvitingSelected(false);
       return;
     }
@@ -340,7 +369,10 @@ export default function GameDayPage() {
     setInvitingSelected(false);
   };
 
-  const updateParticipantAttendance = async (participant: Participant, status: "INVITED" | "GOING" | "MAYBE" | "DECLINED") => {
+  const updateParticipantAttendance = async (
+    participant: Participant,
+    status: "INVITED" | "GOING" | "MAYBE" | "DECLINED",
+  ) => {
     const playerId = participant.player_profiles?.id;
     if (!playerId) return;
     setUpdatingParticipantId(participant.id);
@@ -348,7 +380,9 @@ export default function GameDayPage() {
       const { error } = await setAttendance(gameId, playerId, status);
       if (error) alert(preMatchError(error));
       await loadGame();
-    } finally { setUpdatingParticipantId(null); }
+    } finally {
+      setUpdatingParticipantId(null);
+    }
   };
 
   const createGuestInvite = async () => {
@@ -372,7 +406,9 @@ export default function GameDayPage() {
       .single();
 
     if (error || !data) {
-      alert(error?.message || "Could not create invite");
+      alert(
+        error?.message ? uiError(error.message) : tx("Could not create invite"),
+      );
       setCreatingGuestInvite(false);
       return;
     }
@@ -381,20 +417,19 @@ export default function GameDayPage() {
 
     try {
       await navigator.clipboard.writeText(inviteUrl);
-      alert(`Guest invite copied:\n\n${inviteUrl}`);
+      alert(tx("Гостевое приглашение скопировано:") + "\n\n" + inviteUrl);
     } catch {
-      alert(`Guest invite:\n\n${inviteUrl}`);
+      alert(tx("Гостевое приглашение:") + "\n\n" + inviteUrl);
     }
 
     setCreatingGuestInvite(false);
   };
 
-  const addGuestToCommunity = async (
-    playerId: string,
-    playerName: string
-  ) => {
+  const addGuestToCommunity = async (playerId: string, playerName: string) => {
     const confirmed = window.confirm(
-      `Add ${playerName} to this Community as a permanent member?`
+      tx("Добавить {name} в сообщество как постоянного участника?", {
+        name: playerName,
+      }),
     );
 
     if (!confirmed) return;
@@ -407,7 +442,7 @@ export default function GameDayPage() {
     });
 
     if (error) {
-      alert(error.message);
+      alert(uiError(error.message));
       setAddingToCommunity(null);
       return;
     }
@@ -416,16 +451,24 @@ export default function GameDayPage() {
 
     setAddingToCommunity(null);
 
-    alert(`${playerName} is now a Community member ⚡`);
+    alert(tx("{name} теперь участник сообщества", { name: playerName }));
   };
 
   // ------------------------------------------------
   // TEAMS
   // ------------------------------------------------
 
-  const runTeamAction = async (action: TeamAction, payload: Record<string, unknown> = {}) => {
+  const runTeamAction = async (
+    action: TeamAction,
+    payload: Record<string, unknown> = {},
+  ) => {
     if (!game) return null;
-    const { data, error } = await teamAction(gameId, game.roster_version, action, payload);
+    const { data, error } = await teamAction(
+      gameId,
+      game.roster_version,
+      action,
+      payload,
+    );
     if (error) alert(preMatchError(error));
     await loadGame();
     return error ? null : data;
@@ -433,68 +476,118 @@ export default function GameDayPage() {
 
   const buildTeams = async () => {
     setBuildingTeams(true);
-    try { await runTeamAction("BUILD"); } finally { setBuildingTeams(false); }
+    try {
+      await runTeamAction("BUILD");
+    } finally {
+      setBuildingTeams(false);
+    }
   };
 
   const updateTeamMode = async (teamId: string, mode: TeamMode) => {
     setUpdatingTeamId(teamId);
-    try { await runTeamAction("UPDATE_TEAM", { team_id: teamId, team_mode: mode }); }
-    finally { setUpdatingTeamId(null); }
+    try {
+      await runTeamAction("UPDATE_TEAM", { team_id: teamId, team_mode: mode });
+    } finally {
+      setUpdatingTeamId(null);
+    }
   };
 
   const updateTeamName = async (teamId: string, name: string) => {
-    if (!name.trim()) { alert("Team name cannot be empty."); return; }
+    if (!name.trim()) {
+      alert(tx("Team name cannot be empty."));
+      return;
+    }
     setUpdatingTeamId(teamId);
-    try { await runTeamAction("UPDATE_TEAM", { team_id: teamId, name: name.trim() }); }
-    finally { setUpdatingTeamId(null); }
+    try {
+      await runTeamAction("UPDATE_TEAM", {
+        team_id: teamId,
+        name: name.trim(),
+      });
+    } finally {
+      setUpdatingTeamId(null);
+    }
   };
 
   const updateTeamColor = async (teamId: string, color: TeamColor) => {
     setUpdatingTeamId(teamId);
-    try { await runTeamAction("UPDATE_TEAM", { team_id: teamId, color_key: color }); }
-    finally { setUpdatingTeamId(null); }
+    try {
+      await runTeamAction("UPDATE_TEAM", { team_id: teamId, color_key: color });
+    } finally {
+      setUpdatingTeamId(null);
+    }
   };
 
   const resetTeams = async () => {
-    if (!teams.some(team => team.game_day_team_players.length)) return;
-    if (!window.confirm("Reset today's assignments? Attendance, team names, colors and modes will stay unchanged.")) return;
+    if (!teams.some((team) => team.game_day_team_players.length)) return;
+    if (
+      !window.confirm(
+        tx(
+          "Reset today's assignments? Attendance, team names, colors and modes will stay unchanged.",
+        ),
+      )
+    )
+      return;
     setResettingTeams(true);
-    try { await runTeamAction("RESET"); } finally { setResettingTeams(false); }
+    try {
+      await runTeamAction("RESET");
+    } finally {
+      setResettingTeams(false);
+    }
   };
 
   const toggleTeamExpanded = (teamId: string) => {
     setExpandedTeamIds((current) =>
       current.includes(teamId)
         ? current.filter((id) => id !== teamId)
-        : [...current, teamId]
+        : [...current, teamId],
     );
   };
 
-  const assignPlayerToTeam = async (playerId: string, teamId: string | null) => {
+  const assignPlayerToTeam = async (
+    playerId: string,
+    teamId: string | null,
+  ) => {
     setAssigningPlayerId(playerId);
-    try { await runTeamAction("ASSIGN", { player_id: playerId, team_id: teamId }); }
-    finally { setAssigningPlayerId(null); }
+    try {
+      await runTeamAction("ASSIGN", { player_id: playerId, team_id: teamId });
+    } finally {
+      setAssigningPlayerId(null);
+    }
   };
 
   const toggleCorePlayer = async (player: TeamPlayer) => {
     setAssigningPlayerId(player.player_id);
-    try { await runTeamAction("CORE", { assignment_id: player.id, is_core: !player.is_core }); }
-    finally { setAssigningPlayerId(null); }
+    try {
+      await runTeamAction("CORE", {
+        assignment_id: player.id,
+        is_core: !player.is_core,
+      });
+    } finally {
+      setAssigningPlayerId(null);
+    }
   };
 
   const randomizeTeams = async () => {
     setRandomizing(true);
     try {
       const result = await runTeamAction("RANDOMIZE");
-      if (result && result.unassigned > 0) alert(`${result.unassigned} players remain in the Pool because protected teams prevent an even distribution. Adjust the protected squads or use Core + Fill.`);
-    } finally { setRandomizing(false); }
+      if (result && result.unassigned > 0)
+        alert(
+          tx(
+            "В пуле осталось {count} игроков. Защищённые составы мешают равномерному распределению. Измени их или используй добор к основе.",
+            { count: result.unassigned },
+          ),
+        );
+    } finally {
+      setRandomizing(false);
+    }
   };
 
   if (loading) {
     return (
       <main className="min-h-screen bg-[#02030a] text-white flex items-center justify-center">
         <p className="text-violet-400 animate-pulse">
-          Loading Game Day...
+          {tx("Loading Game Day...")}
         </p>
       </main>
     );
@@ -503,74 +596,68 @@ export default function GameDayPage() {
   if (!game) {
     return (
       <main className="min-h-screen bg-[#02030a] text-white flex items-center justify-center">
-        Game Day not found
+        {tx("Game Day not found")}
       </main>
     );
   }
 
   const goingPlayers = participants.filter(
-    (p) => p.attendance_status === "GOING"
+    (p) => p.attendance_status === "GOING",
   );
 
   const maybePlayers = participants.filter(
-    (p) => p.attendance_status === "MAYBE"
+    (p) => p.attendance_status === "MAYBE",
   );
 
   const invitedPlayers = participants.filter(
-    (p) => p.attendance_status === "INVITED"
+    (p) => p.attendance_status === "INVITED",
   );
 
   const declinedPlayers = participants.filter(
-    (p) => p.attendance_status === "DECLINED"
+    (p) => p.attendance_status === "DECLINED",
   );
 
   const capacity = game.capacity ?? 0;
   const remaining = Math.max(capacity - goingPlayers.length, 0);
 
   const filledPercent =
-    capacity > 0
-      ? Math.min((goingPlayers.length / capacity) * 100, 100)
-      : 0;
+    capacity > 0 ? Math.min((goingPlayers.length / capacity) * 100, 100) : 0;
 
-  const canManage =
-    myRole === "OWNER" || myRole === "MANAGER";
+  const canManage = myRole === "OWNER" || myRole === "MANAGER";
 
   const communityPlayerIds = new Set(
     communityMembers
       .map((member) => member.player_profiles?.id)
-      .filter((id): id is string => Boolean(id))
+      .filter((id): id is string => Boolean(id)),
   );
 
   const assignedPlayerIds = new Set(
     teams.flatMap((team) =>
-      (team.game_day_team_players || []).map(
-        (item) => item.player_id
-      )
-    )
+      (team.game_day_team_players || []).map((item) => item.player_id),
+    ),
   );
 
   const unassignedGoingPlayers = goingPlayers.filter(
     (participant) =>
       participant.player_profiles &&
-      !assignedPlayerIds.has(participant.player_profiles.id)
+      !assignedPlayerIds.has(participant.player_profiles.id),
   );
 
   const getPlayerStatus = (playerId: string) => {
-    return participants.find(
-      (item) => item.player_profiles?.id === playerId
-    )?.attendance_status;
+    return participants.find((item) => item.player_profiles?.id === playerId)
+      ?.attendance_status;
   };
 
   const participantPlayerIds = new Set(
     participants
       .map((item) => item.player_profiles?.id)
-      .filter((id): id is string => Boolean(id))
+      .filter((id): id is string => Boolean(id)),
   );
 
   const availableCommunityMembers = communityMembers.filter(
     (member) =>
       member.player_profiles &&
-      !participantPlayerIds.has(member.player_profiles.id)
+      !participantPlayerIds.has(member.player_profiles.id),
   );
 
   const availableCommunityPlayerIds = availableCommunityMembers
@@ -579,9 +666,7 @@ export default function GameDayPage() {
 
   const allAvailableSelected =
     availableCommunityPlayerIds.length > 0 &&
-    availableCommunityPlayerIds.every((id) =>
-      selectedMemberIds.includes(id)
-    );
+    availableCommunityPlayerIds.every((id) => selectedMemberIds.includes(id));
 
   const assignedCount = assignedPlayerIds.size;
   const poolCount = unassignedGoingPlayers.length;
@@ -617,7 +702,6 @@ export default function GameDayPage() {
   return (
     <main className="min-h-screen bg-[#02030a] text-white pb-24">
       <div className="max-w-md mx-auto px-4 pt-6">
-
         <div className="flex items-center justify-between mb-5">
           <button
             onClick={() => router.back()}
@@ -627,7 +711,7 @@ export default function GameDayPage() {
             ←
           </button>
 
-          <p className="font-bold">Game Day</p>
+          <p className="font-bold">{tx("Game Day")}</p>
 
           <div className="w-10" />
         </div>
@@ -644,7 +728,6 @@ export default function GameDayPage() {
           <div className="absolute -right-12 -top-16 w-52 h-52 rounded-full bg-violet-600/25 blur-3xl" />
 
           <div className="relative flex gap-4">
-
             <div
               className="w-[72px] h-[92px] rounded-2xl
               border border-violet-500/60 bg-[#11152d]/80
@@ -665,47 +748,57 @@ export default function GameDayPage() {
 
             <div>
               <p className="text-violet-400 text-xs uppercase font-bold">
-                Upcoming Game
+                {tx("Upcoming Game")}
               </p>
 
-              <h1 className="text-2xl font-black mt-1">
-                {game.title}
-              </h1>
+              <h1 className="text-2xl font-black mt-1">{game.title}</h1>
 
               <p className="text-gray-300 mt-3">
-                {game.start_time?.slice(0, 5) || "Time TBD"}
+                {game.start_time?.slice(0, 5) || tx("Time TBD")}
               </p>
 
               {game.venue && (
-                <p className="text-gray-500 text-sm mt-1">
-                  ◉ {game.venue}
-                </p>
+                <p className="text-gray-500 text-sm mt-1">◉ {game.venue}</p>
               )}
             </div>
-
           </div>
 
           <div className="flex gap-2 mt-5">
-            <BluePill>{game.format}v{game.format}</BluePill>
-            <BluePill>{game.team_count} teams</BluePill>
-            <BluePill>{goingPlayers.length}/{capacity}</BluePill>
+            <BluePill>
+              {game.format}×{game.format}
+            </BluePill>
+            <BluePill>
+              {game.team_count} {tx("команды")}
+            </BluePill>
+            <BluePill>
+              {goingPlayers.length}/{capacity}
+            </BluePill>
           </div>
         </section>
 
-        <Link href={`/games/${gameId}/play`} className="block mb-6 rounded-2xl border border-violet-500 bg-violet-600 py-4 px-5 font-black text-center">Игровой центр: правила, очередь и матчи →</Link>
+        <Link
+          href={`/games/${gameId}/play`}
+          className="block mb-6 rounded-2xl border border-violet-500 bg-violet-600 py-4 px-5 font-black text-center"
+        >
+          {tx("Игровой центр: правила, очередь и матчи →")}
+        </Link>
         {/* STATUS */}
 
         <section className="mb-7">
           <h2 className="text-xl font-black mb-3">
-            Will you attend? {myStatus === "WAITING" && <span className="text-sm text-amber-300">· Вы в очереди ожидания</span>}
+            {tx("Will you attend?")}
+            {myStatus === "WAITING" && (
+              <span className="text-sm text-amber-300">
+                {tx("· Вы в очереди ожидания")}
+              </span>
+            )}
           </h2>
 
           <div className="grid grid-cols-3 gap-3">
-
             <StatusButton
               active={myStatus === "GOING"}
               icon="✓"
-              title="Going"
+              title={tx("Going")}
               type="green"
               disabled={updating}
               onClick={() => updateAttendance("GOING")}
@@ -714,7 +807,7 @@ export default function GameDayPage() {
             <StatusButton
               active={myStatus === "MAYBE"}
               icon="?"
-              title="Maybe"
+              title={tx("Maybe")}
               type="purple"
               disabled={updating}
               onClick={() => updateAttendance("MAYBE")}
@@ -723,24 +816,23 @@ export default function GameDayPage() {
             <StatusButton
               active={myStatus === "DECLINED"}
               icon="×"
-              title="Out"
+              title={tx("Out")}
               type="red"
               disabled={updating}
               onClick={() => updateAttendance("DECLINED")}
             />
-
           </div>
         </section>
 
         {/* CAPACITY */}
 
         <section className="rounded-[22px] border border-white/5 bg-[#080b14] p-5 mb-7">
-
           <div className="flex justify-between">
             <div>
-              <p className="font-bold">Player slots</p>
+              <p className="font-bold">{tx("Player slots")}</p>
               <p className="text-xs text-gray-500 mt-1">
-                {remaining} spots remaining
+                {remaining}
+                {tx("spots remaining")}
               </p>
             </div>
 
@@ -762,9 +854,9 @@ export default function GameDayPage() {
         <section className="mb-8">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div>
-              <h2 className="text-xl font-black">Teams</h2>
+              <h2 className="text-xl font-black">{tx("Teams")}</h2>
               <p className="text-xs text-gray-500 mt-1">
-                Build, protect and randomize your squads
+                {tx("Build, protect and randomize your squads")}
               </p>
             </div>
 
@@ -778,7 +870,7 @@ export default function GameDayPage() {
                   px-3 py-2 rounded-xl cursor-pointer
                   disabled:opacity-35 disabled:cursor-not-allowed"
                 >
-                  {resettingTeams ? "Resetting..." : "Reset"}
+                  {resettingTeams ? tx("Resetting...") : tx("Reset")}
                 </button>
 
                 <button
@@ -789,7 +881,7 @@ export default function GameDayPage() {
                   px-3 py-2 rounded-xl cursor-pointer
                   shadow-[0_0_16px_rgba(124,58,237,0.2)]"
                 >
-                  {randomizing ? "Generating..." : "⚡ Randomize"}
+                  {randomizing ? tx("Generating...") : tx("⚡ Randomize")}
                 </button>
               </div>
             )}
@@ -797,17 +889,31 @@ export default function GameDayPage() {
 
           {teams.length > 0 && (
             <div className="grid grid-cols-3 gap-2 mb-4">
-              <TeamStat label="Going" value={goingPlayers.length} />
-              <TeamStat label="Assigned" value={assignedCount} />
-              <TeamStat label="Pool" value={poolCount} />
+              <TeamStat label={tx("Going")} value={goingPlayers.length} />
+              <TeamStat label={tx("Assigned")} value={assignedCount} />
+              <TeamStat label={tx("Pool")} value={poolCount} />
             </div>
           )}
 
           {teamsError ? (
-            <div role="alert" className="rounded-2xl border border-red-500/40 bg-red-950/20 p-4">
-              <p className="font-bold text-red-300">Could not load teams</p>
-              <p className="text-sm text-gray-300 mt-2 break-words">{teamsError}</p>
-              <button onClick={() => { void loadGame(); }} className="mt-3 rounded-xl border border-white/20 px-4 py-2 cursor-pointer">Retry loading</button>
+            <div
+              role="alert"
+              className="rounded-2xl border border-red-500/40 bg-red-950/20 p-4"
+            >
+              <p className="font-bold text-red-300">
+                {tx("Could not load teams")}
+              </p>
+              <p className="text-sm text-gray-300 mt-2 break-words">
+                {uiError(teamsError)}
+              </p>
+              <button
+                onClick={() => {
+                  void loadGame();
+                }}
+                className="mt-3 rounded-xl border border-white/20 px-4 py-2 cursor-pointer"
+              >
+                {tx("Retry loading")}
+              </button>
             </div>
           ) : teams.length === 0 ? (
             <div
@@ -816,10 +922,12 @@ export default function GameDayPage() {
               bg-gradient-to-br from-[#120b25] to-[#070910]
               p-5"
             >
-              <p className="font-bold">Teams haven&apos;t been created yet.</p>
+              <p className="font-bold">
+                {tx("Teams haven't been created yet.")}
+              </p>
 
               <p className="text-sm text-gray-500 mt-1">
-                {game.team_count} teams · {game.format}v{game.format}
+                {game.team_count} {tx("teams ·")} {game.format}×{game.format}
               </p>
 
               {canManage && (
@@ -831,7 +939,7 @@ export default function GameDayPage() {
                   font-black cursor-pointer
                   shadow-[0_0_24px_rgba(124,58,237,0.3)]"
                 >
-                  {buildingTeams ? "Building..." : "Build Teams"}
+                  {buildingTeams ? tx("Building...") : tx("Build Teams")}
                 </button>
               )}
             </div>
@@ -855,9 +963,7 @@ export default function GameDayPage() {
                   onNameChange={updateTeamName}
                   onColorChange={updateTeamColor}
                   onToggleCore={toggleCorePlayer}
-                  onUnassign={(playerId) =>
-                    assignPlayerToTeam(playerId, null)
-                  }
+                  onUnassign={(playerId) => assignPlayerToTeam(playerId, null)}
                 />
               ))}
             </div>
@@ -866,98 +972,81 @@ export default function GameDayPage() {
 
         {/* UNASSIGNED */}
 
-        {teams.length > 0 &&
-          unassignedGoingPlayers.length > 0 &&
-          canManage && (
-            <section className="mb-8">
+        {teams.length > 0 && unassignedGoingPlayers.length > 0 && canManage && (
+          <section className="mb-8">
+            <h2 className="text-xl font-black mb-1">{tx("Player Pool")}</h2>
 
-              <h2 className="text-xl font-black mb-1">
-                Player Pool
-              </h2>
+            <p className="text-xs text-gray-500 mb-3">
+              {tx("These players are available for team assignment.")}
+            </p>
 
-              <p className="text-xs text-gray-500 mb-3">
-                These players are available for team assignment.
-              </p>
+            <div className="space-y-2">
+              {unassignedGoingPlayers.map((participant) => {
+                const player = participant.player_profiles;
 
-              <div className="space-y-2">
+                if (!player) return null;
 
-                {unassignedGoingPlayers.map((participant) => {
-                  const player = participant.player_profiles;
-
-                  if (!player) return null;
-
-                  return (
-                    <div
-                      key={participant.id}
-                      className="rounded-2xl border border-white/5
+                return (
+                  <div
+                    key={participant.id}
+                    className="rounded-2xl border border-white/5
                       bg-[#090c14] p-3"
-                    >
-                      <div className="flex items-center gap-3">
+                  >
+                    <div className="flex items-center gap-3">
+                      <PlayerAvatar player={player} />
 
-                        <PlayerAvatar player={player} />
+                      <div className="flex-1">
+                        <p className="font-bold">{getPlayerName(player)}</p>
 
-                        <div className="flex-1">
-                          <p className="font-bold">
-                            {getPlayerName(player)}
-                          </p>
-
-                          <p className="text-xs text-gray-500">
-                            {player.primary_position}
-                            {player.baller_id &&
-                              ` · Baller #${player.baller_id}`}
-                          </p>
-                        </div>
-
+                        <p className="text-xs text-gray-500">
+                          {positionLabel(player.primary_position)}
+                          {player.baller_id && ` · Baller #${player.baller_id}`}
+                        </p>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-3 gap-2 mt-3">
+                    <div className="grid grid-cols-3 gap-2 mt-3">
+                      {teams.map((team) => {
+                        const teamIsFull =
+                          maxTeamRosterSize > 0 &&
+                          (team.game_day_team_players || []).length >=
+                            maxTeamRosterSize;
 
-                        {teams.map((team) => {
-                          const teamIsFull =
-                            maxTeamRosterSize > 0 &&
-                            (team.game_day_team_players || []).length >=
-                              maxTeamRosterSize;
-
-                          return (
-                            <button
-                              key={team.id}
-                              disabled={
-                                assigningPlayerId === player.id || teamIsFull
-                              }
-                              onClick={() =>
-                                assignPlayerToTeam(player.id, team.id)
-                              }
-                              className={`py-2 rounded-xl text-xs font-bold
+                        return (
+                          <button
+                            key={team.id}
+                            disabled={
+                              assigningPlayerId === player.id || teamIsFull
+                            }
+                            onClick={() =>
+                              assignPlayerToTeam(player.id, team.id)
+                            }
+                            className={`py-2 rounded-xl text-xs font-bold
                               border cursor-pointer disabled:opacity-35
                               disabled:cursor-not-allowed
                               ${getTeamButtonClass(team.color_key)}`}
-                            >
-                              {teamIsFull ? `${team.name} · Full` : team.name}
-                            </button>
-                          );
-                        })}
-
-                      </div>
-
+                          >
+                            {teamIsFull
+                              ? `${team.name} · ${tx("Заполнена")}`
+                              : team.name}
+                          </button>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-
-              </div>
-            </section>
-          )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* INVITES */}
 
         {canManage && (
           <section className="mb-7">
-
-            <h2 className="text-xl font-black mb-3">
-              Invite Players
-            </h2>
+            <h2 className="text-xl font-black mb-3">{tx("Invite Players")}</h2>
 
             <div className="grid grid-cols-2 gap-3">
-
               <button
                 onClick={() => {
                   setSelectedMemberIds([]);
@@ -967,9 +1056,9 @@ export default function GameDayPage() {
                 border border-violet-800/50
                 bg-[#110a22] p-4 text-left cursor-pointer"
               >
-                <p className="font-bold">Invite Members</p>
+                <p className="font-bold">{tx("Invite Members")}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  From Community
+                  {tx("From Community")}
                 </p>
               </button>
 
@@ -980,12 +1069,9 @@ export default function GameDayPage() {
                 border border-blue-800/50
                 bg-[#07152b] p-4 text-left cursor-pointer"
               >
-                <p className="font-bold">Invite Guest</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Share link
-                </p>
+                <p className="font-bold">{tx("Invite Guest")}</p>
+                <p className="text-xs text-gray-500 mt-1">{tx("Share link")}</p>
               </button>
-
             </div>
           </section>
         )}
@@ -995,9 +1081,10 @@ export default function GameDayPage() {
         <section className="mb-7 rounded-[24px] border border-white/5 bg-[#080b14] p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-black">Players</h2>
+              <h2 className="text-xl font-black">{tx("Players")}</h2>
               <p className="text-xs text-gray-500 mt-1">
-                {participants.length} in this Game Day
+                {participants.length}
+                {tx("in this Game Day")}
               </p>
             </div>
 
@@ -1006,19 +1093,35 @@ export default function GameDayPage() {
               className="px-3 py-2 rounded-xl border border-violet-500/40
               bg-violet-500/10 text-violet-200 text-xs font-black cursor-pointer"
             >
-              {canManage ? "Manage →" : "View all →"}
+              {canManage ? tx("Manage →") : tx("View all →")}
             </button>
           </div>
 
           <div className="grid grid-cols-4 gap-2 mt-4">
-            <PlayerStatusStat label="Going" value={goingPlayers.length} tone="green" />
-            <PlayerStatusStat label="Maybe" value={maybePlayers.length} tone="purple" />
-            <PlayerStatusStat label="Invited" value={invitedPlayers.length} tone="blue" />
-            <PlayerStatusStat label="Out" value={declinedPlayers.length} tone="dark" />
+            <PlayerStatusStat
+              label={tx("Going")}
+              value={goingPlayers.length}
+              tone="green"
+            />
+            <PlayerStatusStat
+              label={tx("Maybe")}
+              value={maybePlayers.length}
+              tone="purple"
+            />
+            <PlayerStatusStat
+              label={tx("Invited")}
+              value={invitedPlayers.length}
+              tone="blue"
+            />
+            <PlayerStatusStat
+              label={tx("Out")}
+              value={declinedPlayers.length}
+              tone="dark"
+            />
           </div>
 
           {participants.length > 0 && (
-            <div className="flex items-center mt-4">
+            <div className="participant-preview flex flex-wrap items-center gap-y-2 mt-4">
               <div className="flex -space-x-2">
                 {sortedParticipants.slice(0, 6).map((participant) => {
                   const player = participant.player_profiles;
@@ -1038,13 +1141,12 @@ export default function GameDayPage() {
 
               {participants.length > 6 && (
                 <span className="ml-3 text-xs text-gray-500">
-                  +{participants.length - 6} more
+                  +{participants.length - 6} {tx("ещё")}
                 </span>
               )}
             </div>
           )}
         </section>
-
       </div>
 
       {/* INVITE MODAL */}
@@ -1056,10 +1158,10 @@ export default function GameDayPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-black">
-                    Invite Members
+                    {tx("Invite Members")}
                   </h2>
                   <p className="text-xs text-gray-500 mt-1">
-                    Select Community members for this Game Day
+                    {tx("Select Community members for this Game Day")}
                   </p>
                 </div>
 
@@ -1081,20 +1183,18 @@ export default function GameDayPage() {
                   <button
                     onClick={() =>
                       setSelectedMemberIds(
-                        allAvailableSelected
-                          ? []
-                          : availableCommunityPlayerIds
+                        allAvailableSelected ? [] : availableCommunityPlayerIds,
                       )
                     }
                     className="rounded-xl border border-violet-400/50 bg-violet-700 px-4 py-3 text-sm font-bold text-white cursor-pointer"
                   >
                     {allAvailableSelected
-                      ? "Clear selection"
-                      : "Select all / Выбрать всех"}
+                      ? tx("Clear selection")
+                      : tx("Select all / Выбрать всех")}
                   </button>
 
                   <span className="text-xs text-gray-500">
-                    {selectedMemberIds.length} selected
+                    {selectedMemberIds.length} {tx("выбрано")}
                   </span>
                 </div>
               )}
@@ -1104,7 +1204,7 @@ export default function GameDayPage() {
               {communityMembers.length === 0 ? (
                 <div className="py-8 text-center">
                   <p className="text-gray-400 font-bold">
-                    No Community members yet
+                    {tx("No Community members yet")}
                   </p>
                 </div>
               ) : (
@@ -1151,7 +1251,7 @@ export default function GameDayPage() {
                           </p>
 
                           <p className="text-xs text-gray-500">
-                            {player.primary_position}
+                            {positionLabel(player.primary_position)}
                             {player.baller_id &&
                               ` · Baller #${player.baller_id}`}
                           </p>
@@ -1181,15 +1281,12 @@ export default function GameDayPage() {
             <div className="p-5 border-t border-white/5 bg-[#070910]">
               {availableCommunityPlayerIds.length === 0 ? (
                 <div className="w-full py-3.5 rounded-xl border border-white/5 bg-white/5 text-center text-sm text-gray-500">
-                  Everyone is already in this Game Day
+                  {tx("Everyone is already in this Game Day")}
                 </div>
               ) : (
                 <button
                   onClick={inviteSelectedMembers}
-                  disabled={
-                    selectedMemberIds.length === 0 ||
-                    invitingSelected
-                  }
+                  disabled={selectedMemberIds.length === 0 || invitingSelected}
                   className="w-full py-3.5 rounded-xl
                   bg-gradient-to-r from-violet-600 to-purple-600
                   disabled:opacity-40 disabled:cursor-not-allowed
@@ -1197,10 +1294,10 @@ export default function GameDayPage() {
                   shadow-[0_0_24px_rgba(124,58,237,0.25)]"
                 >
                   {invitingSelected
-                    ? "Inviting..."
+                    ? tx("Inviting...")
                     : selectedMemberIds.length > 0
-                      ? `Invite ${selectedMemberIds.length} selected`
-                      : "Select players"}
+                      ? `${tx("Пригласить выбранных")} · ${selectedMemberIds.length}`
+                      : tx("Select players")}
                 </button>
               )}
             </div>
@@ -1216,9 +1313,9 @@ export default function GameDayPage() {
             <div className="p-5 border-b border-white/5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-black">Players</h2>
+                  <h2 className="text-2xl font-black">{tx("Players")}</h2>
                   <p className="text-xs text-gray-500 mt-1">
-                    Attendance and team assignment
+                    {tx("Attendance and team assignment")}
                   </p>
                 </div>
 
@@ -1231,10 +1328,26 @@ export default function GameDayPage() {
               </div>
 
               <div className="grid grid-cols-4 gap-2 mt-5">
-                <PlayerStatusStat label="Going" value={goingPlayers.length} tone="green" />
-                <PlayerStatusStat label="Maybe" value={maybePlayers.length} tone="purple" />
-                <PlayerStatusStat label="Invited" value={invitedPlayers.length} tone="blue" />
-                <PlayerStatusStat label="Out" value={declinedPlayers.length} tone="dark" />
+                <PlayerStatusStat
+                  label={tx("Going")}
+                  value={goingPlayers.length}
+                  tone="green"
+                />
+                <PlayerStatusStat
+                  label={tx("Maybe")}
+                  value={maybePlayers.length}
+                  tone="purple"
+                />
+                <PlayerStatusStat
+                  label={tx("Invited")}
+                  value={invitedPlayers.length}
+                  tone="blue"
+                />
+                <PlayerStatusStat
+                  label={tx("Out")}
+                  value={declinedPlayers.length}
+                  tone="dark"
+                />
               </div>
             </div>
 
@@ -1260,17 +1373,19 @@ export default function GameDayPage() {
                         <PlayerAvatar player={player} />
 
                         <div className="min-w-0">
-                          <p className="font-bold truncate">{getPlayerName(player)}</p>
+                          <p className="font-bold truncate">
+                            {getPlayerName(player)}
+                          </p>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-[10px] text-gray-500">
-                              {player.primary_position}
+                              {positionLabel(player.primary_position)}
                             </span>
 
                             {assignedTeam && (
                               <span className="inline-flex items-center gap-1 text-[10px] text-gray-300">
                                 <span
                                   className={`w-2 h-2 rounded-full ${getTeamDotClass(
-                                    assignedTeam.color_key
+                                    assignedTeam.color_key,
                                   )}`}
                                 />
                                 {assignedTeam.name}
@@ -1288,20 +1403,17 @@ export default function GameDayPage() {
                             updateParticipantAttendance(
                               participant,
                               event.target.value as
-                                | "INVITED"
-                                | "GOING"
-                                | "MAYBE"
-                                | "DECLINED"
+                                "INVITED" | "GOING" | "MAYBE" | "DECLINED",
                             )
                           }
                           className="max-w-[108px] bg-[#10131d]
                           border border-white/10 rounded-xl px-2 py-2
                           text-[10px] font-bold text-white outline-none"
                         >
-                          <option value="INVITED">Invited</option>
-                          <option value="GOING">Going</option>
-                          <option value="MAYBE">Maybe</option>
-                          <option value="DECLINED">Out</option>
+                          <option value="INVITED">{tx("Invited")}</option>
+                          <option value="GOING">{tx("Going")}</option>
+                          <option value="MAYBE">{tx("Maybe")}</option>
+                          <option value="DECLINED">{tx("Out")}</option>
                         </select>
                       ) : (
                         <StatusPill
@@ -1321,7 +1433,7 @@ export default function GameDayPage() {
                         border border-emerald-500/40 bg-emerald-500/10
                         text-emerald-300 text-sm font-bold cursor-pointer"
                       >
-                        + Add to Community
+                        {tx("+ Add to Community")}
                       </button>
                     )}
                   </div>
@@ -1331,7 +1443,6 @@ export default function GameDayPage() {
           </div>
         </div>
       )}
-
     </main>
   );
 }
@@ -1371,15 +1482,17 @@ function TeamCard({
   onToggleCore: (player: TeamPlayer) => void;
   onUnassign: (playerId: string) => void;
 }) {
+  useLocale();
+
   const players = team.game_day_team_players || [];
   const substitutes = Math.max(players.length - format, 0);
   const missingForField = Math.max(format - players.length, 0);
   const rosterSummary =
     players.length < format
-      ? `${players.length}/${maxRosterSize || "–"} roster · need ${missingForField} for ${format}v${format}`
+      ? `${tx("Состав")}: ${players.length}/${maxRosterSize || "–"} · ${tx("Нужно игроков")}: ${missingForField} (${format}×${format})`
       : substitutes > 0
-        ? `${players.length}/${maxRosterSize || "–"} roster · ${format} on field + ${substitutes} sub${substitutes === 1 ? "" : "s"}`
-        : `${players.length}/${maxRosterSize || "–"} roster · ${format} on field`;
+        ? `${tx("Состав")}: ${players.length}/${maxRosterSize || "–"} · ${tx("На поле")}: ${format} · ${tx("Запас")}: ${substitutes}`
+        : `${tx("Состав")}: ${players.length}/${maxRosterSize || "–"} · ${tx("На поле")}: ${format}`;
   const [nameDraft, setNameDraft] = useState(team.name);
 
   const [previousName, setPreviousName] = useState(team.name);
@@ -1397,7 +1510,7 @@ function TeamCard({
   return (
     <div
       className={`rounded-[24px] border overflow-hidden ${getTeamCardClass(
-        team.color_key
+        team.color_key,
       )}`}
     >
       <div className="p-4 flex items-center gap-3">
@@ -1407,7 +1520,7 @@ function TeamCard({
         >
           <div
             className={`w-3 h-3 rounded-full shrink-0 ${getTeamDotClass(
-              team.color_key
+              team.color_key,
             )}`}
           />
 
@@ -1431,10 +1544,22 @@ function TeamCard({
           onClick={onToggleExpanded}
           className="w-9 h-9 rounded-xl border border-white/10 bg-black/20
           flex items-center justify-center text-gray-300 cursor-pointer"
-          aria-label={expanded ? "Collapse team" : "Expand team"}
+          aria-label={expanded ? tx("Collapse team") : tx("Expand team")}
         >
-          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d={expanded ? "M4 10L8 6L12 10" : "M4 6L8 10L12 6"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <svg
+            aria-hidden="true"
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+          >
+            <path
+              d={expanded ? "M4 10L8 6L12 10" : "M4 6L8 10L12 6"}
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </button>
       </div>
@@ -1445,7 +1570,7 @@ function TeamCard({
             <div className="space-y-3 mb-4">
               <div>
                 <label className="text-[10px] uppercase tracking-wider text-gray-500">
-                  Team name
+                  {tx("Team name")}
                 </label>
                 <div className="flex gap-2 mt-1.5">
                   <input
@@ -1469,7 +1594,7 @@ function TeamCard({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-gray-500">
-                    Color
+                    {tx("Color")}
                   </label>
                   <select
                     value={team.color_key}
@@ -1486,8 +1611,8 @@ function TeamCard({
                         value={option.value}
                         disabled={usedColors.includes(option.value)}
                       >
-                        {option.label}
-                        {usedColors.includes(option.value) ? " · used" : ""}
+                        {tx(option.label)}
+                        {usedColors.includes(option.value) ? tx(" · used") : ""}
                       </option>
                     ))}
                   </select>
@@ -1495,7 +1620,7 @@ function TeamCard({
 
                 <div>
                   <label className="text-[10px] uppercase tracking-wider text-gray-500">
-                    Mode
+                    {tx("Mode")}
                   </label>
                   <select
                     value={team.team_mode}
@@ -1506,9 +1631,9 @@ function TeamCard({
                     className="w-full mt-1.5 bg-[#0b0e17] border border-white/10
                     rounded-xl px-3 py-2.5 text-xs font-bold text-white outline-none"
                   >
-                    <option value="RANDOM">Random</option>
-                    <option value="FIXED">Fixed</option>
-                    <option value="CORE_PLUS_FILL">Core + Fill</option>
+                    <option value="RANDOM">{tx("Random")}</option>
+                    <option value="FIXED">{tx("Fixed")}</option>
+                    <option value="CORE_PLUS_FILL">{tx("Core + Fill")}</option>
                   </select>
                 </div>
               </div>
@@ -1517,25 +1642,29 @@ function TeamCard({
 
           {team.team_mode === "FIXED" && (
             <p className="text-[11px] text-yellow-300/70 mb-3">
-              🔒 All players in this team are protected from Randomize.
+              {tx("🔒 All players in this team are protected from Randomize.")}
             </p>
           )}
 
           {team.team_mode === "CORE_PLUS_FILL" && (
             <p className="text-[11px] text-violet-300/70 mb-3">
-              ★ Core players stay. Remaining spots are filled from the pool.
+              {tx(
+                "★ Core players stay. Remaining spots are filled from the pool.",
+              )}
             </p>
           )}
 
           {team.team_mode === "RANDOM" && (
             <p className="text-[11px] text-blue-300/70 mb-3">
-              ⚡ All players can be regenerated from the pool.
+              {tx("⚡ All players can be regenerated from the pool.")}
             </p>
           )}
 
           {players.length === 0 ? (
             <div className="py-4 border border-dashed border-white/10 rounded-xl text-center">
-              <p className="text-sm text-gray-600">No players assigned</p>
+              <p className="text-sm text-gray-600">
+                {tx("No players assigned")}
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -1557,12 +1686,14 @@ function TeamCard({
                         </p>
 
                         {item.is_core && (
-                          <span className="text-[9px] text-yellow-300">★ CORE</span>
+                          <span className="text-[9px] text-yellow-300">
+                            {tx("★ CORE")}
+                          </span>
                         )}
                       </div>
 
                       <p className="text-[10px] text-gray-500">
-                        {player.primary_position}
+                        {positionLabel(player.primary_position)}
                       </p>
                     </div>
 
@@ -1575,7 +1706,7 @@ function TeamCard({
                             : "border-violet-500/30 bg-violet-500/10 text-violet-300"
                         }`}
                       >
-                        {item.is_core ? "Core ✓" : "Make Core"}
+                        {item.is_core ? tx("Core ✓") : tx("Make Core")}
                       </button>
                     )}
 
@@ -1626,60 +1757,48 @@ function PlayerListSection({
   updatingParticipantId: string | null;
   onAttendanceChange: (
     participant: Participant,
-    status: "INVITED" | "GOING" | "MAYBE" | "DECLINED"
+    status: "INVITED" | "GOING" | "MAYBE" | "DECLINED",
   ) => void;
 }) {
+  useLocale();
+
   if (!players.length) return null;
 
   return (
     <section className="mb-7">
-
       <div className="flex justify-between mb-3">
-        <h2 className="text-xl font-black">
-          {title}
-        </h2>
+        <h2 className="text-xl font-black">{title}</h2>
 
-        <span className="text-gray-500">
-          {players.length}
-        </span>
+        <span className="text-gray-500">{players.length}</span>
       </div>
 
       <div className="space-y-2">
-
         {players.map((participant) => {
           const player = participant.player_profiles;
 
           if (!player) return null;
 
-          const isGuest =
-            participant.participant_type === "GUEST";
+          const isGuest = participant.participant_type === "GUEST";
 
-          const alreadyMember =
-            communityPlayerIds.has(player.id);
+          const alreadyMember = communityPlayerIds.has(player.id);
 
           return (
             <div
               key={participant.id}
               className="rounded-2xl border border-white/5 bg-[#090c14] p-3"
             >
-
               <div className="flex items-center gap-3">
-
                 <button
-                  onClick={() =>
-                    router.push(`/players/${player.id}`)
-                  }
+                  onClick={() => router.push(`/players/${player.id}`)}
                   className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer"
                 >
                   <PlayerAvatar player={player} />
 
                   <div>
-                    <p className="font-bold">
-                      {getPlayerName(player)}
-                    </p>
+                    <p className="font-bold">{getPlayerName(player)}</p>
 
                     <p className="text-xs text-gray-500">
-                      {player.primary_position}
+                      {positionLabel(player.primary_position)}
                     </p>
                   </div>
                 </button>
@@ -1692,10 +1811,7 @@ function PlayerListSection({
                       onAttendanceChange(
                         participant,
                         event.target.value as
-                          | "INVITED"
-                          | "GOING"
-                          | "MAYBE"
-                          | "DECLINED"
+                          "INVITED" | "GOING" | "MAYBE" | "DECLINED",
                       )
                     }
                     onClick={(event) => event.stopPropagation()}
@@ -1703,10 +1819,10 @@ function PlayerListSection({
                     border border-white/10 rounded-xl px-2 py-2
                     text-[10px] font-bold text-white outline-none"
                   >
-                    <option value="INVITED">Invited</option>
-                    <option value="GOING">Going</option>
-                    <option value="MAYBE">Maybe</option>
-                    <option value="DECLINED">Out</option>
+                    <option value="INVITED">{tx("Invited")}</option>
+                    <option value="GOING">{tx("Going")}</option>
+                    <option value="MAYBE">{tx("Maybe")}</option>
+                    <option value="DECLINED">{tx("Out")}</option>
                   </select>
                 ) : (
                   <StatusPill
@@ -1714,39 +1830,34 @@ function PlayerListSection({
                     color={color}
                   />
                 )}
-
               </div>
 
-              {canManage &&
-                isGuest &&
-                !alreadyMember && (
-                  <button
-                    onClick={() =>
-                      onAddToCommunity(
-                        player.id,
-                        getPlayerName(player)
-                      )
-                    }
-                    disabled={addingToCommunity === player.id}
-                    className="w-full mt-3 py-2 rounded-xl
+              {canManage && isGuest && !alreadyMember && (
+                <button
+                  onClick={() =>
+                    onAddToCommunity(player.id, getPlayerName(player))
+                  }
+                  disabled={addingToCommunity === player.id}
+                  className="w-full mt-3 py-2 rounded-xl
                     border border-emerald-500/40
                     bg-emerald-500/10
                     text-emerald-300 text-sm font-bold cursor-pointer"
-                  >
-                    + Add to Community
-                  </button>
-                )}
-
+                >
+                  {tx("+ Add to Community")}
+                </button>
+              )}
             </div>
           );
         })}
-
       </div>
     </section>
   );
 }
 
-function PlayerAvatar({player}:{player:Player}) {return <Avatar src={player.avatar_url} name={getPlayerName(player)}/>;}
+function PlayerAvatar({ player }: { player: Player }) {
+  useLocale();
+  return <Avatar src={player.avatar_url} name={getPlayerName(player)} />;
+}
 
 function getPlayerName(player: Player) {
   return (
@@ -1759,13 +1870,9 @@ function getPlayerName(player: Player) {
 /* UI                                               */
 /* ------------------------------------------------ */
 
-function TeamStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: number;
-}) {
+function TeamStat({ label, value }: { label: string; value: number }) {
+  useLocale();
+
   return (
     <div className="rounded-xl border border-white/5 bg-[#0b0e17] px-3 py-2 text-center">
       <p className="text-lg font-black">{value}</p>
@@ -1783,6 +1890,8 @@ function PlayerStatusStat({
   value: number;
   tone: "green" | "purple" | "blue" | "dark";
 }) {
+  useLocale();
+
   const toneMap = {
     green: "border-emerald-500/20 bg-emerald-500/8 text-emerald-300",
     purple: "border-violet-500/20 bg-violet-500/8 text-violet-300",
@@ -1800,9 +1909,9 @@ function PlayerStatusStat({
 
 function getTeamModeLabel(mode: TeamMode) {
   const labels: Record<TeamMode, string> = {
-    RANDOM: "Random",
-    FIXED: "Fixed",
-    CORE_PLUS_FILL: "Core + Fill",
+    RANDOM: tx("Random"),
+    FIXED: tx("Fixed"),
+    CORE_PLUS_FILL: tx("Core + Fill"),
   };
 
   return labels[mode];
@@ -1815,22 +1924,16 @@ function getStatusTone(status: string): "green" | "purple" | "blue" | "dark" {
   return "dark";
 }
 
-function TeamModeBadge({
-  mode,
-}: {
-  mode: TeamMode;
-}) {
+function TeamModeBadge({ mode }: { mode: TeamMode }) {
+  useLocale();
+
   const labels = {
-    RANDOM: "Random",
-    FIXED: "Fixed",
-    CORE_PLUS_FILL: "Core + Fill",
+    RANDOM: tx("Random"),
+    FIXED: tx("Fixed"),
+    CORE_PLUS_FILL: tx("Core + Fill"),
   };
 
-  return (
-    <span className="text-[10px] text-violet-300">
-      {labels[mode]}
-    </span>
-  );
+  return <span className="text-[10px] text-violet-300">{labels[mode]}</span>;
 }
 
 function StatusButton({
@@ -1848,13 +1951,12 @@ function StatusButton({
   disabled: boolean;
   onClick: () => void;
 }) {
+  useLocale();
+
   const activeMap = {
-    green:
-      "border-emerald-400 bg-emerald-500/15 text-emerald-300",
-    purple:
-      "border-violet-400 bg-violet-500/15 text-violet-300",
-    red:
-      "border-red-500 bg-red-500/10 text-red-300",
+    green: "border-emerald-400 bg-emerald-500/15 text-emerald-300",
+    purple: "border-violet-400 bg-violet-500/15 text-violet-300",
+    red: "border-red-500 bg-red-500/10 text-red-300",
   };
 
   return (
@@ -1862,9 +1964,7 @@ function StatusButton({
       onClick={onClick}
       disabled={disabled}
       className={`rounded-[20px] py-4 border font-bold cursor-pointer ${
-        active
-          ? activeMap[type]
-          : "border-[#252938] bg-[#0b0e17] text-gray-400"
+        active ? activeMap[type] : "border-[#252938] bg-[#0b0e17] text-gray-400"
       }`}
     >
       <div className="text-xl">{icon}</div>
@@ -1880,31 +1980,37 @@ function StatusPill({
   status: string;
   color: "green" | "purple" | "blue" | "dark";
 }) {
+  useLocale();
+
   const map = {
-    green:
-      "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-    purple:
-      "border-violet-500/30 bg-violet-500/10 text-violet-300",
-    blue:
-      "border-blue-500/30 bg-blue-500/10 text-blue-300",
-    dark:
-      "border-neutral-700 bg-neutral-800 text-gray-500",
+    green: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+    purple: "border-violet-500/30 bg-violet-500/10 text-violet-300",
+    blue: "border-blue-500/30 bg-blue-500/10 text-blue-300",
+    dark: "border-neutral-700 bg-neutral-800 text-gray-500",
   };
 
   return (
     <span
       className={`text-[10px] font-bold px-2 py-1 rounded-full border ${map[color]}`}
     >
-      {status}
+      {tx(
+        (
+          {
+            GOING: "Иду",
+            MAYBE: "Возможно",
+            DECLINED: "Не иду",
+            INVITED: "Приглашён",
+            WAITING: "Ожидание",
+          } as Record<string, string>
+        )[status] || "Ожидание",
+      )}
     </span>
   );
 }
 
-function BluePill({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function BluePill({ children }: { children: React.ReactNode }) {
+  useLocale();
+
   return (
     <span className="px-3 py-1 rounded-lg text-xs bg-blue-700/20 border border-blue-500/30 text-blue-200">
       {children}
@@ -1997,7 +2103,7 @@ function formatDay(date: string) {
 
 function formatMonth(date: string) {
   return parseDate(date)
-    .toLocaleDateString("en-US", {
+    .toLocaleDateString(dateLocale(), {
       month: "short",
       timeZone: "UTC",
     })
@@ -2006,7 +2112,7 @@ function formatMonth(date: string) {
 
 function formatWeekday(date: string) {
   return parseDate(date)
-    .toLocaleDateString("en-US", {
+    .toLocaleDateString(dateLocale(), {
       weekday: "short",
       timeZone: "UTC",
     })

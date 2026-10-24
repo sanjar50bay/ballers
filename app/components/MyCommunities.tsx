@@ -1,4 +1,8 @@
 "use client";
+import { t as tx } from "@/lib/i18n";
+
+import { useLocale } from "@/app/components/Language";
+
 import Link from "next/link";
 import { useApp } from "./AppState";
 export default function MyCommunities({
@@ -6,20 +10,23 @@ export default function MyCommunities({
 }: {
   creation?: boolean;
 }) {
+  useLocale();
+
   const { data, loading, error, session, refresh } = useApp();
-  if (loading) return <p className="ballers-muted">Загружаем сообщества…</p>;
+  if (loading)
+    return <p className="ballers-muted">{tx("Загружаем сообщества…")}</p>;
   if (!session)
     return (
       <Link className="text-link" href="/">
-        Войди, чтобы увидеть сообщества →
+        {tx("Войди, чтобы увидеть сообщества →")}
       </Link>
     );
   return (
     <>
       {error && (
         <div className="error-panel">
-          Не удалось обновить сообщества.{" "}
-          <button onClick={() => void refresh()}>Повторить</button>
+          {tx("Не удалось обновить сообщества.")}{" "}
+          <button onClick={() => void refresh()}>{tx("Повторить")}</button>
         </div>
       )}
       <div className="space-y-3">
@@ -41,12 +48,12 @@ export default function MyCommunities({
               <div>
                 <h2 className="font-bold text-lg">{c.name}</h2>
                 <p className="ballers-muted">
-                  {c.city || "Сообщество"} ·{" "}
+                  {c.city || tx("Сообщество")} ·{" "}
                   {{
-                    OWNER: "организатор",
-                    MANAGER: "менеджер",
-                    MEMBER: "участник",
-                  }[c.role] || "участник"}
+                    OWNER: tx("организатор"),
+                    MANAGER: tx("менеджер"),
+                    MEMBER: tx("участник"),
+                  }[c.role] || tx("участник")}
                 </p>
               </div>
             </div>
@@ -58,14 +65,18 @@ export default function MyCommunities({
                   : `/communities/${c.id}`
               }
             >
-              {creation ? "Создать игровой день →" : "Открыть сообщество →"}
+              {creation
+                ? tx("Создать игровой день →")
+                : tx("Открыть сообщество →")}
             </Link>
           </section>
         ))}
       </div>
       {!data?.communities.length && !error && (
         <p className="ballers-muted">
-          Пока нет сообществ. Создай своё или присоединись по приглашению.
+          {tx(
+            "Пока нет сообществ. Создай своё или присоединись по приглашению.",
+          )}
         </p>
       )}
     </>

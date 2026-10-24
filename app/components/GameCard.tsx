@@ -1,17 +1,21 @@
+"use client";
+import { t as tx, dateLocale } from "@/lib/i18n";
+
+import { useLocale } from "@/app/components/Language";
 import Link from "next/link";
 import Icon from "./Icon";
 import type { GameDay } from "./AppState";
 export function attendanceLabel(g: GameDay) {
   return g.status !== "OPEN"
-    ? "День завершён"
+    ? tx("День завершён")
     : g.live
-      ? "● Матч идёт"
+      ? tx("● Матч идёт")
       : {
-          GOING: "● Ты идёшь",
-          MAYBE: "● Под вопросом",
-          DECLINED: "Ты не идёшь",
-          INVITED: "Приглашение",
-        }[g.attendance_status || ""] || "Можно присоединиться";
+          GOING: tx("● Ты идёшь"),
+          MAYBE: tx("● Под вопросом"),
+          DECLINED: tx("Ты не идёшь"),
+          INVITED: tx("Приглашение"),
+        }[g.attendance_status || ""] || tx("Можно присоединиться");
 }
 export default function GameCard({
   game,
@@ -20,6 +24,8 @@ export default function GameCard({
   game: GameDay;
   compact?: boolean;
 }) {
+  useLocale();
+
   const date = new Date(`${game.game_date}T12:00:00`);
   return (
     <section className="game-card">
@@ -28,10 +34,10 @@ export default function GameCard({
           {game.start_time?.slice(0, 5) || "—:—"}
         </strong>
         <div className="game-date">
-          {date.toLocaleDateString("ru-RU", { weekday: "long" })}
+          {date.toLocaleDateString(dateLocale(), { weekday: "long" })}
           <br />
           <b>
-            {date.toLocaleDateString("ru-RU", {
+            {date.toLocaleDateString(dateLocale(), {
               day: "numeric",
               month: "long",
             })}
@@ -40,20 +46,20 @@ export default function GameCard({
       </div>
       <h3>{game.title}</h3>
       <p className="venue">
-        <Icon name="pin" size={16} /> {game.venue || "Место уточняется"}
+        <Icon name="pin" size={16} /> {game.venue || tx("Место уточняется")}
       </p>
       <div className="game-card-footer">
         <span>
           {game.format}×{game.format} ·{" "}
           {compact
-            ? `${game.team_count} команды`
-            : `${game.going}/${game.capacity ?? "∞"} игроков`}
+            ? `${game.team_count} ${tx("команды")}`
+            : `${game.going}/${game.capacity ?? "∞"} ${tx("игроков")}`}
         </span>
         {compact ? (
           <span className="status-chip">{attendanceLabel(game)}</span>
         ) : (
           <Link href={`/my-game?game=${game.id}`} className="neon-button">
-            К игре →
+            {tx("К игре →")}
           </Link>
         )}
       </div>

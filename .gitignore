@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Public template only; private environment files remain ignored.
 !.env.example
+
+# Netlify build output is never source.
+/.netlify/

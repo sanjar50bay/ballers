@@ -1,4 +1,8 @@
 "use client";
+import { t as tx } from "@/lib/i18n";
+
+import { useLocale } from "@/app/components/Language";
+
 import {
   createContext,
   useCallback,
@@ -71,6 +75,8 @@ const StateContext = createContext<State>({
 });
 export const useApp = () => useContext(StateContext);
 export default function AppState({ children }: { children: React.ReactNode }) {
+  useLocale();
+
   const [session, setSession] = useState<Session | null>(null),
     [data, setData] = useState<HomeData | null>(null),
     [loading, setLoading] = useState(true),
@@ -105,7 +111,9 @@ export default function AppState({ children }: { children: React.ReactNode }) {
         setError(
           e instanceof Error
             ? e.message
-            : "Не удалось загрузить данные. Проверь соединение и миграцию 004.",
+            : tx(
+                "Не удалось загрузить данные. Проверь соединение и миграцию 004.",
+              ),
         );
     } finally {
       if (seq === revision.current) setLoading(false);

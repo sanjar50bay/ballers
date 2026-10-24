@@ -1,3 +1,6 @@
+import catalog from "../lib/i18n/catalog.json" with { type: "json" };
+const testLocale = process.env.TEST_LOCALE === "kk" ? "kk" : "ru";
+const text = (s) => catalog[s.trim()]?.[testLocale] ?? s;
 // Local PostgreSQL/RLS + real browser; OAuth/PostgREST transport simulated.
 import { PGlite } from "@electric-sql/pglite";
 import fs from "node:fs";
@@ -17,6 +20,7 @@ for (const p of [
   "supabase/migrations/20261012_002_integrated_alpha.sql",
   "supabase/migrations/20261013_003_navigation_community.sql",
   "supabase/migrations/20261019_004_mobile_notifications.sql",
+  "supabase/migrations/20261024_005_directory_teams.sql",
 ])
   await db.exec(read(p));
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -101,6 +105,10 @@ async function scenario(options = {}) {
       },
       { user, token },
     );
+  await ctx.addInitScript(
+    (locale) => localStorage.setItem("ballers:locale", locale),
+    testLocale,
+  );
   const state = {
     posts: 0,
     reads: 0,
@@ -243,6 +251,7 @@ async function scenario(options = {}) {
         assert.ok(
           [
             "ballers_home",
+            "ballers_network",
             "ballers_notification_feed",
             "ballers_player_stats",
             "get_invite_by_token",
@@ -300,13 +309,13 @@ async function scenario(options = {}) {
   const fill = async () => {
     if (buggy)
       await page
-        .getByPlaceholder("First name", { exact: true })
+        .getByPlaceholder(text("First name"), { exact: true })
         .fill("New Player");
-    else await page.getByLabel("Имя", { exact: true }).fill("New Player");
+    else await page.getByLabel(text("Имя"), { exact: true }).fill("New Player");
   };
   const submit = () =>
     page.getByRole("button", {
-      name: buggy ? "Create Baller profile" : "Создать профиль",
+      name: buggy ? "Create Baller profile" : text("Создать профиль"),
       exact: true,
     });
   const home = () =>
@@ -375,8 +384,10 @@ try {
       assert.equal(new URL(s.page.url()).pathname, "/");
       if (mode === "normal") {
         await s.page.screenshot({
-          path: new URL("../docs/hotfix-registration-home.png", import.meta.url)
-            .pathname,
+          path: new URL(
+            `../docs/${testLocale}-registration-home.png`,
+            import.meta.url,
+          ).pathname,
         });
         await s.page.reload();
         await s.home();
@@ -400,15 +411,19 @@ try {
       s.state.failReads = true;
       await s.open();
       await s.page
-        .getByRole("button", { name: "Повторить проверку" })
+        .getByRole("button", { name: text("Повторить проверку") })
         .waitFor();
       assert.equal(s.state.posts, 0);
       await s.page.screenshot({
-        path: new URL("../docs/hotfix-registration-error.png", import.meta.url)
-          .pathname,
+        path: new URL(
+          `../docs/${testLocale}-registration-error.png`,
+          import.meta.url,
+        ).pathname,
       });
       s.state.failReads = false;
-      await s.page.getByRole("button", { name: "Повторить проверку" }).click();
+      await s.page
+        .getByRole("button", { name: text("Повторить проверку") })
+        .click();
       await s.fill();
       await s.submit().click();
       await s.home();
@@ -424,7 +439,7 @@ try {
       await s.submit().click();
       await s.page
         .getByRole("alert")
-        .filter({ hasText: "Нет доступа" })
+        .filter({ hasText: testLocale === "kk" ? "рұқсат жоқ" : "Нет доступа" })
         .waitFor();
       assert.equal(await s.profile(), undefined);
       await s
@@ -433,7 +448,7 @@ try {
         .then((x) => assert.equal(x, true));
       await s.page.screenshot({
         path: new URL(
-          "../docs/hotfix-registration-submit-error.png",
+          `../docs/${testLocale}-registration-submit-error.png`,
           import.meta.url,
         ).pathname,
       });
@@ -446,7 +461,9 @@ try {
     {
       const s = await scenario({ anonymous: true });
       await s.open();
-      await s.page.getByRole("link", { name: "Войти через Google" }).waitFor();
+      await s.page
+        .getByRole("link", { name: text("Войти через Google") })
+        .waitFor();
       assert.equal(s.state.posts, 0);
       pass("unauthenticated onboarding cannot create a profile");
       await s.ctx.close();
@@ -455,25 +472,29 @@ try {
       const s = await scenario();
       await s.open();
       await s.fill();
-      await s.page.getByLabel("Год рождения").fill("1");
+      await s.page.getByLabel(text("Год рождения")).fill("1");
       await s.submit().click();
       assert.equal(s.state.posts, 0);
       pass("invalid year blocked before write");
-      await s.page.getByLabel("Год рождения").fill("2000");
-      await s.page.getByLabel("Основная позиция").selectOption("ATT");
-      await s.page.getByLabel("Дополнительная позиция").selectOption("ATT");
+      await s.page.getByLabel(text("Год рождения")).fill("2000");
+      await s.page.getByLabel(text("Основная позиция")).selectOption("ATT");
+      await s.page
+        .getByLabel(text("Дополнительная позиция"))
+        .selectOption("ATT");
       await s.submit().click();
       await s.page
         .getByRole("alert")
-        .filter({ hasText: "Дополнительная позиция" })
+        .filter({ hasText: text("Дополнительная позиция") })
         .waitFor();
       assert.equal(s.state.posts, 0);
       pass("same primary and secondary position rejected clearly");
-      await s.page.getByLabel("Дополнительная позиция").selectOption("");
-      await s.page.getByLabel("Год рождения").fill("");
+      await s.page.getByLabel(text("Дополнительная позиция")).selectOption("");
+      await s.page.getByLabel(text("Год рождения")).fill("");
       await s.page.screenshot({
-        path: new URL("../docs/hotfix-registration-form.png", import.meta.url)
-          .pathname,
+        path: new URL(
+          `../docs/${testLocale}-registration-form.png`,
+          import.meta.url,
+        ).pathname,
         fullPage: true,
       });
       assert.ok(
@@ -492,7 +513,10 @@ try {
       await s.submit().click();
       await s.page
         .getByRole("alert")
-        .filter({ hasText: "Не удалось проверить" })
+        .filter({
+          hasText:
+            testLocale === "kk" ? "тексеру не сақтау" : "Не удалось проверить",
+        })
         .waitFor();
       assert.equal(s.state.posts, 1);
       assert.ok(await s.profile());
@@ -512,7 +536,10 @@ try {
       await s.submit().click();
       await s.page
         .getByRole("alert")
-        .filter({ hasText: "Не удалось завершить" })
+        .filter({
+          hasText:
+            testLocale === "kk" ? "құру аяқталмады" : "Не удалось завершить",
+        })
         .waitFor();
       assert.equal(await s.profile(), undefined);
       assert.ok(s.page.url().endsWith("/onboarding"));
@@ -528,8 +555,10 @@ try {
         0,
       );
       await s.page.screenshot({
-        path: new URL("../docs/hotfix-registration-form.png", import.meta.url)
-          .pathname,
+        path: new URL(
+          `../docs/${testLocale}-registration-form.png`,
+          import.meta.url,
+        ).pathname,
         fullPage: true,
       });
       await s.page.setViewportSize({ width: 320, height: 740 });
@@ -553,12 +582,12 @@ try {
       if (!existing) {
         const section = s.page.locator("section").filter({
           has: s.page.getByRole("heading", {
-            name: "Complete your Baller profile",
+            name: text("Complete your Baller profile"),
           }),
         });
         await section.locator("input").fill("Invited Player");
         await s.page
-          .getByRole("button", { name: "Join Game", exact: true })
+          .getByRole("button", { name: text("Join Game"), exact: true })
           .click();
       }
       await s.page

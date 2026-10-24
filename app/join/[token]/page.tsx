@@ -1,4 +1,7 @@
 "use client";
+import { uiError, t as tx } from "@/lib/i18n";
+
+import { useLocale } from "@/app/components/Language";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
@@ -29,6 +32,8 @@ type Invite = {
 };
 
 export default function JoinPage() {
+  useLocale();
+
   const params = useParams();
 
   const token = params.token as string;
@@ -79,7 +84,7 @@ export default function JoinPage() {
           "Не удалось принять приглашение. " +
             (e && typeof e === "object" && "message" in e
               ? preMatchError({ message: String(e.message) })
-              : "Проверь соединение и попробуй снова."),
+              : tx("Проверь соединение и попробуй снова.")),
         );
       } finally {
         setJoining(false);
@@ -138,7 +143,7 @@ export default function JoinPage() {
     });
 
     if (error) {
-      alert(error.message);
+      alert(uiError(error.message));
     }
   };
 
@@ -183,7 +188,7 @@ export default function JoinPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p className="text-gray-400">Loading invite...</p>
+        <p className="text-gray-400">{tx("Loading invite...")}</p>
       </main>
     );
   }
@@ -192,13 +197,13 @@ export default function JoinPage() {
     return (
       <main className="ballers-shell py-10">
         <p role="alert" className="error-panel">
-          {formError}
+          {tx(formError)}
         </p>
         <button
           className="neon-button mt-4"
           onClick={() => window.location.reload()}
         >
-          Повторить загрузку
+          {tx("Повторить загрузку")}
         </button>
       </main>
     );
@@ -207,10 +212,10 @@ export default function JoinPage() {
     return (
       <main className="min-h-screen bg-black text-white flex items-center justify-center px-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Invite not found</h1>
+          <h1 className="text-2xl font-bold">{tx("Invite not found")}</h1>
 
           <p className="text-gray-500 mt-2">
-            This invite may be invalid or expired.
+            {tx("This invite may be invalid or expired.")}
           </p>
         </div>
       </main>
@@ -223,14 +228,14 @@ export default function JoinPage() {
         {formError && (
           <section className="error-panel mb-5">
             <p ref={errorRef} tabIndex={-1} role="alert">
-              {formError}
+              {tx(formError)}
             </p>
             {!needsProfile && (
               <button
                 className="text-link mt-3"
                 onClick={() => window.location.reload()}
               >
-                Повторить принятие приглашения
+                {tx("Повторить принятие приглашения")}
               </button>
             )}
           </section>
@@ -239,7 +244,7 @@ export default function JoinPage() {
         <div className="mb-8">
           <p className="text-gray-500 text-sm">BALLERS</p>
 
-          <p className="text-blue-400 text-sm mt-6">You&apos;re invited</p>
+          <p className="text-blue-400 text-sm mt-6">{tx("You're invited")}</p>
 
           <h1 className="text-3xl font-bold mt-1">
             {invite.invite_type === "COMMUNITY"
@@ -265,17 +270,17 @@ export default function JoinPage() {
 
             <div className="flex gap-2 mt-4 flex-wrap">
               <span className="bg-blue-900/40 px-3 py-1 rounded-full text-sm">
-                {invite.format}v{invite.format}
+                {invite.format}×{invite.format}
               </span>
 
               {invite.capacity && (
                 <span className="bg-blue-900/40 px-3 py-1 rounded-full text-sm">
-                  {invite.capacity} players
+                  {invite.capacity} {tx("игроков")}
                 </span>
               )}
 
               <span className="bg-neutral-800 px-3 py-1 rounded-full text-sm">
-                Guest invite
+                {tx("Guest invite")}
               </span>
             </div>
           </section>
@@ -283,8 +288,9 @@ export default function JoinPage() {
 
         {invite.invite_type === "COMMUNITY" && (
           <p className="text-gray-300">
-            Приглашение в сообщество. После входа ты станешь участником, но
-            ответ на каждую игру выбираешь отдельно.
+            {tx(
+              "Приглашение в сообщество. После входа ты станешь участником, но ответ на каждую игру выбираешь отдельно.",
+            )}
           </p>
         )}
 
@@ -292,14 +298,14 @@ export default function JoinPage() {
         {!userReady && (
           <section className="mt-7">
             <p className="text-gray-400 text-sm mb-4">
-              Войди через Google, чтобы принять приглашение.
+              {tx("Войди через Google, чтобы принять приглашение.")}
             </p>
 
             <button
               onClick={signInWithGoogle}
               className="w-full bg-white text-black rounded-2xl py-4 font-semibold cursor-pointer hover:bg-neutral-200 transition"
             >
-              Continue with Google
+              {tx("Continue with Google")}
             </button>
           </section>
         )}
@@ -308,30 +314,30 @@ export default function JoinPage() {
         {userReady && needsProfile && (
           <section className="mt-8">
             <h2 className="text-xl font-semibold">
-              Complete your Baller profile
+              {tx("Complete your Baller profile")}
             </h2>
 
             <p className="text-gray-500 text-sm mt-1 mb-5">
-              Just a few football details.
+              {tx("Just a few football details.")}
             </p>
 
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-gray-500 block mb-2">
-                  First name
+                  {tx("First name")}
                 </label>
 
                 <input
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="First name"
+                  placeholder={tx("First name")}
                   className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
                 />
               </div>
 
               <div>
                 <label className="text-sm text-gray-500 block mb-2">
-                  Primary position
+                  {tx("Primary position")}
                 </label>
 
                 <select
@@ -339,19 +345,19 @@ export default function JoinPage() {
                   onChange={(e) => setPrimaryPosition(e.target.value)}
                   className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
                 >
-                  <option value="GK">Goalkeeper</option>
+                  <option value="GK">{tx("Goalkeeper")}</option>
 
-                  <option value="DEF">Defender</option>
+                  <option value="DEF">{tx("Defender")}</option>
 
-                  <option value="MID">Midfielder</option>
+                  <option value="MID">{tx("Midfielder")}</option>
 
-                  <option value="ATT">Attacker</option>
+                  <option value="ATT">{tx("Attacker")}</option>
                 </select>
               </div>
 
               <div>
                 <label className="text-sm text-gray-500 block mb-2">
-                  Secondary position
+                  {tx("Secondary position")}
                 </label>
 
                 <select
@@ -359,21 +365,21 @@ export default function JoinPage() {
                   onChange={(e) => setSecondaryPosition(e.target.value)}
                   className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
                 >
-                  <option value="">None</option>
+                  <option value="">{tx("None")}</option>
 
-                  <option value="GK">Goalkeeper</option>
+                  <option value="GK">{tx("Goalkeeper")}</option>
 
-                  <option value="DEF">Defender</option>
+                  <option value="DEF">{tx("Defender")}</option>
 
-                  <option value="MID">Midfielder</option>
+                  <option value="MID">{tx("Midfielder")}</option>
 
-                  <option value="ATT">Attacker</option>
+                  <option value="ATT">{tx("Attacker")}</option>
                 </select>
               </div>
 
               <div>
                 <label className="text-sm text-gray-500 block mb-2">
-                  Dominant foot
+                  {tx("Dominant foot")}
                 </label>
 
                 <select
@@ -381,11 +387,11 @@ export default function JoinPage() {
                   onChange={(e) => setDominantFoot(e.target.value)}
                   className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
                 >
-                  <option value="RIGHT">Right</option>
+                  <option value="RIGHT">{tx("Right")}</option>
 
-                  <option value="LEFT">Left</option>
+                  <option value="LEFT">{tx("Left")}</option>
 
-                  <option value="BOTH">Both</option>
+                  <option value="BOTH">{tx("Both")}</option>
                 </select>
               </div>
 
@@ -394,7 +400,7 @@ export default function JoinPage() {
                 disabled={!firstName || joining}
                 className="w-full bg-blue-500 hover:bg-blue-400 text-white rounded-2xl py-4 font-semibold cursor-pointer transition disabled:opacity-50"
               >
-                {joining ? "Joining..." : "Join Game"}
+                {joining ? tx("Joining...") : tx("Join Game")}
               </button>
             </div>
           </section>
@@ -403,7 +409,7 @@ export default function JoinPage() {
         {/* EXISTING USER AUTO JOIN */}
         {userReady && !needsProfile && joining && (
           <div className="mt-8 bg-neutral-900 rounded-2xl p-5 text-center">
-            <p className="text-gray-400">Joining game...</p>
+            <p className="text-gray-400">{tx("Joining game...")}</p>
           </div>
         )}
       </div>

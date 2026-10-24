@@ -1,4 +1,8 @@
 "use client";
+import { uiError, t as tx, dateLocale } from "@/lib/i18n";
+
+import { useLocale } from "@/app/components/Language";
+
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -21,6 +25,8 @@ type Snapshot = {
   players: { id: string; name: string; position: string }[];
 };
 function MyGame() {
+  useLocale();
+
   const query = useSearchParams(),
     router = useRouter();
   const { data, session, loading, error, refresh } = useApp();
@@ -41,7 +47,7 @@ function MyGame() {
       p_game: gameId,
     });
     if (error) {
-      setNotice("Составы пока недоступны. Попробуй обновить страницу.");
+      setNotice(tx("Составы пока недоступны. Попробуй обновить страницу."));
       return;
     }
     setSnap(data as Snapshot);
@@ -68,11 +74,13 @@ function MyGame() {
       if (error) throw error;
       await refresh();
       await load();
-      setNotice("Ответ сохранён.");
+      setNotice(tx("Ответ сохранён."));
       window.dispatchEvent(new Event("ballers:data-changed"));
     } catch (e) {
       setNotice(
-        e instanceof Error ? e.message : "Ответ не сохранён. Попробуй снова.",
+        e instanceof Error
+          ? e.message
+          : tx("Ответ не сохранён. Попробуй снова."),
       );
     } finally {
       setBusy(false);
@@ -82,7 +90,10 @@ function MyGame() {
     if (
       !game ||
       !confirm(
-        `Завершить игровой день «${game.title}»? Сыграно матчей: ${game.match_count}. Ожидающие результаты можно будет подтвердить позже.`,
+        tx(
+          "Завершить игровой день «{title}»? Сыграно матчей: {count}. Ожидающие результаты можно будет подтвердить позже.",
+          { title: game.title, count: game.match_count },
+        ),
       )
     )
       return;
@@ -96,9 +107,11 @@ function MyGame() {
       if (error) throw error;
       await refresh();
       setTab("history");
-      setNotice("Игровой день завершён. Результаты сохранены в истории.");
+      setNotice(tx("Игровой день завершён. Результаты сохранены в истории."));
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Не удалось завершить день.");
+      setNotice(
+        e instanceof Error ? e.message : tx("Не удалось завершить день."),
+      );
     } finally {
       setBusy(false);
     }
@@ -106,46 +119,46 @@ function MyGame() {
   return (
     <main className="ballers-shell">
       <AppHeader />
-      <h1 className="page-title">Твоя игра</h1>
+      <h1 className="page-title">{tx("Твоя игра")}</h1>
       <div className="tab-bar">
         <button
           className={tab === "current" ? "selected" : ""}
           onClick={() => setTab("current")}
         >
-          Текущий день
+          {tx("Текущий день")}
         </button>
         <button
           className={tab === "history" ? "selected" : ""}
           onClick={() => setTab("history")}
         >
-          История игр
+          {tx("История игр")}
         </button>
       </div>
       {notice && (
         <p role="status" className="neon-panel mb-4">
-          {notice}
+          {uiError(notice)}
         </p>
       )}
       {error && (
         <p className="error-panel">
-          Не удалось обновить данные.{" "}
-          <button onClick={() => void refresh()}>Повторить</button>
+          {tx("Не удалось обновить данные.")}{" "}
+          <button onClick={() => void refresh()}>{tx("Повторить")}</button>
         </p>
       )}
       {loading ? (
-        <p className="inline-loading">Загружаем игры…</p>
+        <p className="inline-loading">{tx("Загружаем игры…")}</p>
       ) : !session ? (
         <Link className="text-link" href="/">
-          Войди на главной →
+          {tx("Войди на главной →")}
         </Link>
       ) : tab === "history" ? (
         <>
           <Link className="text-link mb-3" href="/career">
-            Мои матчи и статистика →
+            {tx("Мои матчи и статистика →")}
           </Link>
           {!data?.history.length && (
             <p className="ballers-muted">
-              Здесь появятся сыгранные матчи и завершённые дни.
+              {tx("Здесь появятся сыгранные матчи и завершённые дни.")}
             </p>
           )}
           {data?.history.map((g) => (
@@ -153,13 +166,20 @@ function MyGame() {
               <h2 className="font-bold text-lg">{g.title}</h2>
               <p className="ballers-muted mt-1">
                 {new Date(g.game_date + "T12:00:00").toLocaleDateString(
-                  "ru-RU",
+                  dateLocale(),
                 )}{" "}
-                · {countLabel(g.match_count, "матч", "матча", "матчей")} ·{" "}
-                {g.status === "COMPLETED" ? "Завершён" : "Игровой день"}
+                ·{" "}
+                {countLabel(
+                  g.match_count,
+                  tx("матч"),
+                  tx("матча"),
+                  tx("матчей"),
+                )}{" "}
+                ·{" "}
+                {g.status === "COMPLETED" ? tx("Завершён") : tx("Игровой день")}
               </p>
               <Link href={`/games/${g.id}/play#results`} className="text-link">
-                Результаты и подтверждения →
+                {tx("Результаты и подтверждения →")}
               </Link>
             </section>
           ))}
@@ -168,9 +188,9 @@ function MyGame() {
         <>
           {(data?.games.length || 0) > 1 && (
             <label className="block ballers-muted mb-4">
-              Выбрать игровой день
+              {tx("Выбрать игровой день")}
               <select
-                aria-label="Выбрать игровой день"
+                aria-label={tx("Выбрать игровой день")}
                 className="w-full rounded-xl p-3 mt-1 bg-[#101b2b] border border-[#40536c]"
                 value={game.id}
                 onChange={(e) => {
@@ -188,21 +208,22 @@ function MyGame() {
           <GameCard game={game} compact />
           <div className="flex gap-3 justify-between my-3 flex-wrap">
             <Link className="text-link" href={`/games/${game.id}/play#results`}>
-              Матчи · {game.match_count} →
+              {tx("Матчи ·")}
+              {game.match_count} →
             </Link>
             <Link className="text-link" href={`/games/${game.id}/play`}>
-              Игровой центр →
+              {tx("Игровой центр →")}
             </Link>
           </div>
           {game.status === "OPEN" && (
             <section className="neon-panel">
-              <h2 className="font-bold">Будешь играть?</h2>
+              <h2 className="font-bold">{tx("Будешь играть?")}</h2>
               <div className="attendance-options">
                 {(
                   [
-                    ["GOING", "✓ Иду"],
-                    ["MAYBE", "Возможно"],
-                    ["DECLINED", "Не иду"],
+                    ["GOING", tx("✓ Иду")],
+                    ["MAYBE", tx("Возможно")],
+                    ["DECLINED", tx("Не иду")],
                   ] as const
                 ).map(([status, label]) => (
                   <button
@@ -219,17 +240,17 @@ function MyGame() {
               </div>
               <p className="ballers-muted">
                 {game.attendance_status === "GOING"
-                  ? "Место за тобой"
+                  ? tx("Место за тобой")
                   : game.going >= (game.capacity ?? Infinity)
-                    ? "Мест нет — при ответе «Иду» попадёшь в очередь"
-                    : "Ответь, чтобы организатор видел твой статус"}
+                    ? tx("Мест нет — при ответе «Иду» попадёшь в очередь")
+                    : tx("Ответь, чтобы организатор видел твой статус")}
               </p>
             </section>
           )}
           <div className="section-heading mt-6">
-            <h2>Команды</h2>
+            <h2>{tx("Команды")}</h2>
             <span className="ballers-muted">
-              {countLabel(game.going, "игрок", "игрока", "игроков")}
+              {countLabel(game.going, tx("игрок"), tx("игрока"), tx("игроков"))}
             </span>
           </div>
           {snap?.teams.map((t) => (
@@ -252,13 +273,13 @@ function MyGame() {
                   <b>{t.name}</b>
                   <p className="ballers-muted">
                     {t.player_ids.includes(snap.my_player_id)
-                      ? "Твоя команда · "
+                      ? tx("Твоя команда ·") + " "
                       : ""}
                     {countLabel(
                       t.player_ids.length,
-                      "игрок",
-                      "игрока",
-                      "игроков",
+                      tx("игрок"),
+                      tx("игрока"),
+                      tx("игроков"),
                     )}
                   </p>
                 </div>
@@ -266,39 +287,41 @@ function MyGame() {
               <div className="team-list">
                 {t.player_ids.map((id) => (
                   <p key={id} className="py-1">
-                    {snap.players.find((p) => p.id === id)?.name || "Игрок"}
+                    {snap.players.find((p) => p.id === id)?.name || tx("Игрок")}
                   </p>
                 ))}
               </div>
             </details>
           ))}
           {snap?.teams.length === 0 && (
-            <p className="ballers-muted">Команды ещё не собраны.</p>
+            <p className="ballers-muted">{tx("Команды ещё не собраны.")}</p>
           )}
-          {!snap && <p className="ballers-muted">Загружаем составы…</p>}
+          {!snap && <p className="ballers-muted">{tx("Загружаем составы…")}</p>}
           <Link
             className="text-link"
             href={`/communities/${game.community_id}/game-days/${game.id}`}
           >
-            {snap?.manager ? "Составы и приглашения" : "Все участники"} →
+            {snap?.manager ? tx("Составы и приглашения") : tx("Все участники")}{" "}
+            →
           </Link>
           {snap?.manager && game.status === "OPEN" && (
             <section className="neon-panel mt-6">
-              <h2 className="font-bold mb-2">Закончили играть?</h2>
+              <h2 className="font-bold mb-2">{tx("Закончили играть?")}</h2>
               <p className="ballers-muted mb-4">
-                Матчей может быть сколько угодно. Закрой день, когда все
-                разошлись.
+                {tx(
+                  "Матчей может быть сколько угодно. Закрой день, когда все разошлись.",
+                )}
               </p>
               <button
                 className="neon-button green w-full"
                 disabled={busy || game.live}
                 onClick={() => void finishDay()}
               >
-                Завершить игровой день
+                {tx("Завершить игровой день")}
               </button>
               {game.live && (
                 <p className="ballers-muted mt-2">
-                  Сначала заверши текущий матч в игровом центре.
+                  {tx("Сначала заверши текущий матч в игровом центре.")}
                 </p>
               )}
             </section>
@@ -306,13 +329,13 @@ function MyGame() {
         </>
       ) : (
         <section className="neon-panel">
-          <h2 className="font-bold">Пока нет ближайшей игры</h2>
+          <h2 className="font-bold">{tx("Пока нет ближайшей игры")}</h2>
           <Link href="/open-games" className="text-link">
-            Найти открытый игровой день →
+            {tx("Найти открытый игровой день →")}
           </Link>
           <br />
           <Link href="/create" className="text-link">
-            Создать игровой день →
+            {tx("Создать игровой день →")}
           </Link>
         </section>
       )}
@@ -321,8 +344,12 @@ function MyGame() {
   );
 }
 export default function MyGamePage() {
+  useLocale();
+
   return (
-    <Suspense fallback={<main className="ballers-shell">Загружаем…</main>}>
+    <Suspense
+      fallback={<main className="ballers-shell">{tx("Загружаем…")}</main>}
+    >
       <MyGame />
     </Suspense>
   );

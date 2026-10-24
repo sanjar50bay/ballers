@@ -1,4 +1,6 @@
 "use client";
+import { useLocale } from "@/app/components/Language";
+
 /* eslint-disable @next/next/no-img-element -- Native remote avatars need an error fallback. */
 import { useState } from "react";
 export default function Avatar({
@@ -10,6 +12,8 @@ export default function Avatar({
   name: string;
   large?: boolean;
 }) {
+  useLocale();
+
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   return (
     <span

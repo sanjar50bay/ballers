@@ -1,4 +1,8 @@
 "use client";
+import { t as tx, dateLocale, uiError, notificationText } from "@/lib/i18n";
+
+import { useLocale } from "@/app/components/Language";
+
 import {
   createContext,
   useCallback,
@@ -10,6 +14,8 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useNetworkResource } from "@/lib/use-network";
+import type { NetworkData } from "@/lib/network";
 import { setAttendance } from "@/lib/pre-match";
 import { useApp } from "./AppState";
 import Icon from "./Icon";
@@ -27,11 +33,13 @@ type Notice = {
 type Feed = { unread: number; active: Notice[]; history: Notice[] };
 const BellContext = createContext({ count: 0, show: () => {} });
 export function BellButton() {
+  useLocale();
+
   const { count, show } = useContext(BellContext);
   return (
     <button
       className="icon-button"
-      aria-label={`Уведомления${count ? `, непрочитанных ${count}` : ""}`}
+      aria-label={`${tx("Уведомления")}${count ? `, ${tx("непрочитанных")} ${count}` : ""}`}
       onClick={show}
     >
       <Icon name="bell" />
@@ -46,6 +54,8 @@ export default function Notifications({
 }: {
   children: React.ReactNode;
 }) {
+  useLocale();
+
   const { session } = useApp(),
     path = usePathname();
   const [feed, setFeed] = useState<Feed>({
@@ -57,6 +67,21 @@ export default function Notifications({
     [tab, setTab] = useState("active"),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const { data: networkData, reload: reloadNetwork } =
+    useNetworkResource<NetworkData>("ballers_network", {}, !!session);
+  const networkCount = networkData?.inbox.length || 0;
+  useEffect(() => {
+    if (!session) return;
+    const update = () => {
+      if (document.visibilityState === "visible") void reloadNetwork();
+    };
+    const timer = setInterval(update, 10000);
+    window.addEventListener("focus", update);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", update);
+    };
+  }, [session, reloadNetwork]);
   const dialog = useRef<HTMLDivElement>(null),
     previousFocus = useRef<HTMLElement | null>(null),
     generation = useRef(0);
@@ -74,7 +99,9 @@ export default function Notifications({
     } catch {
       if (g === generation.current)
         setError(
-          "Не удалось обновить уведомления. Проверь соединение и миграцию 004.",
+          tx(
+            "Не удалось обновить уведомления. Проверь соединение и миграцию 004.",
+          ),
         );
     }
   }, [session]);
@@ -127,7 +154,7 @@ export default function Notifications({
   async function mark(n: Notice) {
     const { error } = await supabase.rpc("ballers_mark_read", { p_id: n.id });
     if (error) {
-      setError("Не удалось сохранить прочтение. Попробуй снова.");
+      setError(tx("Не удалось сохранить прочтение. Попробуй снова."));
       return false;
     }
     await load();
@@ -141,25 +168,37 @@ export default function Notifications({
       await mark(n);
       window.dispatchEvent(new Event("ballers:data-changed"));
     } catch {
-      setError("Ответ не сохранён. Проверь соединение и попробуй снова.");
+      setError(tx("Ответ не сохранён. Проверь соединение и попробуй снова."));
     } finally {
       setBusy(false);
     }
   }
   const items = tab === "active" ? feed.active : feed.history;
   return (
-    <BellContext.Provider value={{ count: feed.unread, show }}>
-      {children}
+    <BellContext.Provider value={{ count: feed.unread + networkCount, show }}>
       {session &&
         path !== "/onboarding" &&
+        !path.startsWith("/teams/") &&
+        !path.startsWith("/discover/") &&
         !path.startsWith("/join/") &&
-        !["/", "/my-game", "/profile", "/communities", "/create"].includes(
-          path,
-        ) && (
-          <div className="fixed top-3 right-4 z-50 bg-[#080c16] rounded-xl">
+        ![
+          "/",
+          "/my-game",
+          "/profile",
+          "/communities",
+          "/create",
+          "/discover",
+          "/profile/football",
+          "/teams/create",
+        ].includes(path) && (
+          <div className="legacy-toolbar">
+            <Link href="/" className="ballers-wordmark">
+              BALLERS<span>.</span>
+            </Link>
             <BellButton />
           </div>
         )}
+      {children}
       {open && session && (
         <div
           className="dialog-backdrop"
@@ -172,7 +211,7 @@ export default function Notifications({
             className="notification-dialog"
             role="dialog"
             aria-modal="true"
-            aria-label="Уведомления"
+            aria-label={tx("Уведомления")}
             onKeyDown={(e) => {
               if (e.key === "Escape") close();
               if (e.key === "Tab") {
@@ -195,10 +234,10 @@ export default function Notifications({
             }}
           >
             <header>
-              <h2>Уведомления</h2>
+              <h2>{tx("Уведомления")}</h2>
               <button
                 className="icon-button"
-                aria-label="Закрыть уведомления"
+                aria-label={tx("Закрыть уведомления")}
                 onClick={close}
               >
                 ×
@@ -209,44 +248,55 @@ export default function Notifications({
                 className={tab === "active" ? "selected" : ""}
                 onClick={() => setTab("active")}
               >
-                Актуальное · {feed.active.length}
+                {tx("Актуальное ·")}
+                {feed.active.length}
               </button>
               <button
                 className={tab === "history" ? "selected" : ""}
                 onClick={() => setTab("history")}
               >
-                История
+                {tx("История")}
               </button>
             </div>
             {error && (
               <div className="error-panel mx-4" role="alert">
-                {error}
+                {uiError(error)}
                 <button className="text-link" onClick={() => void load()}>
-                  Повторить
+                  {tx("Повторить")}
                 </button>
               </div>
             )}
-            {!items.length && (
+            {tab === "active" && (
+              <Link
+                className="network-notice"
+                href="/discover?kind=inbox"
+                onClick={close}
+              >
+                {tx("Командные запросы →")}
+                {networkCount > 0 ? ` · ${networkCount}` : ""}
+              </Link>
+            )}
+            {!items.length && networkCount === 0 && (
               <p className="ballers-muted p-5">
                 {tab === "active"
-                  ? "Всё прочитано. Нет незавершённых запросов."
-                  : "В истории пока ничего нет."}
+                  ? tx("Всё прочитано. Нет незавершённых запросов.")
+                  : tx("В истории пока ничего нет.")}
               </p>
             )}
             {items.map((n) => (
               <article key={n.id} className="notification-item">
-                <p className="font-bold">{n.message}</p>
+                <p className="font-bold">{notificationText(n.message)}</p>
                 <p className="ballers-muted mt-1">
-                  {new Date(n.created_at).toLocaleString("ru-RU", {
+                  {new Date(n.created_at).toLocaleString(dateLocale(), {
                     day: "numeric",
                     month: "short",
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
                   {n.completed_at
-                    ? " · Выполнено"
+                    ? tx(" · Выполнено")
                     : n.read_at
-                      ? " · Прочитано"
+                      ? tx(" · Прочитано")
                       : ""}
                 </p>
                 {tab === "active" &&
@@ -254,9 +304,9 @@ export default function Notifications({
                     <div className="attendance-options">
                       {(
                         [
-                          ["GOING", "Иду"],
-                          ["MAYBE", "Возможно"],
-                          ["DECLINED", "Не иду"],
+                          ["GOING", tx("Иду")],
+                          ["MAYBE", tx("Возможно")],
+                          ["DECLINED", tx("Не иду")],
                         ] as const
                       ).map(([s, l]) => (
                         <button
@@ -282,7 +332,8 @@ export default function Notifications({
                       void mark(n);
                     }}
                   >
-                    Открыть {n.kind === "CONFIRM" ? "результат" : "игру"} →
+                    {tx("Открыть")}
+                    {n.kind === "CONFIRM" ? tx("результат") : tx("игру")} →
                   </Link>
                   {!n.read_at && (
                     <button
@@ -290,7 +341,7 @@ export default function Notifications({
                       disabled={busy}
                       onClick={() => void mark(n)}
                     >
-                      Прочитано
+                      {tx("Прочитано")}
                     </button>
                   )}
                 </div>
@@ -298,7 +349,7 @@ export default function Notifications({
                   n.read_at &&
                   ["CONFIRM", "INVITE", "PLACE_OFFER"].includes(n.kind) && (
                     <p className="ballers-muted">
-                      Ожидает твоего ответа, даже если уже прочитано.
+                      {tx("Ожидает твоего ответа, даже если уже прочитано.")}
                     </p>
                   )}
               </article>

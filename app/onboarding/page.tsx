@@ -1,5 +1,10 @@
 "use client";
+import { uiError, t as tx } from "@/lib/i18n";
+
+import { useLocale } from "@/app/components/Language";
+
 import Link from "next/link";
+import { CitySelect } from "@/app/components/Network";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -11,6 +16,8 @@ import {
 } from "@/lib/profile-registration";
 
 export default function OnboardingPage() {
+  useLocale();
+
   const [firstName, setFirstName] = useState(""),
     [lastName, setLastName] = useState(""),
     [city, setCity] = useState("Astana"),
@@ -118,20 +125,24 @@ export default function OnboardingPage() {
           BALLERS<span className="text-[#79ffb0]">.</span>
         </Link>
       </header>
-      <h1 className="text-3xl font-bold mt-5">Твой Baller ID</h1>
+      <h1 className="text-3xl font-bold mt-5">{tx("Твой Baller ID")}</h1>
       <p className="ballers-muted mt-3 mb-6">
-        Расскажи немного о себе. Один профиль — для всех твоих команд и игр.
+        {tx(
+          "Расскажи немного о себе. Один профиль — для всех твоих команд и игр.",
+        )}
       </p>
       {phase === "checking" && (
         <p role="status" className="inline-loading">
-          Проверяем профиль…
+          {tx("Проверяем профиль…")}
         </p>
       )}
       {phase === "login" && (
         <section className="error-panel">
-          <p>Чтобы создать или открыть профиль, сначала войди в аккаунт.</p>
+          <p>
+            {tx("Чтобы создать или открыть профиль, сначала войди в аккаунт.")}
+          </p>
           <Link className="text-link block mt-4" href="/">
-            Войти через Google
+            {tx("Войти через Google")}
           </Link>
         </section>
       )}
@@ -142,19 +153,19 @@ export default function OnboardingPage() {
           role="alert"
           className="error-panel mb-4"
         >
-          {error}
+          {uiError(error)}
         </p>
       )}
       {phase === "error" && (
         <button className="neon-button" onClick={() => void check()}>
-          Повторить проверку
+          {tx("Повторить проверку")}
         </button>
       )}
       {(phase === "ready" || phase === "saving") && (
         <form onSubmit={saveProfile}>
           <fieldset disabled={phase === "saving"} className="space-y-4">
             <label className="block">
-              Имя
+              {tx("Имя")}
               <input
                 className={field}
                 value={firstName}
@@ -165,7 +176,8 @@ export default function OnboardingPage() {
               />
             </label>
             <label className="block">
-              Фамилия <span className="ballers-muted">· необязательно</span>
+              {tx("Фамилия")}
+              <span className="ballers-muted">{tx("· необязательно")}</span>
               <input
                 className={field}
                 value={lastName}
@@ -174,20 +186,10 @@ export default function OnboardingPage() {
                 autoComplete="family-name"
               />
             </label>
+            <CitySelect value={city} onChange={setCity} id="onboarding-city" />
             <label className="block">
-              Город
-              <input
-                className={field}
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                required
-                maxLength={100}
-                autoComplete="address-level2"
-              />
-            </label>
-            <label className="block">
-              Год рождения{" "}
-              <span className="ballers-muted">· необязательно</span>
+              {tx("Год рождения")}{" "}
+              <span className="ballers-muted">{tx("· необязательно")}</span>
               <input
                 className={field}
                 type="number"
@@ -200,42 +202,42 @@ export default function OnboardingPage() {
               />
             </label>
             <label className="block">
-              Основная позиция
+              {tx("Основная позиция")}
               <select
                 className={field}
                 value={primaryPosition}
                 onChange={(e) => setPrimaryPosition(e.target.value)}
               >
-                <option value="GK">Вратарь</option>
-                <option value="DEF">Защитник</option>
-                <option value="MID">Полузащитник</option>
-                <option value="ATT">Нападающий</option>
+                <option value="GK">{tx("Вратарь")}</option>
+                <option value="DEF">{tx("Защитник")}</option>
+                <option value="MID">{tx("Полузащитник")}</option>
+                <option value="ATT">{tx("Нападающий")}</option>
               </select>
             </label>
             <label className="block">
-              Дополнительная позиция
+              {tx("Дополнительная позиция")}
               <select
                 className={field}
                 value={secondaryPosition}
                 onChange={(e) => setSecondaryPosition(e.target.value)}
               >
-                <option value="">Нет</option>
-                <option value="GK">Вратарь</option>
-                <option value="DEF">Защитник</option>
-                <option value="MID">Полузащитник</option>
-                <option value="ATT">Нападающий</option>
+                <option value="">{tx("Нет")}</option>
+                <option value="GK">{tx("Вратарь")}</option>
+                <option value="DEF">{tx("Защитник")}</option>
+                <option value="MID">{tx("Полузащитник")}</option>
+                <option value="ATT">{tx("Нападающий")}</option>
               </select>
             </label>
             <label className="block">
-              Ведущая нога
+              {tx("Ведущая нога")}
               <select
                 className={field}
                 value={dominantFoot}
                 onChange={(e) => setDominantFoot(e.target.value)}
               >
-                <option value="RIGHT">Правая</option>
-                <option value="LEFT">Левая</option>
-                <option value="BOTH">Обе</option>
+                <option value="RIGHT">{tx("Правая")}</option>
+                <option value="LEFT">{tx("Левая")}</option>
+                <option value="BOTH">{tx("Обе")}</option>
               </select>
             </label>
             <button
@@ -244,13 +246,14 @@ export default function OnboardingPage() {
               disabled={phase === "saving" || !firstName.trim() || !city.trim()}
             >
               {phase === "saving"
-                ? "Сохраняем и открываем профиль…"
-                : "Создать профиль"}
+                ? tx("Сохраняем и открываем профиль…")
+                : tx("Создать профиль")}
             </button>
           </fieldset>
           <p className="ballers-muted mt-4">
-            Если соединение прервётся, повторная отправка сначала проверит
-            сохранённый профиль.
+            {tx(
+              "Если соединение прервётся, повторная отправка сначала проверит сохранённый профиль.",
+            )}
           </p>
         </form>
       )}

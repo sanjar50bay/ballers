@@ -1,4 +1,8 @@
 "use client";
+import { uiError, t as tx } from "@/lib/i18n";
+
+import { useLocale } from "@/app/components/Language";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -107,6 +111,8 @@ const secondary =
   "rounded-xl border border-white/15 px-4 py-3 text-sm font-bold disabled:opacity-40 cursor-pointer";
 
 export default function PlayPage() {
+  useLocale();
+
   const { gameId } = useParams<{ gameId: string }>();
   const [s, setS] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
@@ -156,7 +162,7 @@ export default function PlayPage() {
   }, [refresh]);
   async function run(
     task: () => PromiseLike<{ error: { message: string } | null }>,
-    message = "Сохранено",
+    message = tx("Сохранено"),
   ) {
     if (busy) return;
     setBusy(true);
@@ -172,7 +178,7 @@ export default function PlayPage() {
       setNotice(
         e instanceof Error
           ? e.message
-          : "Нет соединения: действие не подтверждено сервером",
+          : tx("Нет соединения: действие не подтверждено сервером"),
       );
     } finally {
       setBusy(false);
@@ -243,16 +249,16 @@ export default function PlayPage() {
   if (!s)
     return (
       <main className="min-h-screen bg-[#050710] text-white p-8">
-        <p>{error || "Загружаем игровой центр…"}</p>
+        <p>{error ? uiError(error) : tx("Загружаем игровой центр…")}</p>
         <Link className="text-violet-300 underline" href="/">
-          На главную
+          {tx("На главную")}
         </Link>
       </main>
     );
   const playerName = (id: string) =>
-    s.players.find((p) => p.id === id)?.name || "Игрок";
+    s.players.find((p) => p.id === id)?.name || tx("Игрок");
   const teamName = (id: string) =>
-    s.teams.find((t) => t.id === id)?.name || "Команда";
+    s.teams.find((t) => t.id === id)?.name || tx("Команда");
   const rosterIds = live
     ? s.rosters.filter((r) => r.match_id === live.id).map((r) => r.player_id)
     : [];
@@ -262,7 +268,10 @@ export default function PlayPage() {
   const doBulk = (status: "GOING" | "DECLINED") => {
     if (
       !confirm(
-        `Изменить ответы всех участников на «${status === "GOING" ? "Иду" : "Не иду"}»? При нехватке мест игроки попадут в очередь ожидания.`,
+        tx(
+          "Изменить ответы всех участников на «{status}»? При нехватке мест игроки попадут в очередь ожидания.",
+          { status: status === "GOING" ? tx("Иду") : tx("Не иду") },
+        ),
       )
     )
       return;
@@ -272,7 +281,7 @@ export default function PlayPage() {
         if (error) return { error };
       }
       return { error: null };
-    }, "Ответы обновлены. Проверьте пул и очередь.");
+    }, tx("Ответы обновлены. Проверьте пул и очередь."));
   };
   return (
     <main className="min-h-screen bg-[#050710] text-white pb-24">
@@ -283,15 +292,15 @@ export default function PlayPage() {
               className="text-violet-300 text-sm"
               href={`/communities/${s.game.community_id}/game-days/${gameId}`}
             >
-              ← Составы и приглашения
+              {tx("← Составы и приглашения")}
             </Link>
-            <h1 className="text-3xl font-black mt-3">Игровой центр</h1>
+            <h1 className="text-3xl font-black mt-3">{tx("Игровой центр")}</h1>
             <p className="text-gray-400 mt-1">
               {s.game.title} · {s.game.format}×{s.game.format}
             </p>
           </div>
           <Link href="/my-game" className="text-sm text-[#78dcff] mt-12">
-            Моя игра →
+            {tx("Моя игра →")}
           </Link>
         </header>
         {error && (
@@ -299,7 +308,8 @@ export default function PlayPage() {
             role="alert"
             className="p-4 border border-red-500 rounded-xl mb-4"
           >
-            Не удалось обновить данные: {error}
+            {tx("Не удалось обновить данные:")}
+            {uiError(error)}
           </div>
         )}
         {notice && (
@@ -307,9 +317,9 @@ export default function PlayPage() {
             role="status"
             className="p-4 rounded-xl bg-violet-950 border border-violet-700 mb-4 flex gap-3 justify-between"
           >
-            <span>{notice}</span>
+            <span>{uiError(notice)}</span>
             <button
-              aria-label="Закрыть сообщение"
+              aria-label={tx("Закрыть сообщение")}
               onClick={() => setNotice("")}
             >
               ×
@@ -318,10 +328,11 @@ export default function PlayPage() {
         )}
         <div className="flex flex-wrap gap-3 mb-5 items-center">
           <a className="neon-button blue" href="#results">
-            Матчи · {s.matches.length}
+            {tx("Матчи ·")}
+            {s.matches.length}
           </a>
           <Link className="text-link" href="/my-game?history=1">
-            История игр →
+            {tx("История игр →")}
           </Link>
           {s.manager && s.game.status === "OPEN" && (
             <button
@@ -330,26 +341,32 @@ export default function PlayPage() {
               onClick={() => {
                 if (
                   confirm(
-                    `Завершить игровой день? Матчей: ${s.matches.length}. Результаты и подтверждения сохранятся.`,
+                    tx(
+                      "Завершить игровой день? Матчей: {count}. Результаты и подтверждения сохранятся.",
+                      { count: s.matches.length },
+                    ),
                   )
                 )
                   void gameAction("CLOSE");
               }}
             >
-              Завершить игровой день
+              {tx("Завершить игровой день")}
             </button>
           )}
           {s.game.status !== "OPEN" && (
-            <span className="text-[#79ffb0]">Игровой день завершён</span>
+            <span className="text-[#79ffb0]">
+              {tx("Игровой день завершён")}
+            </span>
           )}
         </div>
         {live && (
           <section className="rounded-3xl border border-violet-500 bg-gradient-to-br from-violet-950 to-[#09131d] p-5 mb-5">
             <div className="flex justify-between gap-2 text-sm text-gray-300">
               <span>
-                Матч #{live.sequence} · {statuses[live.status]}
+                {tx("Матч #")}
+                {live.sequence} · {tx(statuses[live.status])}
               </span>
-              <span>{live.is_test ? "ТЕСТОВЫЙ" : ""}</span>
+              <span>{live.is_test ? tx("ТЕСТОВЫЙ") : ""}</span>
             </div>
             <div className="grid grid-cols-3 items-center text-center my-6">
               <b>{teamName(live.team_a)}</b>
@@ -363,8 +380,9 @@ export default function PlayPage() {
               {String(elapsed % 60).padStart(2, "0")}
             </p>
             <p className="text-center text-sm text-gray-400 mb-5">
-              {live.duration_seconds / 60} мин · до {live.goal_limit} голов ·
-              оператор: {playerName(live.operator_id)}
+              {live.duration_seconds / 60} {tx("мин · до")} {live.goal_limit}
+              {tx("голов · оператор:")}
+              {playerName(live.operator_id)}
             </p>
             {canOperate && (
               <>
@@ -379,7 +397,7 @@ export default function PlayPage() {
                       );
                     }}
                   >
-                    {live.status === "PAUSED" ? "Продолжить" : "Пауза"}
+                    {live.status === "PAUSED" ? tx("Продолжить") : tx("Пауза")}
                   </button>
                   <button
                     className={button}
@@ -387,13 +405,15 @@ export default function PlayPage() {
                     onClick={() => {
                       if (
                         confirm(
-                          "Завершить матч с текущим счётом и выполнить ротацию?",
+                          tx(
+                            "Завершить матч с текущим счётом и выполнить ротацию?",
+                          ),
                         )
                       )
                         void matchAction(live, "FINISH");
                     }}
                   >
-                    Завершить матч
+                    {tx("Завершить матч")}
                   </button>
                 </div>
                 <form
@@ -412,15 +432,15 @@ export default function PlayPage() {
                   }}
                 >
                   <label className="block text-sm">
-                    Событие
+                    {tx("Событие")}
                     <select className={field} name="kind">
-                      <option value="GOAL">Гол</option>
-                      <option value="OWN_GOAL">Автогол</option>
-                      <option value="SAVE">Сейв</option>
+                      <option value="GOAL">{tx("Гол")}</option>
+                      <option value="OWN_GOAL">{tx("Автогол")}</option>
+                      <option value="SAVE">{tx("Сейв")}</option>
                     </select>
                   </label>
                   <label className="block text-sm">
-                    Игрок
+                    {tx("Игрок")}
                     <select name="player" className={field}>
                       {rosterIds.map((id) => (
                         <option key={id} value={id}>
@@ -436,9 +456,9 @@ export default function PlayPage() {
                     </select>
                   </label>
                   <label className="block text-sm">
-                    Ассистент (только для гола)
+                    {tx("Ассистент (только для гола)")}
                     <select name="assist" className={field}>
-                      <option value="">Без ассиста</option>
+                      <option value="">{tx("Без ассиста")}</option>
                       {rosterIds.map((id) => (
                         <option key={id} value={id}>
                           {playerName(id)}
@@ -450,14 +470,14 @@ export default function PlayPage() {
                     className={`${button} w-full`}
                     disabled={busy || live.status !== "LIVE"}
                   >
-                    Записать событие
+                    {tx("Записать событие")}
                   </button>
                 </form>
               </>
             )}
             {s.manager && (
               <label className="block text-sm mt-4">
-                Передать учёт
+                {tx("Передать учёт")}
                 <select
                   className={field}
                   value={live.operator_id}
@@ -482,27 +502,30 @@ export default function PlayPage() {
         )}
         {s.game.status === "OPEN" && (
           <section className={section}>
-            <h2 className="text-xl font-bold mb-3">Пара и очередь</h2>
+            <h2 className="text-xl font-bold mb-3">{tx("Пара и очередь")}</h2>
             {s.session ? (
               <>
                 <p className="text-lg font-bold">
-                  {teamName(s.session.team_a)} vs {teamName(s.session.team_b)}
+                  {teamName(s.session.team_a)} {tx("против")}{" "}
+                  {teamName(s.session.team_b)}
                 </p>
                 <p className="text-sm text-gray-400 mt-2">
-                  Дольше на поле: {teamName(s.session.older_team)} · Ждут:{" "}
-                  {s.session.queue.map(teamName).join(" → ") || "никто"}
+                  {tx("Дольше на поле:")}
+                  {teamName(s.session.older_team)} {tx("· Ждут:")}{" "}
+                  {s.session.queue.map(teamName).join(" → ") || tx("никто")}
                 </p>
               </>
             ) : (
               <p className="text-gray-400">
-                По умолчанию начнут первые две команды; при первой ничьей
-                отдыхает первая. Можно изменить ниже.
+                {tx(
+                  "По умолчанию начнут первые две команды; при первой ничьей отдыхает первая. Можно изменить ниже.",
+                )}
               </p>
             )}
             {s.manager && !s.matches.length && (
               <details className="mt-3">
                 <summary className="min-h-11 py-2 text-sm text-[#7bd9ff]">
-                  Изменить стартовую пару ↓
+                  {tx("Изменить стартовую пару ↓")}
                 </summary>
                 <form
                   className="mt-4 space-y-3"
@@ -517,7 +540,7 @@ export default function PlayPage() {
                   }}
                 >
                   <label className="block text-sm">
-                    Первая команда
+                    {tx("Первая команда")}
                     <select name="a" className={field}>
                       {s.teams.map((t) => (
                         <option key={t.id} value={t.id}>
@@ -527,7 +550,7 @@ export default function PlayPage() {
                     </select>
                   </label>
                   <label className="block text-sm">
-                    Вторая команда
+                    {tx("Вторая команда")}
                     <select
                       name="b"
                       className={field}
@@ -541,7 +564,7 @@ export default function PlayPage() {
                     </select>
                   </label>
                   <label className="block text-sm">
-                    Кто отдыхает при первой ничьей
+                    {tx("Кто отдыхает при первой ничьей")}
                     <select name="draw" className={field}>
                       {s.teams.map((t) => (
                         <option key={t.id} value={t.id}>
@@ -554,7 +577,7 @@ export default function PlayPage() {
                     className={secondary}
                     disabled={busy || s.teams.length < 2}
                   >
-                    Сохранить стартовую пару
+                    {tx("Сохранить стартовую пару")}
                   </button>
                 </form>
               </details>
@@ -570,8 +593,8 @@ export default function PlayPage() {
                 }}
               >
                 {s.matches.length
-                  ? "Начать следующий матч"
-                  : "Начать первый матч"}
+                  ? tx("Начать следующий матч")
+                  : tx("Начать первый матч")}
               </button>
             )}
           </section>
@@ -582,11 +605,11 @@ export default function PlayPage() {
           className={section}
         >
           <h2 className="text-xl font-bold mb-4">
-            Результаты и подтверждения{" "}
-            {pending.length > 0 && `· ${pending.length} ожидают`}
+            {tx("Результаты и подтверждения")}{" "}
+            {pending.length > 0 && `· ${pending.length} ${tx("Ожидание")}`}
           </h2>
           {!s.matches.length && (
-            <p className="text-gray-400">Первый матч ещё не начат.</p>
+            <p className="text-gray-400">{tx("Первый матч ещё не начат.")}</p>
           )}
           {s.matches.map((m) => (
             <article
@@ -601,17 +624,19 @@ export default function PlayPage() {
                   {teamName(m.team_b)}
                 </b>
                 <span className="text-sm text-violet-300">
-                  {statuses[m.status]}
-                  {m.is_test ? " · тест" : ""}
+                  {tx(statuses[m.status] || "Ожидает подтверждения")}
+                  {m.is_test ? tx(" · тест") : ""}
                 </span>
               </div>
               <p className="text-sm text-gray-400 mt-2">
-                Капитаны: {m.confirmed_a ? "✓" : "…"} {playerName(m.captain_a)}{" "}
-                / {m.confirmed_b ? "✓" : "…"} {playerName(m.captain_b)}
+                {tx("Капитаны:")}
+                {m.confirmed_a ? "✓" : "…"} {playerName(m.captain_a)} /{" "}
+                {m.confirmed_b ? "✓" : "…"} {playerName(m.captain_b)}
               </p>
               {m.resolution_note && (
                 <p className="text-sm text-amber-200 mt-2">
-                  Решение/спор: {m.resolution_note}
+                  {tx("Решение/спор:")}
+                  {m.resolution_note}
                 </p>
               )}
               <div className="flex flex-wrap gap-2 mt-3">
@@ -625,7 +650,7 @@ export default function PlayPage() {
                         void matchAction(m, "CONFIRM");
                       }}
                     >
-                      Подтвердить результат
+                      {tx("Подтвердить результат")}
                     </button>
                   )}
                 {m.status === "PENDING" &&
@@ -635,11 +660,11 @@ export default function PlayPage() {
                       className={secondary}
                       disabled={busy}
                       onClick={() => {
-                        const reason = prompt("В чём спор?");
+                        const reason = prompt(tx("В чём спор?"));
                         if (reason) void matchAction(m, "DISPUTE", { reason });
                       }}
                     >
-                      Оспорить
+                      {tx("Оспорить")}
                     </button>
                   )}
                 {s.manager &&
@@ -650,20 +675,22 @@ export default function PlayPage() {
                       disabled={busy}
                       onClick={() => {
                         const reason = prompt(
-                          "Укажи причину решения (минимум 5 символов). Тестовые матчи не входят в реальную карьерную статистику.",
+                          tx(
+                            "Укажи причину решения (минимум 5 символов). Тестовые матчи не входят в реальную карьерную статистику.",
+                          ),
                         );
                         if (reason) void matchAction(m, "RESOLVE", { reason });
                       }}
                     >
                       {m.is_test
-                        ? "Подтвердить тест с причиной"
-                        : "Решить спор"}
+                        ? tx("Подтвердить тест с причиной")
+                        : tx("Решить спор")}
                     </button>
                   )}
               </div>
               <details className="mt-3">
                 <summary className="min-h-11 py-2 text-sm text-[#76d6ff]">
-                  События матча ↓
+                  {tx("События матча ↓")}
                 </summary>
                 <div className="space-y-1">
                   {s.events
@@ -675,13 +702,13 @@ export default function PlayPage() {
                       >
                         <span>
                           {e.kind === "GOAL"
-                            ? "⚽ Гол"
+                            ? tx("⚽ Гол")
                             : e.kind === "SAVE"
-                              ? "🧤 Сейв"
-                              : "↩ Автогол"}{" "}
+                              ? tx("🧤 Сейв")
+                              : tx("↩ Автогол")}{" "}
                           · {playerName(e.player_id)}
                           {e.assist_id
-                            ? ` · ассист ${playerName(e.assist_id)}`
+                            ? ` · ${tx("ассист")} ${playerName(e.assist_id)}`
                             : ""}
                         </span>
                         {!e.voided &&
@@ -692,13 +719,15 @@ export default function PlayPage() {
                               onClick={() => {
                                 if (
                                   confirm(
-                                    "Отменить событие? Подтверждения завершённого матча будут сброшены.",
+                                    tx(
+                                      "Отменить событие? Подтверждения завершённого матча будут сброшены.",
+                                    ),
                                   )
                                 )
                                   void matchAction(m, "UNDO", { id: e.id });
                               }}
                             >
-                              Отменить
+                              {tx("Отменить")}
                             </button>
                           )}
                       </div>
@@ -710,15 +739,16 @@ export default function PlayPage() {
         </section>
         <details className={section}>
           <summary className="min-h-11 py-2 text-lg font-bold">
-            Участники и резерв <span className="text-[#73d4ff]">↓</span>
+            {tx("Участники и резерв")}
+            <span className="text-[#73d4ff]">↓</span>
           </summary>
           <p className="text-sm text-gray-400 mb-4">
-            Иду:{" "}
+            {tx("Иду:")}{" "}
             {
               s.participants.filter((p) => p.attendance_status === "GOING")
                 .length
             }
-            /{s.game.capacity || "∞"} · Ожидают: {s.waitlist.length}
+            /{s.game.capacity || "∞"} {tx("· Ожидают:")} {s.waitlist.length}
           </p>
           {s.manager && (
             <div className="flex flex-wrap gap-2 mb-4">
@@ -727,14 +757,14 @@ export default function PlayPage() {
                 disabled={busy || !!live}
                 onClick={() => doBulk("GOING")}
               >
-                Все участники → Иду
+                {tx("Все участники → Иду")}
               </button>
               <button
                 className={secondary}
                 disabled={busy || !!live}
                 onClick={() => doBulk("DECLINED")}
               >
-                Все → Не иду
+                {tx("Все → Не иду")}
               </button>
               <button
                 className={secondary}
@@ -742,7 +772,9 @@ export default function PlayPage() {
                 onClick={() => {
                   if (
                     confirm(
-                      "Добавить до 14 синтетических игроков сообщества без Google-аккаунтов? Они не записываются на игру автоматически.",
+                      tx(
+                        "Добавить до 14 синтетических игроков сообщества без Google-аккаунтов? Они не записываются на игру автоматически.",
+                      ),
                     )
                   )
                     void run(
@@ -751,11 +783,13 @@ export default function PlayPage() {
                           p_community: s.game.community_id,
                           p_count: 14,
                         }),
-                      "Тестовые профили добавлены. Пригласи их через Invite Members.",
+                      tx(
+                        "Тестовые профили добавлены. Пригласи их через Invite Members.",
+                      ),
                     );
                 }}
               >
-                Тестовые игроки +14
+                {tx("Тестовые игроки +14")}
               </button>
             </div>
           )}
@@ -772,19 +806,19 @@ export default function PlayPage() {
                     <p className="text-sm text-gray-400">
                       {w
                         ? w.offered
-                          ? "Место предложено — ждём ответа"
-                          : "Очередь ожидания"
+                          ? tx("Место предложено — ждём ответа")
+                          : tx("Очередь ожидания")
                         : {
-                            GOING: "Иду",
-                            MAYBE: "Возможно",
-                            INVITED: "Приглашён",
-                            DECLINED: "Не иду",
+                            GOING: tx("Иду"),
+                            MAYBE: tx("Возможно"),
+                            INVITED: tx("Приглашён"),
+                            DECLINED: tx("Не иду"),
                           }[p.attendance_status]}
                     </p>
                   </div>
                   {(s.manager || p.player_id === s.my_player_id) && (
                     <select
-                      aria-label={`Ответ ${playerName(p.player_id)}`}
+                      aria-label={`${tx("Ответ")} ${playerName(p.player_id)}`}
                       className="bg-[#161b2c] text-sm rounded-lg p-2 max-w-32"
                       disabled={busy}
                       value={w ? "WAITING" : p.attendance_status}
@@ -800,15 +834,15 @@ export default function PlayPage() {
                     >
                       {w && (
                         <option value="WAITING" disabled>
-                          Ожидание
+                          {tx("Ожидание")}
                         </option>
                       )}
                       <option value="INVITED" disabled>
-                        Приглашён
+                        {tx("Приглашён")}
                       </option>
-                      <option value="GOING">Иду</option>
-                      <option value="MAYBE">Возможно</option>
-                      <option value="DECLINED">Не иду</option>
+                      <option value="GOING">{tx("Иду")}</option>
+                      <option value="MAYBE">{tx("Возможно")}</option>
+                      <option value="DECLINED">{tx("Не иду")}</option>
                     </select>
                   )}
                 </div>
@@ -817,22 +851,23 @@ export default function PlayPage() {
           </div>
           {!!s.waitlist.length && (
             <p className="mt-3 text-sm text-amber-300">
-              Очередь:{" "}
+              {tx("Очередь:")}{" "}
               {s.waitlist
                 .map(
                   (w) =>
                     playerName(w.player_id) +
-                    (w.offered ? " — место предложено" : ""),
+                    (w.offered ? tx(" — место предложено") : ""),
                 )
                 .join(" → ")}
-              . Предложение не переводит игрока в «Иду» автоматически.
+              {tx(". Предложение не переводит игрока в «Иду» автоматически.")}
             </p>
           )}
         </details>
         {s.manager && s.game.status === "OPEN" && (
           <details className={section}>
             <summary className="min-h-11 py-2 text-lg font-bold">
-              Параметры игрового дня <span className="text-[#73d4ff]">↓</span>
+              {tx("Параметры игрового дня")}
+              <span className="text-[#73d4ff]">↓</span>
             </summary>
             <form
               key={`${s.game.format}:${s.game.capacity}`}
@@ -848,7 +883,7 @@ export default function PlayPage() {
             >
               <div className="grid grid-cols-2 gap-3">
                 <label className="text-sm">
-                  Игроков на поле
+                  {tx("Игроков на поле")}
                   <select
                     name="format"
                     className={field}
@@ -862,7 +897,7 @@ export default function PlayPage() {
                   </select>
                 </label>
                 <label className="text-sm">
-                  Мест в Game Day
+                  {tx("Мест в Game Day")}
                   <input
                     name="capacity"
                     className={field}
@@ -876,7 +911,7 @@ export default function PlayPage() {
                 className={secondary}
                 disabled={busy || s.matches.length > 0}
               >
-                Сохранить формат и места
+                {tx("Сохранить формат и места")}
               </button>
             </form>
           </details>
@@ -884,11 +919,12 @@ export default function PlayPage() {
         {s.manager && s.game.status === "OPEN" && (
           <details className={section}>
             <summary className="min-h-11 py-2 text-lg font-bold">
-              Правила новых матчей <span className="text-[#73d4ff]">↓</span>
+              {tx("Правила новых матчей")}
+              <span className="text-[#73d4ff]">↓</span>
             </summary>
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
-                Минуты
+                {tx("Минуты")}
                 <input
                   className={field}
                   type="number"
@@ -905,7 +941,7 @@ export default function PlayPage() {
                 />
               </label>
               <label className="text-sm">
-                До голов
+                {tx("До голов")}
                 <input
                   className={field}
                   type="number"
@@ -922,7 +958,7 @@ export default function PlayPage() {
               </label>
             </div>
             <label className="block text-sm mt-3">
-              Окончание
+              {tx("Окончание")}
               <select
                 className={field}
                 value={settings.end_mode}
@@ -931,14 +967,14 @@ export default function PlayPage() {
                 }
               >
                 <option value="FIRST_REACHED">
-                  Время или голы — что раньше
+                  {tx("Время или голы — что раньше")}
                 </option>
-                <option value="TIME_ONLY">Только время</option>
-                <option value="GOALS_ONLY">Только голы</option>
+                <option value="TIME_ONLY">{tx("Только время")}</option>
+                <option value="GOALS_ONLY">{tx("Только голы")}</option>
               </select>
             </label>
             <label className="block text-sm mt-3">
-              Предел побед подряд (пусто = нет)
+              {tx("Предел побед подряд (пусто = нет)")}
               <input
                 className={field}
                 type="number"
@@ -954,8 +990,9 @@ export default function PlayPage() {
             </label>
             {settings.max_streak && (
               <p className="text-sm text-amber-200 mt-2">
-                Выбранное правило: при достижении предела победитель отдыхает,
-                проигравшая остаётся. Объявите его командам заранее.
+                {tx(
+                  "Выбранное правило: при достижении предела победитель отдыхает, проигравшая остаётся. Объявите его командам заранее.",
+                )}
               </p>
             )}
             <label className="flex gap-3 my-4 text-sm">
@@ -966,11 +1003,12 @@ export default function PlayPage() {
                   setSettings({ ...settings, is_open: e.target.checked })
                 }
               />
-              Открыть добор в списке публичных игр
+              {tx("Открыть добор в списке публичных игр")}
             </label>
             <p className="text-sm text-gray-400 mb-3">
-              Победитель остаётся. При ничьей уходит дольше играющая команда.
-              Начатый матч сохраняет свои правила.
+              {tx(
+                "Победитель остаётся. При ничьей уходит дольше играющая команда. Начатый матч сохраняет свои правила.",
+              )}
             </p>
             <button
               className={button}
@@ -979,21 +1017,20 @@ export default function PlayPage() {
                 void gameAction("SETTINGS", { ...settings });
               }}
             >
-              Сохранить правила
+              {tx("Сохранить правила")}
             </button>
           </details>
         )}
         {s.manager && s.game.status === "OPEN" && (
           <details className={section}>
             <summary className="min-h-11 py-2 text-lg font-bold">
-              Базовые команды сообщества{" "}
+              {tx("Базовые команды сообщества")}{" "}
               <span className="text-[#73d4ff]">↓</span>
             </summary>
             <p className="text-sm text-gray-400 mb-4">
-              Сохрани нынешние команды и режимы как базу. Отсутствующие
-              постоянные игроки сохраняются. В новом Game Day загружаются только
-              ответившие «Иду», остальные места заполняются через Random / Core
-              + Fill.
+              {tx(
+                "Сохрани нынешние команды и режимы как базу. Отсутствующие постоянные игроки сохраняются. В новом Game Day загружаются только ответившие «Иду», остальные места заполняются через Random / Core + Fill.",
+              )}
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -1002,7 +1039,9 @@ export default function PlayPage() {
                 onClick={() => {
                   if (
                     confirm(
-                      "Сохранить команды как базовые? Названия и режимы обновятся; отсутствующие участники сохранятся.",
+                      tx(
+                        "Сохранить команды как базовые? Названия и режимы обновятся; отсутствующие участники сохранятся.",
+                      ),
                     )
                   )
                     void run(() =>
@@ -1013,7 +1052,7 @@ export default function PlayPage() {
                     );
                 }}
               >
-                Запомнить команды как постоянные
+                {tx("Запомнить команды как постоянные")}
               </button>
               <button
                 className={secondary}
@@ -1021,7 +1060,9 @@ export default function PlayPage() {
                 onClick={() => {
                   if (
                     confirm(
-                      "Заменить сегодняшние команды базовыми? Загрузятся только Going; текущие назначения сбросятся.",
+                      tx(
+                        "Заменить сегодняшние команды базовыми? Загрузятся только Going; текущие назначения сбросятся.",
+                      ),
                     )
                   )
                     void run(() =>
@@ -1032,14 +1073,15 @@ export default function PlayPage() {
                     );
                 }}
               >
-                Применить постоянные команды к этому дню
+                {tx("Применить постоянные команды к этому дню")}
               </button>
             </div>
           </details>
         )}
         <details className={section}>
           <summary className="min-h-11 py-2 text-lg font-bold">
-            Капитаны и ответственные <span className="text-[#73d4ff]">↓</span>
+            {tx("Капитаны и ответственные")}
+            <span className="text-[#73d4ff]">↓</span>
           </summary>
           <div className="space-y-4">
             {s.teams.map((t) => {
@@ -1060,11 +1102,12 @@ export default function PlayPage() {
                   className="border border-white/10 rounded-2xl p-4"
                 >
                   <h3 className="font-bold mb-3">
-                    {t.name} · {t.player_ids.length} игроков
+                    {t.name} · {t.player_ids.length}
+                    {tx("игроков")}
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label className="text-sm">
-                      Капитан
+                      {tx("Капитан")}
                       <select
                         name="captain"
                         className={field}
@@ -1079,7 +1122,7 @@ export default function PlayPage() {
                       </select>
                     </label>
                     <label className="text-sm">
-                      Ответственный
+                      {tx("Ответственный")}
                       <select
                         name="responsible"
                         className={field}
@@ -1104,13 +1147,13 @@ export default function PlayPage() {
                           type="checkbox"
                           defaultChecked={role?.can_manage_attendance}
                         />
-                        Капитан может менять ответы своей команды
+                        {tx("Капитан может менять ответы своей команды")}
                       </label>
                       <button
                         className={secondary}
                         disabled={busy || !t.player_ids.length || !!live}
                       >
-                        Сохранить роли {t.name}
+                        {tx("Сохранить роли")} {t.name}
                       </button>
                     </>
                   )}
@@ -1120,9 +1163,9 @@ export default function PlayPage() {
           </div>
         </details>
         <p className="text-sm text-gray-500">
-          Таймер восстанавливается с сервера. При потере связи действие не
-          считается сохранённым. Точные минуты игроков не рассчитываются: состав
-          матча — заявка, а не журнал замен.
+          {tx(
+            "Таймер восстанавливается с сервера. При потере связи действие не считается сохранённым. Точные минуты игроков не рассчитываются: состав матча — заявка, а не журнал замен.",
+          )}
         </p>
       </div>
       <BottomNav />

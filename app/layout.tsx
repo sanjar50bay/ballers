@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import LanguageBar from "./components/Language";
 import AppState from "./components/AppState";
 import Notifications from "./components/Notifications";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BALLERS — Play · Connect · Compete",
+  title: "BALLERS — твой футбол",
   description:
     "Любительский футбол: игры, команды и подтверждённая история игрока",
 };
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <LanguageBar />
         <AppState>
           <Notifications>{children}</Notifications>
         </AppState>

@@ -1,219 +1,161 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import PlayerStats from "@/app/components/PlayerStats";
-import { supabase } from "@/lib/supabase";
-
-type Player = {
-  id: string;
-  baller_id: number;
-  first_name: string;
-  last_name: string | null;
-  city: string | null;
-  primary_position: string;
-  secondary_position: string | null;
-  dominant_foot: string | null;
-  avatar_url: string | null;
-};
-
+import { useTeamAction } from "@/lib/use-network";
+import { useParams } from "next/navigation";
+import { useRef, useState } from "react";
+import Link from "next/link";
+import { useApp, type Stats } from "@/app/components/AppState";
+import { useLocale } from "@/app/components/Language";
+import {
+  NetworkShell,
+  NetworkError,
+  PersonRow,
+  useNetworkResource,
+} from "@/app/components/Network";
+import { t } from "@/lib/i18n";
+import {
+  networkError,
+  changed,
+  searchLabel,
+  type Person,
+  type NetworkData,
+  type TeamItem,
+} from "@/lib/network";
+type PublicPlayer = Person & { stats: Stats; teams: TeamItem[] };
 export default function PlayerPage() {
-  const params = useParams();
-  const router = useRouter();
-
-  const playerId = params.id as string;
-
-  const [player, setPlayer] = useState<Player | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadPlayer = async () => {
-      const { data, error } = await supabase
-        .from("player_profiles")
-        .select("*")
-        .eq("id", playerId)
-        .single();
-
-      if (error) {
-        console.error(error);
-      } else {
-        setPlayer(data);
-      }
-
-      setLoading(false);
-    };
-
-    loadPlayer();
-  }, [playerId]);
-
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        Loading player...
-      </main>
-    );
+  useLocale();
+  const runTeamAction = useTeamAction();
+  const id = String(useParams().id);
+  const { data: home } = useApp();
+  const profile = useNetworkResource<PublicPlayer>(
+    "ballers_public_player",
+    { p_player: id },
+    !!home?.profile,
+  );
+  const net = useNetworkResource<NetworkData>(
+    "ballers_network",
+    {},
+    !!home?.profile,
+  );
+  const [team, setTeam] = useState(""),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [sent, setSent] = useState(false);
+  const lock = useRef(false);
+  const p = profile.data;
+  const captained = net.data?.teams.filter((tm) => tm.captain) || [];
+  async function invite() {
+    if (!team || lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await runTeamAction({
+        p_team: team,
+        p_action: "INVITE",
+        p_players: [id],
+      });
+      changed();
+      setSent(true);
+    } catch (e) {
+      setError(networkError(e));
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
   }
-
-  if (!player) {
-    return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        Player not found
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-black text-white px-6 py-8">
-      <div className="max-w-md mx-auto">
-
-        <button
-          onClick={() => router.back()}
-          className="text-gray-400 mb-6 cursor-pointer hover:text-white"
-        >
-          ← Back
-        </button>
-
-        <PlayerStats playerId={player.id} />
-        <section className="bg-neutral-900 rounded-3xl p-6 mb-6">
-
-          <div className="flex flex-col items-center text-center">
-
-            <div className="w-28 h-28 rounded-full bg-neutral-800 overflow-hidden flex items-center justify-center text-4xl mb-4">
-
-              {player.avatar_url ? (
-                <img
-                  src={player.avatar_url}
-                  alt={player.first_name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                "👤"
+    <NetworkShell>
+      <Link className="text-link" href="/discover">
+        {t("← К поиску")}
+      </Link>
+      <NetworkError error={profile.error} retry={() => void profile.reload()} />
+      {profile.loading && !p && (
+        <p className="inline-loading">{t("Загружаем профиль…")}</p>
+      )}
+      {p && (
+        <>
+          <h1 className="page-title">{t("Baller ID")}</h1>
+          <section className="network-card">
+            <PersonRow person={p} />
+            <span className="network-badge">
+              {searchLabel(p.search_status || "PLAY")}
+            </span>
+            <p className="ballers-muted mt-3">
+              {t(
+                p.available === true
+                  ? "Готов к приглашениям на игры"
+                  : p.available === false
+                    ? "Сейчас не ищет приглашений на игры"
+                    : "Готовность к приглашениям пока не указана",
               )}
-
-            </div>
-
-            <p className="text-gray-500 text-sm">
-              Baller ID #{player.baller_id}
             </p>
-
-            <h1 className="text-3xl font-bold mt-1">
-              {player.first_name} {player.last_name ?? ""}
-            </h1>
-
-            <div className="flex gap-2 mt-3 flex-wrap justify-center">
-
-              <span className="bg-neutral-800 px-3 py-1 rounded-full text-sm">
-                {player.primary_position}
-              </span>
-
-              {player.secondary_position && (
-                <span className="bg-neutral-800 px-3 py-1 rounded-full text-sm">
-                  {player.secondary_position}
-                </span>
+          </section>
+          <section className="network-card">
+            <h2>{t("Подтверждённая статистика")}</h2>
+            <div className="stats-grid mt-4">
+              {[
+                ["Матчи", p.stats.matches],
+                ["Голы", p.stats.goals],
+                ["Ассисты", p.stats.assists],
+              ].map(([label, n]) => (
+                <div key={label}>
+                  <b>{n}</b>
+                  <p>{t(String(label))}</p>
+                </div>
+              ))}
+            </div>
+            <p className="ballers-muted mt-3">
+              {t("Только подтверждённые результаты")}
+            </p>
+          </section>
+          <h2 className="section-title">{t("Команды игрока")}</h2>
+          {p.teams.map((tm) => (
+            <Link href={`/teams/${tm.id}`} className="network-card" key={tm.id}>
+              <b>{tm.name}</b>
+            </Link>
+          ))}
+          {!p.teams.length && (
+            <p className="ballers-muted">
+              {t("Пока без подтверждённой команды")}
+            </p>
+          )}
+          {home?.profile?.id !== id && captained.length > 0 && (
+            <section className="network-card">
+              <h2>{t("Пригласить в команду")}</h2>
+              <NetworkError error={error} />
+              {sent && (
+                <p role="status" className="network-success">
+                  {t("Приглашение отправлено. Игрок подтвердит его сам.")}
+                </p>
               )}
-
-              {player.city && (
-                <span className="bg-neutral-800 px-3 py-1 rounded-full text-sm">
-                  {player.city}
-                </span>
-              )}
-
-            </div>
-          </div>
-
-          <div className="border border-neutral-800 rounded-2xl p-4 mt-6">
-
-            <p className="text-gray-500 text-sm">
-              Baller Rating
-            </p>
-
-            <p className="text-4xl font-bold">
-              500
-            </p>
-
-            <p className="text-gray-600 text-xs mt-1">
-              Provisional
-            </p>
-
-          </div>
-        </section>
-
-        <section className="mb-6">
-
-          <h2 className="text-xl font-semibold mb-3">
-            Career
-          </h2>
-
-          <div className="grid grid-cols-2 gap-3">
-
-            <div className="bg-neutral-900 rounded-xl p-4">
-              <p className="text-gray-500 text-sm">
-                Matches
-              </p>
-              <p className="text-2xl font-bold">
-                0
-              </p>
-            </div>
-
-            <div className="bg-neutral-900 rounded-xl p-4">
-              <p className="text-gray-500 text-sm">
-                Goals
-              </p>
-              <p className="text-2xl font-bold">
-                0
-              </p>
-            </div>
-
-            <div className="bg-neutral-900 rounded-xl p-4">
-              <p className="text-gray-500 text-sm">
-                Assists
-              </p>
-              <p className="text-2xl font-bold">
-                0
-              </p>
-            </div>
-
-            <div className="bg-neutral-900 rounded-xl p-4">
-              <p className="text-gray-500 text-sm">
-                Wins
-              </p>
-              <p className="text-2xl font-bold">
-                0
-              </p>
-            </div>
-
-          </div>
-
-        </section>
-
-        <section>
-
-          <h2 className="text-xl font-semibold mb-3">
-            Achievements
-          </h2>
-
-          <div className="flex gap-3">
-
-            <div className="w-20 h-20 bg-neutral-900 opacity-40 rounded-2xl flex flex-col items-center justify-center">
-              <span className="text-2xl">⚽</span>
-              <span className="text-[10px] mt-1">First Match</span>
-            </div>
-
-            <div className="w-20 h-20 bg-neutral-900 opacity-40 rounded-2xl flex flex-col items-center justify-center">
-              <span className="text-2xl">🥾</span>
-              <span className="text-[10px] mt-1">10 Goals</span>
-            </div>
-
-            <div className="w-20 h-20 bg-neutral-900 opacity-40 rounded-2xl flex flex-col items-center justify-center">
-              <span className="text-2xl">🎯</span>
-              <span className="text-[10px] mt-1">10 Assists</span>
-            </div>
-
-          </div>
-
-        </section>
-
-      </div>
-    </main>
+              <label className="network-field">
+                <span>{t("Твоя команда")}</span>
+                <select
+                  value={team}
+                  onChange={(e) => {
+                    setTeam(e.target.value);
+                    setSent(false);
+                  }}
+                >
+                  <option value="">{t("Выбери команду")}</option>
+                  {captained.map((tm) => (
+                    <option value={tm.id} key={tm.id}>
+                      {tm.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                className="neon-button green"
+                disabled={!team || busy}
+                onClick={() => void invite()}
+              >
+                {t("Отправить приглашение")}
+              </button>
+            </section>
+          )}
+        </>
+      )}
+    </NetworkShell>
   );
 }

@@ -1,4 +1,8 @@
 "use client";
+import { t as tx, uiError, positionLabel } from "@/lib/i18n";
+
+import { useLocale } from "@/app/components/Language";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -7,12 +11,16 @@ import { useApp } from "../components/AppState";
 import AppHeader from "../components/AppHeader";
 import BottomNav from "../components/BottomNav";
 import PlayerStats from "../components/PlayerStats";
+import { PlayerCard } from "../components/WelcomeCard";
 import Avatar from "../components/Avatar";
 export default function ProfilePage() {
+  useLocale();
+
   const { data, session, loading, refresh, error } = useApp();
   const [welcome, setWelcome] = useState(true),
     [busy, setBusy] = useState(false),
     [signError, setSignError] = useState("");
+  const [preview, setPreview] = useState(false);
   const router = useRouter();
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -26,7 +34,7 @@ export default function ProfilePage() {
     setBusy(true);
     const { error } = await supabase.auth.signOut();
     if (error) {
-      setSignError("Не удалось выйти. Попробуй снова.");
+      setSignError(tx("Не удалось выйти. Попробуй снова."));
       setBusy(false);
       return;
     }
@@ -37,10 +45,10 @@ export default function ProfilePage() {
   return (
     <main className="ballers-shell">
       <AppHeader />
-      <h1 className="page-title">Твой Baller ID</h1>
-      <p className="ballers-muted mb-6">Карьера и настройки</p>
+      <h1 className="page-title">{tx("Твой Baller ID")}</h1>
+      <p className="ballers-muted mb-6">{tx("Карьера и настройки")}</p>
       {loading ? (
-        <p className="inline-loading">Загружаем профиль…</p>
+        <p className="inline-loading">{tx("Загружаем профиль…")}</p>
       ) : p ? (
         <>
           <div className="profile-strip">
@@ -50,16 +58,40 @@ export default function ProfilePage() {
                 {p.display_name || p.first_name}
               </h2>
               <p className="ballers-muted">
-                Baller #{p.baller_id} · {p.city} · {p.primary_position}
+                Baller #{p.baller_id} · {p.city} ·{" "}
+                {positionLabel(p.primary_position)}
               </p>
             </div>
           </div>
+          <button
+            className="neon-button w-full mt-4"
+            onClick={() => setPreview(true)}
+          >
+            {tx("Показать мою карточку")}
+          </button>
+          {preview && (
+            <PlayerCard
+              manual
+              profile={p}
+              stats={data?.stats ?? undefined}
+              onClose={() => setPreview(false)}
+            />
+          )}
+          <Link className="search-panel" href="/profile/football">
+            <div>
+              <b>{tx("Город, команда и приглашения")}</b>
+              <p className="ballers-muted">{tx("Как ты хочешь играть?")}</p>
+            </div>
+          </Link>
+          <Link className="text-link" href="/discover?kind=inbox">
+            {tx("Командные запросы →")}
+          </Link>
           <PlayerStats playerId={p.id} />
           <Link className="neon-button blue w-full" href="/career">
-            Моя история матчей →
+            {tx("Моя история матчей →")}
           </Link>
           <Link className="community-row text-[#cbaaff]" href="/profile/edit">
-            Настройки профиля →
+            {tx("Настройки профиля →")}
           </Link>
           <section className="neon-panel mt-3">
             <label className="flex items-center gap-3 min-h-11">
@@ -76,10 +108,12 @@ export default function ProfilePage() {
                   } catch {}
                 }}
               />
-              Карточка игрока при входе
+              {tx("Карточка игрока при входе")}
             </label>
             <p className="ballers-muted mt-2">
-              Не чаще одного раза в день. Можно сразу пропустить.
+              {tx(
+                "При возвращении после 30 минут. Показ — до 5 секунд, можно сразу пропустить.",
+              )}
             </p>
           </section>
           <button
@@ -87,22 +121,22 @@ export default function ProfilePage() {
             disabled={busy}
             onClick={() => void logout()}
           >
-            Выйти из аккаунта
+            {tx("Выйти из аккаунта")}
           </button>
           {signError && (
             <p role="alert" className="error-panel">
-              {signError}
+              {uiError(signError)}
             </p>
           )}
         </>
       ) : (
         <div className="error-panel">
-          {error ||
+          {(error ? uiError(error) : "") ||
             (session
-              ? "Профиль ещё не создан."
-              : "Войди, чтобы открыть профиль.")}
+              ? tx("Профиль ещё не создан.")
+              : tx("Войди, чтобы открыть профиль."))}
           <Link className="text-link" href={session ? "/onboarding" : "/"}>
-            Продолжить →
+            {tx("Продолжить →")}
           </Link>
         </div>
       )}

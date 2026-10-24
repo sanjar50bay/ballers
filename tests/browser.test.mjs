@@ -1,3 +1,6 @@
+import catalog from "../lib/i18n/catalog.json" with { type: "json" };
+const testLocale = process.env.TEST_LOCALE === "kk" ? "kk" : "ru";
+const text = (s) => catalog[s.trim()]?.[testLocale] ?? s;
 // Local-only browser test: fake OAuth/PostgREST transport, real SQL and RLS in PGlite.
 import { PGlite } from "@electric-sql/pglite";
 import fs from "node:fs";
@@ -17,6 +20,7 @@ for (const p of [
   "supabase/migrations/20261012_002_integrated_alpha.sql",
   "supabase/migrations/20261013_003_navigation_community.sql",
   "supabase/migrations/20261019_004_mobile_notifications.sql",
+  "supabase/migrations/20261024_005_directory_teams.sql",
 ])
   await db.exec(read(p));
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -55,6 +59,9 @@ const serial = (fn) => {
   return next;
 };
 const rpcArgs = {
+  ballers_directory: ["p_kind","p_city","p_query","p_offset","p_free"],
+  ballers_network: [],
+  ballers_public_player: ["p_player"],
   ballers_home: [],
   ballers_notification_feed: [],
   ballers_start_match: ["p_game"],
@@ -306,9 +313,14 @@ try {
     passed++;
   };
   await page.goto(`${base}/games/${game}/play`);
-  await page.getByText("Участники и резерв", { exact: false }).first().click();
-  await page.getByRole("button", { name: "Все участники → Иду" }).click();
-  await page.getByText("Ответы обновлены. Проверьте пул и очередь.").waitFor();
+  await page
+    .getByText(text("Участники и резерв"), { exact: false })
+    .first()
+    .click();
+  await page.getByRole("button", { name: text("Все участники → Иду") }).click();
+  await page
+    .getByText(text("Ответы обновлены. Проверьте пул и очередь."))
+    .waitFor();
   assert.equal(
     (
       await db.query(
@@ -318,41 +330,49 @@ try {
     15,
   );
   pass("UI bulk attendance uses authorized SQL for 15 players");
-  await page.getByRole("link", { name: "← Составы и приглашения" }).click();
-  await page.getByRole("button", { name: "Build Teams" }).click();
-  await page.getByRole("button", { name: /Randomize/ }).click();
   await page
-    .getByText(/5\/5 roster/)
+    .getByRole("link", { name: text("← Составы и приглашения") })
+    .click();
+  await page.getByRole("button", { name: text("Build Teams") }).click();
+  await page.getByRole("button", { name: /Перемешать/ }).click();
+  await page
+    .getByText(/Состав: 5\/5/)
     .first()
     .waitFor();
   pass("existing Team Builder remains functional");
   await page.getByRole("link", { name: /Игровой центр:/ }).click();
   await page
     .locator("summary")
-    .filter({ hasText: "Капитаны и ответственные" })
+    .filter({ hasText: text("Капитаны и ответственные") })
     .click();
   for (const name of ["Blue", "Red", "Yellow"])
-    await page.getByRole("button", { name: "Сохранить роли " + name }).click();
+    await page
+      .getByRole("button", { name: text("Сохранить роли") + " " + name })
+      .click();
   await page
     .locator("summary")
-    .filter({ hasText: "Правила новых матчей" })
+    .filter({ hasText: text("Правила новых матчей") })
     .click();
   await page
-    .getByRole("button", { name: "Сохранить правила", exact: true })
+    .getByRole("button", { name: text("Сохранить правила"), exact: true })
     .click();
-  await page.getByRole("button", { name: "Начать первый матч" }).click();
+  await page.getByRole("button", { name: text("Начать первый матч") }).click();
   await page.getByText(/Матч #1 · Идёт матч/).waitFor();
   pass("START saves default pair atomically without separate LINEUP click");
-  await page.getByRole("button", { name: "Пауза", exact: true }).click();
-  await page.getByRole("button", { name: "Продолжить", exact: true }).waitFor();
-  await page.reload();
-  await page.getByRole("button", { name: "Продолжить", exact: true }).click();
-  pass("session and paused server timer survive reload");
-  await page.getByRole("button", { name: "Записать событие" }).click();
-  await page.getByText("1:0", { exact: true }).waitFor();
-  await page.getByRole("button", { name: "Записать событие" }).click();
+  await page.getByRole("button", { name: text("Пауза"), exact: true }).click();
   await page
-    .getByRole("button", { name: "Подтвердить тест с причиной" })
+    .getByRole("button", { name: text("Продолжить"), exact: true })
+    .waitFor();
+  await page.reload();
+  await page
+    .getByRole("button", { name: text("Продолжить"), exact: true })
+    .click();
+  pass("session and paused server timer survive reload");
+  await page.getByRole("button", { name: text("Записать событие") }).click();
+  await page.getByText("1:0", { exact: true }).waitFor();
+  await page.getByRole("button", { name: text("Записать событие") }).click();
+  await page
+    .getByRole("button", { name: text("Подтвердить тест с причиной") })
     .click();
   await page.getByText("Подтверждён · тест", { exact: true }).waitFor();
   assert.equal(
@@ -370,21 +390,25 @@ try {
   pass(
     "test resolution verifies result and retires linked confirmation requests",
   );
-  await page.getByRole("button", { name: "Начать следующий матч" }).click();
+  await page
+    .getByRole("button", { name: text("Начать следующий матч") })
+    .click();
   await page.getByText(/Матч #2 · Идёт матч/).waitFor();
   await page
-    .getByRole("button", { name: "Завершить матч", exact: true })
+    .getByRole("button", { name: text("Завершить матч"), exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Завершить матч", exact: true })
+    .getByRole("button", { name: text("Завершить матч"), exact: true })
     .waitFor({ state: "hidden" });
   await page.goto(`${base}/my-game`);
-  await page.getByRole("heading", { name: "Твоя игра", exact: true }).waitFor();
   await page
-    .getByRole("button", { name: "Завершить игровой день", exact: true })
+    .getByRole("heading", { name: text("Твоя игра"), exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: text("Завершить игровой день"), exact: true })
     .click();
   await page
-    .getByText("Игровой день завершён. Результаты сохранены в истории.")
+    .getByText(text("Игровой день завершён. Результаты сохранены в истории."))
     .waitFor();
   assert.equal(
     (await db.query("SELECT status FROM game_days WHERE id=$1", [game])).rows[0]
@@ -394,11 +418,11 @@ try {
   pass("second match and explicit day completion preserve pending results");
   await shot("release-history-mobile.png");
   await page
-    .getByRole("link", { name: "Результаты и подтверждения →" })
+    .getByRole("link", { name: text("Результаты и подтверждения →") })
     .click();
   await page.locator("#results").waitFor();
   await page
-    .getByRole("button", { name: "Подтвердить тест с причиной" })
+    .getByRole("button", { name: text("Подтвердить тест с причиной") })
     .click();
   await page.getByText("Подтверждён · тест", { exact: true }).first().waitFor();
   pass("pending result can be resolved after day closed");
@@ -443,9 +467,11 @@ try {
     );
   await page.goto(base + "/");
   await page
-    .getByRole("heading", { name: "Ближайший игровой день", exact: true })
+    .getByRole("heading", { name: text("Ближайший игровой день"), exact: true })
     .waitFor();
-  await page.getByText("Baller #1 · Astana · MID", { exact: true }).waitFor();
+  await page
+    .getByText("Baller #1 · Astana · Полузащитник", { exact: true })
+    .waitFor();
   await shot("release-home-mobile.png");
   pass("compact home displays upcoming day with persisted session");
   await page.locator(".stats-disclosure summary").click();
@@ -453,17 +479,21 @@ try {
   await shot("release-stats-mobile.png");
   await page.locator(".stats-disclosure summary").click();
   await page.getByRole("button", { name: /^Уведомления/ }).click();
-  await page.getByRole("dialog", { name: "Уведомления" }).waitFor();
-  await page.getByRole("button", { name: "История", exact: true }).click();
+  await page.getByRole("dialog", { name: text("Уведомления") }).waitFor();
+  await page
+    .getByRole("button", { name: text("История"), exact: true })
+    .click();
   await shot("release-notifications-mobile.png");
-  await page.getByRole("button", { name: "Закрыть уведомления" }).click();
+  await page.getByRole("button", { name: text("Закрыть уведомления") }).click();
   pass("single top bell exposes completed notification history");
   await page
     .getByRole("navigation")
-    .getByRole("link", { name: "Игра", exact: true })
+    .getByRole("link", { name: text("Игра"), exact: true })
     .click();
-  await page.getByRole("button", { name: "Возможно", exact: true }).click();
-  await page.getByText("Ответ сохранён.").waitFor();
+  await page
+    .getByRole("button", { name: text("Возможно"), exact: true })
+    .click();
+  await page.getByText(text("Ответ сохранён.")).waitFor();
   assert.equal(
     (
       await db.query(
@@ -473,42 +503,44 @@ try {
     ).rows[0].attendance_status,
     "MAYBE",
   );
-  await page.getByRole("button", { name: "✓ Иду", exact: true }).click();
-  await page.getByText("Ответ сохранён.").waitFor();
+  await page.getByRole("button", { name: text("✓ Иду"), exact: true }).click();
+  await page.getByText(text("Ответ сохранён.")).waitFor();
   await shot("release-game-mobile.png");
   await page.locator(".team-row summary").first().click();
   await shot("release-team-expanded-mobile.png");
   pass("game tab attendance is saved and shared with home");
   await page
     .getByRole("navigation")
-    .getByRole("link", { name: "Профиль", exact: true })
+    .getByRole("link", { name: text("Профиль"), exact: true })
     .click();
-  await page.getByRole("heading", { name: "Твой Baller ID" }).waitFor();
+  await page.getByRole("heading", { name: text("Твой Baller ID") }).waitFor();
   await shot("release-profile-mobile.png");
-  await page.getByRole("link", { name: "Моя история матчей →" }).click();
-  await page.getByRole("heading", { name: "История матчей" }).waitFor();
+  await page.getByRole("link", { name: text("Моя история матчей →") }).click();
+  await page.getByRole("heading", { name: text("История матчей") }).waitFor();
   pass("profile has direct personal match history");
   await page
     .getByRole("navigation")
-    .getByRole("link", { name: "Сообщества" })
+    .getByRole("link", { name: text("Найти"), exact: true })
     .click();
-  await page
-    .getByRole("heading", { name: "Сообщества", exact: true })
-    .waitFor();
+  await page.getByRole("heading", {name:text("Найти"),exact:true}).waitFor();
+  await page.getByRole("button",{name:text("Сообщества"),exact:true}).click();
+  await page.getByText("Browser Pilot",{exact:true}).waitFor();
   await shot("release-communities-mobile.png");
-  pass("navigation preserves communities");
-  await page.getByRole("link", { name: "Создать", exact: true }).click();
+  pass("discovery navigation preserves access to city communities");
+  await page.getByRole("link", { name: text("Создать"), exact: true }).click();
   await page
-    .getByRole("heading", { name: "Игровой день", exact: true })
+    .getByRole("heading", { name: text("Игровой день"), exact: true })
     .waitFor();
   await page
-    .getByRole("link", { name: "Создать игровой день →", exact: true })
+    .getByRole("link", { name: text("Создать игровой день →"), exact: true })
     .click();
   await page.waitForURL("**/game-days/create");
   pass("header plus preserves authorized game creation");
   await page.setViewportSize({ width: 1280, height: 1000 });
   await page.goto(base + "/");
-  await page.getByRole("heading", { name: "Ближайший игровой день" }).waitFor();
+  await page
+    .getByRole("heading", { name: text("Ближайший игровой день") })
+    .waitFor();
   await shot("release-home-desktop.png");
   pass("desktop home has no horizontal overflow");
   // Welcome card: enable explicitly in a separate context; original settings remain isolated.
@@ -519,7 +551,7 @@ try {
       if (k.startsWith("ballers:welcome:") && k !== "ballers:welcome:disabled")
         localStorage.removeItem(k);
   });
-  // addInitScript above disables on reload, so use a new tab with settings restored after initialization, then client-side home navigation.
+  // Manual profile preview is available even when automatic entry is disabled.
   await page.goto(base + "/profile");
   await page.evaluate(() => {
     localStorage.setItem("ballers:welcome:disabled", "false");
@@ -528,38 +560,43 @@ try {
         localStorage.removeItem(k);
   });
   await page
-    .getByRole("navigation")
-    .getByRole("link", { name: "Главная" })
+    .getByRole("button", { name: text("Показать мою карточку") })
     .click();
   await page
-    .getByRole("dialog", { name: "Твой Baller ID", exact: true })
+    .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
     .waitFor();
   await page.waitForTimeout(1300);
   await shot("release-welcome-mobile.png");
-  await page.getByRole("button", { name: /На главную ·/ }).click();
+  await page.getByRole("button", { name: /Скрыть карточку/ }).click();
   await page
-    .getByRole("dialog", { name: "Твой Baller ID", exact: true })
+    .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
     .waitFor({ state: "hidden" });
-  pass("welcome card is skippable and only after verified profile load");
+  pass(
+    "player-card profile preview is skippable and uses verified profile data",
+  );
   await page
     .getByRole("navigation")
-    .getByRole("link", { name: "Профиль", exact: true })
+    .getByRole("link", { name: text("Главная"), exact: true })
     .click();
   await page
     .getByRole("navigation")
-    .getByRole("link", { name: "Главная", exact: true })
+    .getByRole("link", { name: text("Профиль"), exact: true })
+    .click();
+  await page
+    .getByRole("navigation")
+    .getByRole("link", { name: text("Главная"), exact: true })
     .click();
   await page.waitForTimeout(300);
   assert.equal(
     await page
-      .getByRole("dialog", { name: "Твой Baller ID", exact: true })
+      .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
       .count(),
     0,
   );
   pass("welcome does not repeat on every home navigation");
   await page
     .getByRole("navigation")
-    .getByRole("link", { name: "Профиль", exact: true })
+    .getByRole("link", { name: text("Профиль"), exact: true })
     .click();
   await page.evaluate(() => {
     for (const k of Object.keys(localStorage))
@@ -567,14 +604,13 @@ try {
         localStorage.removeItem(k);
   });
   await page
-    .getByRole("navigation")
-    .getByRole("link", { name: "Главная", exact: true })
+    .getByRole("button", { name: text("Показать мою карточку") })
     .click();
   await page
-    .getByRole("dialog", { name: "Твой Baller ID", exact: true })
+    .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
     .waitFor();
   await page
-    .getByRole("dialog", { name: "Твой Baller ID", exact: true })
+    .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
     .waitFor({ state: "hidden", timeout: 6500 });
   pass("welcome automatically exits after five seconds");
   // Empty inbox state is still usable and does not disable the bell.
@@ -585,7 +621,9 @@ try {
   await db.exec("SET ROLE authenticated");
   await page.reload();
   await page.getByRole("button", { name: /^Уведомления/ }).click();
-  await page.getByText("Всё прочитано. Нет незавершённых запросов.").waitFor();
+  await page
+    .getByText(text("Всё прочитано. Нет незавершённых запросов."))
+    .waitFor();
   await shot("release-inbox-empty-mobile.png");
   await page.keyboard.press("Escape");
   assert.match(
@@ -599,7 +637,7 @@ try {
   await db.query("SELECT ballers_game_action($1,'CLOSE','{}')", [next]);
   await page.goto(base + "/my-game");
   await page
-    .getByRole("heading", { name: "Пока нет ближайшей игры" })
+    .getByRole("heading", { name: text("Пока нет ближайшей игры") })
     .waitFor();
   await shot("release-game-empty-mobile.png");
   pass("completed days never masquerade as upcoming days");
@@ -619,15 +657,15 @@ try {
   failHome = true;
   await page.goto(base + "/");
   await page
-    .getByRole("button", { name: "Повторить загрузку", exact: true })
+    .getByRole("button", { name: text("Повторить загрузку"), exact: true })
     .waitFor();
   await shot("release-error-mobile.png");
   failHome = false;
   await page
-    .getByRole("button", { name: "Повторить загрузку", exact: true })
+    .getByRole("button", { name: text("Повторить загрузку"), exact: true })
     .click();
   await page
-    .getByRole("heading", { name: "Ближайший игровой день", exact: true })
+    .getByRole("heading", { name: text("Ближайший игровой день"), exact: true })
     .waitFor();
   pass("failed home load has a working retry instead of an endless spinner");
   const guest = await browser.newContext({
@@ -641,7 +679,7 @@ try {
   );
   await login.goto(base + "/");
   await login
-    .getByRole("button", { name: "Продолжить с Google", exact: true })
+    .getByRole("button", { name: text("Продолжить с Google"), exact: true })
     .waitFor();
   assert.equal(
     await login.getByRole("button", { name: /Apple|VK/ }).count(),
@@ -651,8 +689,202 @@ try {
     path: new URL("../docs/release-login-mobile.png", import.meta.url).pathname,
     fullPage: false,
   });
+  await login.getByLabel(text("Язык интерфейса")).selectOption("kk");
+  await login
+    .getByRole("button", { name: "Google арқылы жалғастыру", exact: true })
+    .waitFor();
+  await login.reload();
+  await login
+    .getByRole("button", { name: "Google арқылы жалғастыру", exact: true })
+    .waitFor();
+  assert.equal(await login.locator("html").getAttribute("lang"), "kk");
+  await login.screenshot({
+    path: new URL("../docs/release-025-login-kk.png", import.meta.url).pathname,
+  });
+  pass("Kazakh is selectable before login and persists after reload");
   await guest.close();
   pass("unconfigured Apple and VK providers are not falsely offered on login");
+
+  // Kazakh labels across every route family. User-generated names must stay intact.
+  await page.goto(base + "/");
+  await page.getByLabel(text("Язык интерфейса")).selectOption("kk");
+  await page
+    .getByRole("heading", { name: "Ең жақын ойын күні", exact: true })
+    .waitFor();
+  assert.equal(await page.locator("html").getAttribute("lang"), "kk");
+  assert.ok((await page.textContent("body")).includes("Organizer"));
+  const routes = [
+    ["/", "Ең жақын ойын күні"],
+    ["/my-game", "Сенің ойының"],
+    ["/communities", "Қауымдастықтар"],
+    ["/create", "Ойын күні"],
+    ["/communities/create", "Қауымдастық құру"],
+    [`/communities/${community}`, "Қауымдастыққа шолу"],
+    [`/communities/${community}/game-days/create`, "Жаңа ойын күні"],
+    [`/communities/${community}/games`, "Ойын күндері"],
+    [`/communities/${community}/game-days/${game}`, "Командалар"],
+    [`/games/${game}/play`, "Ойын орталығы"],
+    ["/open-games", "Ашық ойындар"],
+    ["/career", "Матчтар тарихы"],
+    ["/profile", "Сенің Baller ID"],
+    ["/profile/edit", "Профильді өңдеу"],
+    [`/players/${player}`, "Baller ID"],
+  ];
+  for (const [path, label] of routes) {
+    await page.goto(base + path);
+    await page
+      .getByText(label, { exact: true })
+      .first()
+      .waitFor({ timeout: 15000 });
+    assert.equal(
+      await page.locator("#interface-language").inputValue(),
+      "kk",
+      path,
+    );
+    assert.ok(
+      !(await page.textContent("body")).match(
+        /Create Community|First name|Will you attend|Loading player|Save changes|Invite Members/,
+      ),
+      path,
+    );
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      path + " overflow",
+    );
+  }
+  pass(
+    "15 route families have Kazakh labels, persistent choice and no horizontal overflow",
+  );
+  await page.goto(base + "/");
+  await page
+    .getByRole("heading", { name: "Ең жақын ойын күні", exact: true })
+    .waitFor();
+  await page.screenshot({
+    path: new URL("../docs/release-025-home-kk.png", import.meta.url).pathname,
+  });
+  await page.getByRole("button", { name: /^Хабарландырулар/ }).click();
+  await page.getByText("Бәрі оқылды. Аяқталмаған сұраулар жоқ.").waitFor();
+  await page.keyboard.press("Escape");
+  pass("Kazakh notifications and empty-state are localized");
+  await page.goto(base + "/profile");
+  await page.getByRole("button", { name: "Менің карточкамды көрсету" }).click();
+  await page.waitForTimeout(1200);
+  await page.screenshot({
+    path: new URL("../docs/release-025-card-kk.png", import.meta.url).pathname,
+  });
+  await page.keyboard.press("Escape");
+  await page.getByLabel("Интерфейс тілі").selectOption("ru");
+  await page
+    .getByRole("heading", { name: text("Твой Baller ID"), exact: true })
+    .waitFor();
+  pass("switching back restores Russian without changing user names");
+  // A fresh document can show the card after a 30-minute absence, not on every route.
+  const state = await ctx.storageState();
+  const stored = state.origins.find((o) => o.origin === base).localStorage;
+  for (const key of ["ballers:welcome:disabled", `ballers:welcome:${player}`]) {
+    const i = stored.findIndex((x) => x.name === key);
+    if (i >= 0) stored.splice(i, 1);
+  }
+  stored.push(
+    { name: "ballers:welcome:disabled", value: "false" },
+    {
+      name: `ballers:welcome:${player}`,
+      value: String(Date.now() - 31 * 60 * 1000),
+    },
+  );
+  const returnCtx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    storageState: state,
+  });
+  await returnCtx.route("https://example.supabase.co/**", async (route) => {
+    if (route.request().method() === "OPTIONS")
+      return route.fulfill({
+        status: 200,
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-headers": "*",
+        },
+      });
+    try {
+      const data = await serial(() => request(route.request()));
+      await route.fulfill({
+        status: 200,
+        headers: { "access-control-allow-origin": "*" },
+        json: data,
+      });
+    } catch (e) {
+      await route.fulfill({ status: 400, json: { message: e.message } });
+    }
+  });
+  const returned = await returnCtx.newPage();
+  await returned.goto(base + "/");
+  await returned
+    .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
+    .waitFor();
+  await returned.keyboard.press("Escape");
+  await returned.reload();
+  await returned
+    .getByRole("heading", { name: text("Ближайший игровой день"), exact: true })
+    .waitFor();
+  assert.equal(
+    await returned
+      .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
+      .count(),
+    0,
+  );
+  await returned.evaluate(
+    (id) =>
+      localStorage.setItem(
+        `ballers:welcome:${id}`,
+        String(Date.now() - 31 * 60 * 1000),
+      ),
+    player,
+  );
+  await returned.reload();
+  await returned
+    .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
+    .waitFor();
+  await returned
+    .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
+    .waitFor({ state: "hidden", timeout: 6500 });
+  pass(
+    "automatic card returns after 30-minute cooldown, suppresses immediate reload and exits after 5 seconds",
+  );
+  await returned.emulateMedia({ reducedMotion: "reduce" });
+  await returned.evaluate(
+    (id) =>
+      localStorage.setItem(
+        `ballers:welcome:${id}`,
+        String(Date.now() - 31 * 60 * 1000),
+      ),
+    player,
+  );
+  await returned.reload();
+  await returned
+    .getByRole("heading", { name: text("Ближайший игровой день"), exact: true })
+    .waitFor();
+  assert.equal(
+    await returned
+      .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
+      .count(),
+    0,
+  );
+  await returned.goto(base + "/profile");
+  await returned
+    .getByRole("button", { name: text("Показать мою карточку") })
+    .click();
+  assert.equal(
+    await returned
+      .locator(".collectible-card")
+      .evaluate((e) => getComputedStyle(e).animationName),
+    "none",
+  );
+  await returned.keyboard.press("Escape");
+  pass("reduced motion disables auto card and keeps manual preview static");
+  await returnCtx.close();
+
   assert.deepEqual(errors, []);
   await ctx.close();
   console.log(

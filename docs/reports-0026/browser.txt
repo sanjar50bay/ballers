@@ -1,0 +1,32 @@
+PASS UI bulk attendance uses authorized SQL for 15 players
+PASS existing Team Builder remains functional
+PASS START saves default pair atomically without separate LINEUP click
+PASS session and paused server timer survive reload
+PASS test resolution verifies result and retires linked confirmation requests
+PASS second match and explicit day completion preserve pending results
+PASS pending result can be resolved after day closed
+PASS test results never enter real career statistics
+PASS compact home displays upcoming day with persisted session
+PASS single top bell exposes completed notification history
+PASS game tab attendance is saved and shared with home
+PASS profile has direct personal match history
+PASS discovery navigation preserves access to city communities
+PASS header plus preserves authorized game creation
+PASS desktop home has no horizontal overflow
+PASS player-card profile preview is skippable and uses verified profile data
+PASS welcome does not repeat on every home navigation
+PASS welcome automatically exits after five seconds
+PASS empty inbox, Escape and focus restoration work
+PASS completed days never masquerade as upcoming days
+PASS navigation and content have no horizontal overflow at 320px
+RPC/REST ERROR Simulated offline
+RPC/REST ERROR Simulated offline
+PASS failed home load has a working retry instead of an endless spinner
+PASS Kazakh is selectable before login and persists after reload
+PASS unconfigured Apple and VK providers are not falsely offered on login
+PASS 15 route families have Kazakh labels, persistent choice and no horizontal overflow
+PASS Kazakh notifications and empty-state are localized
+PASS switching back restores Russian without changing user names
+PASS automatic card returns after 30-minute cooldown, suppresses immediate reload and exits after 5 seconds
+PASS reduced motion disables auto card and keeps manual preview static
+RESULT: 29 browser checks passed. Real isolated PostgreSQL RPCs; OAuth and network transport simulated, not live Supabase.

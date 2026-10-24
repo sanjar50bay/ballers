@@ -1,9 +1,15 @@
 "use client";
+import { t as tx } from "@/lib/i18n";
+
+import { useLocale } from "@/app/components/Language";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "./AppState";
 import Icon from "./Icon";
 export default function BottomNav() {
+  useLocale();
+
   const path = usePathname();
   const { data } = useApp();
   const game =
@@ -16,19 +22,24 @@ export default function BottomNav() {
         ? "invited"
         : "none";
   return (
-    <nav aria-label="Основная навигация" className="ballers-nav">
+    <nav aria-label={tx("Основная навигация")} className="ballers-nav">
       <div>
         {[
-          { href: "/", label: "Главная", icon: "home" },
-          { href: "/my-game", label: "Игра", icon: "ball" },
-          { href: "/communities", label: "Сообщества", icon: "people" },
-          { href: "/profile", label: "Профиль", icon: "profile" },
+          { href: "/", label: tx("Главная"), icon: "home" },
+          { href: "/my-game", label: tx("Игра"), icon: "ball" },
+          { href: "/discover", label: tx("Найти"), icon: "search" },
+          { href: "/profile", label: tx("Профиль"), icon: "profile" },
         ].map((x) => {
           const active =
             x.href === "/"
               ? path === "/"
               : path.startsWith(x.href) ||
-                (x.href === "/profile" && path === "/career");
+                (x.href === "/profile" && path === "/career") ||
+                (x.href === "/discover" &&
+                  (path.startsWith("/teams") ||
+                    path.startsWith("/communities") ||
+                    path === "/open-games" ||
+                    path.startsWith("/players")));
           return (
             <Link
               key={x.href}
@@ -40,7 +51,7 @@ export default function BottomNav() {
                 <Icon name={x.icon} />
               </span>
               <span>
-                {x.icon === "ball" && game?.live ? "Игра · LIVE" : x.label}
+                {x.icon === "ball" && game?.live ? tx("Игра · LIVE") : x.label}
               </span>
             </Link>
           );

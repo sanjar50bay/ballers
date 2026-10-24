@@ -1,3 +1,4 @@
+import { t as tx, getLocale } from "@/lib/i18n";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 export type RegistrationInput = {
@@ -51,8 +52,8 @@ export async function ownRegistrationProfile(
 }
 
 export function registrationValidation(input: RegistrationInput): string {
-  if (!input.first_name.trim()) return "Укажи имя.";
-  if (!input.city.trim()) return "Укажи город.";
+  if (!input.first_name.trim()) return tx("Укажи имя.");
+  if (!input.city.trim()) return tx("Укажи город.");
   if (
     input.birth_year !== null &&
     input.birth_year !== undefined &&
@@ -60,17 +61,17 @@ export function registrationValidation(input: RegistrationInput): string {
       input.birth_year < 1900 ||
       input.birth_year > new Date().getFullYear())
   )
-    return "Проверь год рождения.";
+    return tx("Проверь год рождения.");
   if (
     !["GK", "DEF", "MID", "ATT"].includes(input.primary_position) ||
     (input.secondary_position &&
       !["GK", "DEF", "MID", "ATT"].includes(input.secondary_position))
   )
-    return "Выбери позицию из списка.";
+    return tx("Выбери позицию из списка.");
   if (input.secondary_position === input.primary_position)
-    return "Дополнительная позиция должна отличаться от основной.";
+    return tx("Дополнительная позиция должна отличаться от основной.");
   if (!["LEFT", "RIGHT", "BOTH"].includes(input.dominant_foot))
-    return "Выбери ведущую ногу.";
+    return tx("Выбери ведущую ногу.");
   return "";
 }
 
@@ -88,6 +89,7 @@ export async function ensureRegistrationProfile(
     .from("player_profiles")
     .insert({
       user_id: user.id,
+      preferred_language: getLocale(),
       first_name: input.first_name.trim(),
       last_name: input.last_name?.trim() || null,
       city: input.city.trim(),
@@ -116,8 +118,14 @@ export function registrationError(error: unknown): string {
       ? String(error.code)
       : "";
   if (code === "23505")
-    return "Не удалось завершить создание профиля. Нажми ещё раз: сначала проверим, сохранился ли он.";
+    return tx(
+      "Не удалось завершить создание профиля. Нажми ещё раз: сначала проверим, сохранился ли он.",
+    );
   if (code === "42501" || code === "PGRST301")
-    return "Нет доступа к сохранению профиля. Повтори вход через Google. Данные формы пока оставлены здесь.";
-  return "Не удалось проверить или сохранить профиль. Проверь соединение и попробуй ещё раз. Если профиль уже создан, откроем его без повторной регистрации.";
+    return tx(
+      "Нет доступа к сохранению профиля. Повтори вход через Google. Данные формы пока оставлены здесь.",
+    );
+  return tx(
+    "Не удалось проверить или сохранить профиль. Проверь соединение и попробуй ещё раз. Если профиль уже создан, откроем его без повторной регистрации.",
+  );
 }

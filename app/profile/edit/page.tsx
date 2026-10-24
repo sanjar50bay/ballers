@@ -1,6 +1,17 @@
 "use client";
+import {
+  uiError,
+  t as tx,
+  getLocale,
+  setLocale,
+  type Locale,
+} from "@/lib/i18n";
 
+import { useLocale } from "@/app/components/Language";
+
+import { CitySelect } from "@/app/components/Network";
 import { useEffect, useState } from "react";
+
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -20,6 +31,8 @@ type Profile = {
 };
 
 export default function EditProfilePage() {
+  useLocale();
+
   const router = useRouter();
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -29,7 +42,7 @@ export default function EditProfilePage() {
   const [primaryPosition, setPrimaryPosition] = useState("MID");
   const [secondaryPosition, setSecondaryPosition] = useState("");
   const [dominantFoot, setDominantFoot] = useState("RIGHT");
-  const [language, setLanguage] = useState("ru");
+  const language = useLocale();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -61,14 +74,13 @@ export default function EditProfilePage() {
 
       setDisplayName(
         data.display_name ??
-          `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim()
+          `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim(),
       );
 
       setCity(data.city ?? "");
       setPrimaryPosition(data.primary_position ?? "MID");
       setSecondaryPosition(data.secondary_position ?? "");
       setDominantFoot(data.dominant_foot ?? "RIGHT");
-      setLanguage(data.preferred_language ?? "ru");
 
       setLoading(false);
     };
@@ -89,12 +101,12 @@ export default function EditProfilePage() {
         primary_position: primaryPosition,
         secondary_position: secondaryPosition || null,
         dominant_foot: dominantFoot,
-        preferred_language: language,
+        preferred_language: getLocale(),
       })
       .eq("id", profile.id);
 
     if (error) {
-      alert(error.message);
+      alert(uiError(error.message));
       setSaving(false);
       return;
     }
@@ -105,7 +117,7 @@ export default function EditProfilePage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        Loading profile...
+        {tx("Loading profile...")}
       </main>
     );
   }
@@ -113,7 +125,7 @@ export default function EditProfilePage() {
   if (!profile) {
     return (
       <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        Profile not found
+        {tx("Profile not found")}
       </main>
     );
   }
@@ -121,20 +133,17 @@ export default function EditProfilePage() {
   return (
     <main className="min-h-screen bg-black text-white px-6 py-8">
       <div className="max-w-md mx-auto">
-
         <button
           onClick={() => router.back()}
           className="text-gray-400 mb-6 cursor-pointer hover:text-white"
         >
-          ← Back
+          {tx("← Back")}
         </button>
 
-        <h1 className="text-3xl font-bold mb-2">
-          Edit Profile
-        </h1>
+        <h1 className="text-3xl font-bold mb-2">{tx("Edit Profile")}</h1>
 
         <p className="text-gray-500 mb-8">
-          Update your football profile.
+          {tx("Update your football profile.")}
         </p>
 
         {/* PHOTO */}
@@ -143,7 +152,7 @@ export default function EditProfilePage() {
             {profile.avatar_url ? (
               <img
                 src={profile.avatar_url}
-                alt="Profile"
+                alt={tx("Profile")}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -152,41 +161,34 @@ export default function EditProfilePage() {
           </div>
 
           <button
-            onClick={() =>
-              alert("Photo upload comes next")
-            }
+            onClick={() => alert(tx("Photo upload comes next"))}
             className="mt-3 text-sm text-blue-400 cursor-pointer"
           >
-            Change photo
+            {tx("Change photo")}
           </button>
         </section>
 
         <div className="space-y-5">
-
           {/* PROTECTED IDENTITY */}
           <div>
             <label className="text-sm text-gray-500 block mb-2">
-              Identity name
+              {tx("Identity name")}
             </label>
 
             <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-gray-400">
-              🔒{" "}
-              {profile.identity_first_name ??
-                profile.first_name}{" "}
-              {profile.identity_last_name ??
-                profile.last_name ??
-                ""}
+              🔒 {profile.identity_first_name ?? profile.first_name}{" "}
+              {profile.identity_last_name ?? profile.last_name ?? ""}
             </div>
 
             <p className="text-xs text-gray-600 mt-2">
-              Identity name is protected to preserve player history.
+              {tx("Identity name is protected to preserve player history.")}
             </p>
           </div>
 
           {/* DISPLAY NAME */}
           <div>
             <label className="text-sm text-gray-500 block mb-2">
-              Display name
+              {tx("Display name")}
             </label>
 
             <input
@@ -196,88 +198,71 @@ export default function EditProfilePage() {
             />
           </div>
 
-          <div>
-            <label className="text-sm text-gray-500 block mb-2">
-              City
-            </label>
-
-            <input
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-            />
-          </div>
+          <CitySelect value={city} onChange={setCity} id="edit-city" />
 
           <div>
             <label className="text-sm text-gray-500 block mb-2">
-              Primary position
+              {tx("Primary position")}
             </label>
 
             <select
               value={primaryPosition}
-              onChange={(e) =>
-                setPrimaryPosition(e.target.value)
-              }
+              onChange={(e) => setPrimaryPosition(e.target.value)}
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
             >
-              <option value="GK">Goalkeeper</option>
-              <option value="DEF">Defender</option>
-              <option value="MID">Midfielder</option>
-              <option value="ATT">Attacker</option>
+              <option value="GK">{tx("Goalkeeper")}</option>
+              <option value="DEF">{tx("Defender")}</option>
+              <option value="MID">{tx("Midfielder")}</option>
+              <option value="ATT">{tx("Attacker")}</option>
             </select>
           </div>
 
           <div>
             <label className="text-sm text-gray-500 block mb-2">
-              Secondary position
+              {tx("Secondary position")}
             </label>
 
             <select
               value={secondaryPosition}
-              onChange={(e) =>
-                setSecondaryPosition(e.target.value)
-              }
+              onChange={(e) => setSecondaryPosition(e.target.value)}
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
             >
-              <option value="">None</option>
-              <option value="GK">Goalkeeper</option>
-              <option value="DEF">Defender</option>
-              <option value="MID">Midfielder</option>
-              <option value="ATT">Attacker</option>
+              <option value="">{tx("None")}</option>
+              <option value="GK">{tx("Goalkeeper")}</option>
+              <option value="DEF">{tx("Defender")}</option>
+              <option value="MID">{tx("Midfielder")}</option>
+              <option value="ATT">{tx("Attacker")}</option>
             </select>
           </div>
 
           <div>
             <label className="text-sm text-gray-500 block mb-2">
-              Dominant foot
+              {tx("Dominant foot")}
             </label>
 
             <select
               value={dominantFoot}
-              onChange={(e) =>
-                setDominantFoot(e.target.value)
-              }
+              onChange={(e) => setDominantFoot(e.target.value)}
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
             >
-              <option value="RIGHT">Right</option>
-              <option value="LEFT">Left</option>
-              <option value="BOTH">Both</option>
+              <option value="RIGHT">{tx("Right")}</option>
+              <option value="LEFT">{tx("Left")}</option>
+              <option value="BOTH">{tx("Both")}</option>
             </select>
           </div>
 
           <div>
             <label className="text-sm text-gray-500 block mb-2">
-              Language
+              {tx("Language")}
             </label>
 
             <select
               value={language}
-              onChange={(e) => setLanguage(e.target.value)}
+              onChange={(e) => setLocale(e.target.value as Locale)}
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
             >
               <option value="ru">Русский</option>
               <option value="kk">Қазақша</option>
-              <option value="en">English</option>
             </select>
           </div>
 
@@ -286,11 +271,9 @@ export default function EditProfilePage() {
             disabled={saving}
             className="w-full bg-white text-black rounded-2xl py-4 font-semibold cursor-pointer hover:bg-neutral-200 disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save changes"}
+            {saving ? tx("Saving...") : tx("Save changes")}
           </button>
-
         </div>
-
       </div>
     </main>
   );
