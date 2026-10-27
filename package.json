@@ -1,6 +1,6 @@
 {
   "name": "ballers",
-  "version": "0.2.6-alpha",
+  "version": "0.2.7-alpha",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,7 +15,9 @@
     "test:registration:browser": "node tests/registration.browser.test.mjs",
     "test:i18n": "node tests/i18n.test.mjs",
     "test:network": "node tests/network.test.mjs",
-    "test:network:browser": "node tests/network.browser.test.mjs"
+    "test:network:browser": "node tests/network.browser.test.mjs",
+    "test:release027": "node tests/release027.test.mjs",
+    "test:release027:browser": "node tests/release027.browser.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -31,7 +33,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

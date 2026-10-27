@@ -21,6 +21,7 @@ for (const p of [
   "supabase/migrations/20261013_003_navigation_community.sql",
   "supabase/migrations/20261019_004_mobile_notifications.sql",
   "supabase/migrations/20261024_005_directory_teams.sql",
+  "supabase/migrations/20261027_006_day_results_requests.sql",
 ])
   await db.exec(read(p));
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;

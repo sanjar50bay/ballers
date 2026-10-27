@@ -1,0 +1,18 @@
+PASS reload keeps session and Baller ID
+PASS normal: one profile, no duplicate alert, no return to onboarding
+PASS slow: one profile, no duplicate alert, no return to onboarding
+PASS lost: one profile, no duplicate alert, no return to onboarding
+PASS timeout: one profile, no duplicate alert, no return to onboarding
+PASS race: one profile, no duplicate alert, no return to onboarding
+PASS existing profile bypasses onboarding without overwrite
+PASS failed initial read does not mean no profile; explicit retry recovers
+PASS rejected INSERT is not treated as success; controls recover
+PASS unauthenticated onboarding cannot create a profile
+PASS invalid year blocked before write
+PASS same primary and secondary position rejected clearly
+PASS write committed but response and verification failed: manual retry reads existing row, no second INSERT
+PASS unrelated unique violation is not accepted as a saved profile
+PASS onboarding at 320px: no horizontal overflow or floating bell over fields
+PASS new, lost INSERT response: invite preserved; one membership and one use, no elevated role
+PASS existing: invite preserved; one membership and one use, no elevated role
+RESULT: 17 registration browser checks passed. Isolated PostgreSQL/RLS; simulated OAuth/HTTP, not live Supabase.

@@ -92,8 +92,20 @@ export function networkError(e: unknown) {
       : String(e);
   if (/PGRST202|could not find|does not exist|schema cache/i.test(msg))
     return t(
-      "Для этого раздела нужна миграция 005. Старые профили и игры сохранены.",
+      "Проверь, что установлены миграции 005 и 006, затем обнови страницу. Старые профили и игры сохранены.",
     );
+  if (/BOARD_CHANGED/.test(msg))
+    return t(
+      "Расстановка уже изменена. Загрузи сохранённую версию и повтори изменения.",
+    );
+  if (/INVALID_LAYOUT/.test(msg))
+    return t(
+      "Выбери до пяти подтверждённых игроков и размести их внутри поля.",
+    );
+  if (/GAME_NOT_OPEN/.test(msg))
+    return t("Игровой день закрыт. Обнови страницу.");
+  if (/INVITATION_REQUIRED/.test(msg))
+    return t("Для закрытого игрового дня нужно приглашение организатора.");
   if (/23505|duplicate key/i.test(msg))
     return t(
       "Команда с таким названием уже есть в этом городе. Выбери другое название.",

@@ -24,6 +24,7 @@ type Notice = {
   player_id: string;
   game_day_id: string;
   match_id: string | null;
+  request_id: string | null;
   kind: string;
   message: string;
   read_at: string | null;
@@ -167,6 +168,24 @@ export default function Notifications({
       if (error) throw error;
       await mark(n);
       window.dispatchEvent(new Event("ballers:data-changed"));
+    } catch {
+      setError(tx("Ответ не сохранён. Проверь соединение и попробуй снова."));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function answerRequest(n: Notice, accept: boolean) {
+    if (busy || !n.request_id) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("ballers_answer_day", {
+        p_request: n.request_id,
+        p_accept: accept,
+      });
+      if (error) throw error;
+      await load();
+      window.dispatchEvent(new Event("ballers:data-changed"));
+      window.dispatchEvent(new Event("ballers:network-changed"));
     } catch {
       setError(tx("Ответ не сохранён. Проверь соединение и попробуй снова."));
     } finally {
@@ -319,13 +338,35 @@ export default function Notifications({
                       ))}
                     </div>
                   )}
+                {tab === "active" &&
+                  n.kind === "JOIN_REQUEST" &&
+                  !n.completed_at && (
+                    <div className="network-actions">
+                      <button
+                        className="neon-button green"
+                        disabled={busy}
+                        onClick={() => void answerRequest(n, true)}
+                      >
+                        {tx("Принять")}
+                      </button>
+                      <button
+                        className="network-secondary"
+                        disabled={busy}
+                        onClick={() => void answerRequest(n, false)}
+                      >
+                        {tx("Отклонить")}
+                      </button>
+                    </div>
+                  )}
                 <div className="flex gap-4 flex-wrap items-center mt-2">
                   <Link
                     className="text-link"
                     href={
                       n.kind === "CONFIRM"
                         ? `/games/${n.game_day_id}/play#match-${n.match_id || "results"}`
-                        : `/my-game?game=${n.game_day_id}`
+                        : n.kind === "JOIN_REQUEST"
+                          ? `/games/${n.game_day_id}/play`
+                          : `/my-game?game=${n.game_day_id}`
                     }
                     onClick={() => {
                       close();
@@ -347,7 +388,9 @@ export default function Notifications({
                 </div>
                 {tab === "active" &&
                   n.read_at &&
-                  ["CONFIRM", "INVITE", "PLACE_OFFER"].includes(n.kind) && (
+                  ["CONFIRM", "INVITE", "PLACE_OFFER", "JOIN_REQUEST"].includes(
+                    n.kind,
+                  ) && (
                     <p className="ballers-muted">
                       {tx("Ожидает твоего ответа, даже если уже прочитано.")}
                     </p>

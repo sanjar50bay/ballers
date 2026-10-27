@@ -51,6 +51,7 @@ for (const [id, name] of [
   );
 }
 const rpc = {
+  ballers_tactics: {p_team:"uuid",p_layout:"jsonb",p_version:"bigint"},
   ballers_home: {},
   ballers_notification_feed: {},
   ballers_network: {},
@@ -225,6 +226,9 @@ try {
   await captain.goto(base + "/discover");
   await captain.getByRole("heading", { name: "Найти", exact: true }).waitFor();
   await captain.getByText("Dana", { exact: true }).waitFor();
+  await captain.getByText("Arsen", { exact: true }).waitFor();
+  await captain.getByLabel("Город игры", { exact: true }).selectOption("Astana");
+  await captain.waitForTimeout(600);
   assert.equal(await captain.getByText("Arsen", { exact: true }).count(), 0);
   await captain.getByLabel("Город игры", { exact: true }).selectOption("");
   await captain.getByText("Arsen", { exact: true }).waitFor();

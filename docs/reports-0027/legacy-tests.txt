@@ -1,0 +1,153 @@
+
+> ballers@0.2.7-alpha test
+> npm run test:db && npm run test:alpha && npm run test:nav && node tests/relationship.test.mjs && npm run test:mobile && node tests/mobile-legacy.test.mjs
+
+
+> ballers@0.2.7-alpha test:db
+> node tests/database.test.mjs
+
+PASS build unique teams
+PASS balance 15
+PASS balance 17
+PASS balance 18
+PASS no-op assignment preserves core
+PASS full team move does not lose original row
+PASS stale roster version rejected
+PASS duplicate color rejected
+PASS invalid mode rejected
+PASS reset preserves attendance
+PASS restore 15 participants for Saturday
+PASS Saturday fixed + core fill
+PASS protected fixed player cannot move silently
+PASS protected core cannot move silently
+PASS injected insert failure rolls back all deleted assignments
+PASS all fixed preserves rows
+PASS nonmanager RPC rejected
+PASS self escalation OWNER denied by RLS
+PASS nonmanager creates game denied
+PASS nonmanager creates invite denied
+PASS direct participant UPDATE cannot change game
+PASS cannot change other player attendance
+PASS self Out atomically removes assignment
+PASS direct team DELETE is denied even to managers
+PASS non-GOING cannot be assigned
+PASS cross-game assignment rejected
+PASS creator can bootstrap only own new community
+PASS community plus owner created atomically
+PASS server-generated Game Day numbering
+PASS invalid new game rejected
+PASS nonmanager game creation RPC rejected
+PASS new authenticated outsider cannot become OWNER
+PASS guest cannot join without invitation
+PASS valid invite join
+PASS repeat invite join consumes once
+PASS exhausted invite rejected
+PASS exhausted invite not publicly discoverable
+PASS anonymous cannot run mutations
+PASS expired invite rejected
+PASS capacity enforced, no invitation consumed
+PASS capacity enforced for own attendance
+PASS closed game mutation rejected
+PASS all mutations audited
+PASS Baller ID generation unique
+PASS migration reapplication rejected
+RESULT: 45 passed; isolated PGlite PostgreSQL, not production Supabase.
+
+> ballers@0.2.7-alpha test:alpha
+> node tests/alpha.test.mjs
+
+PASS invitation notification generated
+PASS private notifications
+PASS mark read only own
+PASS full game joins waitlist, not GOING
+PASS waitlist broadcasts to participants
+PASS repeat waitlist entry no spam
+PASS free slot makes an offer, not automatic Going
+PASS reserved offer cannot be stolen
+PASS accept offer moves to Going
+PASS settings and explicit first draw rule
+PASS invalid lineup blocked
+PASS nonmanager cannot change settings
+PASS community base squads persist
+PASS absent player remains in permanent roster
+PASS base squads apply only actual Going to a new day
+PASS format and capacity editable before match
+PASS capacity cannot discard admitted players
+PASS one live match per day
+PASS operator selected from resting team
+PASS snapshots have no REST embedding ambiguity
+PASS live roster Reset blocked atomically
+PASS ordinary player cannot score
+PASS operator records goal and assist
+PASS retry same event is idempotent even with old version
+PASS mismatched id reuse rejected
+PASS wrong-team assist rejected
+PASS pause persistent server clock
+PASS cannot score while paused
+PASS Save does not change score
+PASS goal limit finishes match and advances queue once
+PASS pending stats not verified
+PASS next match starts before previous confirmations
+PASS one captain keeps pending
+PASS second captain verifies
+PASS undo verified goal invalidates confirmations and stats
+PASS correction does not rewrite already-started queue
+PASS test override not available for normal pending match
+PASS resolved correction counted once
+PASS own goal credited to opponent
+PASS draw removes older team
+PASS historical rosters persist after reset
+PASS cannot replace historical squads
+PASS open games listing
+PASS outsider can join published game but not become community member
+PASS outsider cannot read closed unrelated game
+PASS only owner creates test profiles
+PASS test profiles repeated creation no duplicates
+PASS test result isolated from real career stats
+PASS finish-time rule and snapshot survive settings changes
+PASS closed game cannot start or accept attendance
+PASS anonymous mutations prohibited
+RESULT: 51 integrated alpha checks passed on isolated PostgreSQL; no live Supabase access.
+
+> ballers@0.2.7-alpha test:nav
+> node tests/navigation.test.mjs
+
+PASS manager settings persist without changing existing game
+PASS invalid format rejected
+PASS community invitation has expiry and limit
+PASS anonymous preview only by token
+PASS anonymous mutation prohibited
+PASS join creates MEMBER only, not game attendance
+PASS retry spends no second use
+PASS member cannot change settings or create invitation
+PASS existing owner role never overwritten
+PASS exhausted invitation rejected
+PASS expired invitation rejected and hidden from preview
+PASS career restricted to logged in player
+RESULT: 12 navigation/community SQL checks passed. Isolated PostgreSQL, not live Supabase.
+PASS relationship regression: explicit FK hint and distinct load-error UI. Structural check, not a live PostgREST test.
+
+> ballers@0.2.7-alpha test:mobile
+> node tests/mobile.test.mjs
+
+PASS home isolates current profile
+PASS invitation read does not imply attendance or completion
+PASS answer resolves the invitation
+PASS failed auto start rolls pair back atomically
+PASS default pair and first draw rule saved with start
+PASS active match prevents closing day
+PASS finish creates linked requests for both captains
+PASS own confirmation closes only own request
+PASS verified result resolves both, remains in history
+PASS correction issues new revision without reopening old requests
+PASS personal RLS prevents reading another player requests
+PASS close day removes nearest game and preserves pending results
+PASS closed day allows later captain confirmations
+PASS closed day cannot start another match
+PASS ordinary member cannot start a match
+PASS outsider home reveals no community games
+PASS anonymous cannot call personal RPCs
+Mobile update: 17 tests passed
+PASS 004 backfills legacy verified and partially confirmed results, preserving duplicate history
+PASS legacy pending request remains actionable only for the correct captain
+PASS repeat migration is blocked before partial schema changes

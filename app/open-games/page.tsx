@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 type Game = {
+  join_mode?: string;
   id: string;
   community_id: string;
   title: string;
@@ -103,9 +104,11 @@ export default function OpenGames() {
                   })();
                 }}
               >
-                {g.capacity !== null && g.going >= g.capacity
-                  ? tx("Встать в очередь")
-                  : tx("Присоединиться")}
+                {g.join_mode !== "AUTO"
+                  ? tx("Подать заявку")
+                  : g.capacity !== null && g.going >= g.capacity
+                    ? tx("Встать в очередь")
+                    : tx("Присоединиться")}
               </button>
             </article>
           ))}

@@ -21,6 +21,7 @@ for (const p of [
   "supabase/migrations/20261013_003_navigation_community.sql",
   "supabase/migrations/20261019_004_mobile_notifications.sql",
   "supabase/migrations/20261024_005_directory_teams.sql",
+  "supabase/migrations/20261027_006_day_results_requests.sql",
 ])
   await db.exec(read(p));
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -61,6 +62,9 @@ const serial = (fn) => {
 const rpcArgs = {
   ballers_directory: ["p_kind","p_city","p_query","p_offset","p_free"],
   ballers_network: [],
+  ballers_day_requests_feed: ["p_game"],
+  ballers_answer_day: ["p_request","p_accept"],
+  ballers_day_join_mode: ["p_game","p_mode"],
   ballers_public_player: ["p_player"],
   ballers_home: [],
   ballers_notification_feed: [],
@@ -527,7 +531,8 @@ try {
   await page.getByText("Browser Pilot",{exact:true}).waitFor();
   await shot("release-communities-mobile.png");
   pass("discovery navigation preserves access to city communities");
-  await page.getByRole("link", { name: text("Создать"), exact: true }).click();
+  await page.getByRole("button", { name: text("Создать"), exact: true }).click();
+  await page.getByRole("dialog").getByRole("link",{name:text("Игровой день")+" →",exact:true}).click();
   await page
     .getByRole("heading", { name: text("Игровой день"), exact: true })
     .waitFor();

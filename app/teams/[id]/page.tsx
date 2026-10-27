@@ -11,6 +11,7 @@ import {
   PersonRow,
   useNetworkResource,
 } from "@/app/components/Network";
+import TacticalBoard from "@/app/components/TacticalBoard";
 import Icon from "@/app/components/Icon";
 import { t } from "@/lib/i18n";
 import {
@@ -519,6 +520,7 @@ export default function Page() {
               )}
             </>
           )}
+          <TacticalBoard teamId={id} members={d.members} editable={d.captain} />
         </>
       )}
     </NetworkShell>

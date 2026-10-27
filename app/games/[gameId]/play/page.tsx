@@ -7,6 +7,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import DayResults, { eventLabel } from "@/app/components/DayResults";
+import DayRequests from "@/app/components/DayRequests";
+import MatchSound from "@/app/components/MatchSound";
 import BottomNav from "@/app/components/BottomNav";
 import { setAttendance } from "@/lib/pre-match";
 
@@ -359,10 +362,33 @@ export default function PlayPage() {
             </span>
           )}
         </div>
+        <DayResults
+          matches={s.matches}
+          events={s.events}
+          teams={s.teams}
+          rosters={s.rosters}
+          players={s.players}
+        />
+        <DayRequests gameId={gameId} open={s.game.status === "OPEN"} />
+        <MatchSound
+          gameId={gameId}
+          matches={s.matches}
+          events={s.events}
+          ready={true}
+        />
         {live && (
           <section className="rounded-3xl border border-violet-500 bg-gradient-to-br from-violet-950 to-[#09131d] p-5 mb-5">
             <div className="flex justify-between gap-2 text-sm text-gray-300">
               <span>
+                {live.status === "LIVE" && (
+                  <span
+                    className="live-ball"
+                    role="img"
+                    aria-label={tx("Матч идёт")}
+                  >
+                    ⚽
+                  </span>
+                )}{" "}
                 {tx("Матч #")}
                 {live.sequence} · {tx(statuses[live.status])}
               </span>
@@ -437,6 +463,8 @@ export default function PlayPage() {
                       <option value="GOAL">{tx("Гол")}</option>
                       <option value="OWN_GOAL">{tx("Автогол")}</option>
                       <option value="SAVE">{tx("Сейв")}</option>
+                      <option value="YELLOW">{tx("Жёлтая карточка")}</option>
+                      <option value="RED">{tx("Красная карточка")}</option>
                     </select>
                   </label>
                   <label className="block text-sm">
@@ -477,7 +505,7 @@ export default function PlayPage() {
             )}
             {s.manager && (
               <label className="block text-sm mt-4">
-                {tx("Передать учёт")}
+                {tx("Кто ведёт счёт матча")}
                 <select
                   className={field}
                   value={live.operator_id}
@@ -701,12 +729,7 @@ export default function PlayPage() {
                         className={`flex justify-between gap-2 text-sm py-2 ${e.voided ? "line-through text-gray-600" : "text-gray-300"}`}
                       >
                         <span>
-                          {e.kind === "GOAL"
-                            ? tx("⚽ Гол")
-                            : e.kind === "SAVE"
-                              ? tx("🧤 Сейв")
-                              : tx("↩ Автогол")}{" "}
-                          · {playerName(e.player_id)}
+                          {eventLabel(e.kind)} · {playerName(e.player_id)}
                           {e.assist_id
                             ? ` · ${tx("ассист")} ${playerName(e.assist_id)}`
                             : ""}

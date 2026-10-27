@@ -15,7 +15,7 @@ const migrations = [
     .sort()
     .map((x) => "supabase/migrations/" + x),
 ];
-for (const p of migrations) await db.exec(read(p));
+for (const p of migrations) { try { await db.exec(read(p)); } catch(e) { console.error("MIGRATION",p,e.message,e.position,e.where,e.internalQuery); process.exit(1); } }
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const uid = (n) => id(1000 + n),
   pid = (n) => id(2000 + n),

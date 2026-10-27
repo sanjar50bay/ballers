@@ -1,0 +1,26 @@
+(node:4069) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///data/ballers-027/lib/day-results.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /data/ballers-027/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS default approval: member GOING becomes request, not participant or reserved place
+PASS open guest request is idempotent, and applicant sees only own requests
+PASS manager bell receives two actionable requests; reading does not hide controls
+PASS outsider cannot approve, alter mode, or call private attendance bypass
+PASS approval admits player once; repeated answer is a no-op
+PASS approval rechecks capacity and sends next player to queue
+PASS applicant receives a queued decision and cannot see other applicants
+PASS manager cancellation is distinct from self withdrawal and requires reapproval
+PASS pending request can be withdrawn without a phantom participant
+PASS AUTO is explicit; existing pending requests are not silently accepted
+PASS reject completes manager request notifications and tells applicant
+PASS directory returns 55 real profiles across three disjoint pages
+PASS team/community counts and total are valid SQL and pagination is complete
+PASS captain saves a board; version protects against lost updates
+PASS board validates confirmed membership, coordinates, duplicates and captain rights
+PASS closing game cancels pending requests, not match confirmations
+PASS standings count only confirmed selected type; scorer assists and own goals are correct
+PASS yellow/red events use operator/version checks and undo does not change score
+PASS trusted organizer invitation admits once without creating an approval request
+PASS anonymous cannot read requests, change mode or save boards
+PASS 006 repeat is blocked before any partial changes
+RESULT: 21 release 027 checks passed; isolated PostgreSQL, not live Supabase.

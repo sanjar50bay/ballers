@@ -1,10 +1,9 @@
 "use client";
-import { t as tx } from "@/lib/i18n";
 
 import { useLocale } from "@/app/components/Language";
 
 import Link from "next/link";
-import Icon from "./Icon";
+import CreateMenu from "./CreateMenu";
 import { BellButton } from "./Notifications";
 export default function AppHeader() {
   useLocale();
@@ -15,9 +14,7 @@ export default function AppHeader() {
         BALLERS<span>.</span>
       </Link>
       <div className="flex gap-2">
-        <Link className="icon-button" href="/create" aria-label={tx("Создать")}>
-          <Icon name="plus" />
-        </Link>
+        <CreateMenu />
         <BellButton />
       </div>
     </header>

@@ -16,7 +16,6 @@ import {
 import { t } from "@/lib/i18n";
 import {
   networkCount,
-  cityKey,
   cityLabel,
   changed,
   networkError,
@@ -27,7 +26,7 @@ import {
   type InboxItem,
 } from "@/lib/network";
 type Item = Person & TeamItem & { teams?: number };
-type Directory = { items: Item[]; has_more: boolean };
+type Directory = { items: Item[]; has_more: boolean; total: number };
 export default function Page() {
   useLocale();
   return (
@@ -51,14 +50,7 @@ function Discover() {
     [free, setFree] = useState(false),
     [busy, setBusy] = useState(false),
     [actionError, setActionError] = useState("");
-  const initial = useRef(false),
-    lock = useRef(false);
-  useEffect(() => {
-    if (home?.profile && !initial.current) {
-      initial.current = true;
-      setCity(cityKey(home.profile.city) || "Astana");
-    }
-  }, [home]);
+  const lock = useRef(false);
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebounced(query);
@@ -202,6 +194,18 @@ function Discover() {
               {t("Только ищущие команду")}
             </label>
           )}
+          <p className="ballers-muted my-3">
+            {t(
+              "Все города включены по умолчанию. В каталоге — постоянные команды и профили с аккаунтом, без искусственных TEST-игроков.",
+            )}
+          </p>
+          {data && (
+            <p role="status" className="ballers-muted my-3">
+              {t("Найдено: {count}", {
+                count: data.total ?? data.items.length,
+              })}
+            </p>
+          )}
           <NetworkError error={error} retry={() => void reload()} />
           {loading && (
             <p role="status" className="ballers-muted my-4">
@@ -274,7 +278,13 @@ function Discover() {
                 {t("Назад")}
               </button>
               <span className="ballers-muted">
-                {Math.floor(offset / 24) + 1}
+                {t("Страница {page} из {pages}", {
+                  page: Math.floor(offset / 24) + 1,
+                  pages: Math.max(
+                    1,
+                    Math.ceil((data.total ?? data.items.length) / 24),
+                  ),
+                })}
               </span>
               <button
                 disabled={!data.has_more || loading}
