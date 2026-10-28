@@ -159,7 +159,15 @@ function Discover() {
             }}
           />
           <label className="network-field">
-            <span>{t("Поиск")}</span>
+            <span>
+              {t(
+                kind === "players"
+                  ? "Имя, ник или Baller ID"
+                  : kind === "teams"
+                    ? "Название команды"
+                    : "Название сообщества",
+              )}
+            </span>
             <div className="search-input">
               <Icon name="search" size={20} />
               <input
@@ -169,7 +177,9 @@ function Discover() {
                 placeholder={t(
                   kind === "players"
                     ? "Имя, ник или Baller ID"
-                    : "Название команды или сообщества",
+                    : kind === "teams"
+                      ? "Название команды"
+                      : "Название сообщества",
                 )}
               />
             </div>
@@ -195,9 +205,7 @@ function Discover() {
             </label>
           )}
           <p className="ballers-muted my-3">
-            {t(
-              "Все города включены по умолчанию. В каталоге — постоянные команды и профили с аккаунтом, без искусственных TEST-игроков.",
-            )}
+            {t("Находи игроков, команды и сообщества в своём городе.")}
           </p>
           {data && (
             <p role="status" className="ballers-muted my-3">

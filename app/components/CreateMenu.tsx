@@ -91,17 +91,28 @@ export default function CreateMenu() {
             </header>
             <div className="p-4 space-y-3">
               {[
-                ["/create", "Игровой день"],
-                ["/teams/create", "Команду"],
-                ["/communities/create", "Сообщество"],
-              ].map(([href, label]) => (
+                [
+                  "/create",
+                  "Игровой день",
+                  "Собрать игроков на конкретную дату",
+                ],
+                ["/teams/create", "Команду", "Создать постоянный состав"],
+                [
+                  "/communities/create",
+                  "Сообщество",
+                  "Объединить людей для регулярных игр",
+                ],
+              ].map(([href, label, description]) => (
                 <Link
                   key={href}
                   href={href}
                   className="network-card block"
                   onClick={close}
                 >
-                  {t(label)} →
+                  <b>{t(label)} →</b>
+                  <small className="block ballers-muted mt-2">
+                    {t(description)}
+                  </small>
                 </Link>
               ))}
               {["Организовать турнир", "У меня есть арена"].map((label) => (
@@ -111,7 +122,7 @@ export default function CreateMenu() {
                   aria-disabled="true"
                 >
                   <span>{t(label)}</span>
-                  <span className="ballers-muted">{t("Скоро")}</span>
+                  <span className="soon-badge">{t("Скоро")}</span>
                 </div>
               ))}
             </div>

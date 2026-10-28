@@ -46,6 +46,9 @@ export type GameDay = {
   going: number;
   match_count: number;
   live: boolean;
+  request_status?: string | null;
+  queued?: boolean;
+  place_offered?: boolean;
 };
 export type HomeData = {
   profile: Profile | null;

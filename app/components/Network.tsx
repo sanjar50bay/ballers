@@ -193,7 +193,7 @@ export function MyTeams() {
     <section>
       <div className="section-heading">
         <h2>{t("Твои команды")}</h2>
-        <Link className="text-link" href="/discover">
+        <Link className="text-link" href="/discover?kind=teams">
           {t("Найти →")}
         </Link>
       </div>

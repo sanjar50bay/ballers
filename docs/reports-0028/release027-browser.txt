@@ -1,0 +1,20 @@
+
+> ballers@0.2.8-alpha test:release027:browser
+> node tests/release027.browser.test.mjs
+
+PASS directory shows all 60 real players on three non-overlapping pages
+PASS permanent team directory has total and accessible second page
+PASS plus opens real creation links and honest Soon items, Escape restores focus
+PASS captain board supports mouse/keyboard, save/reload and discarding a draft
+PASS ordinary player sees saved board without captain editing controls
+PASS open game creates a pending request, not an automatic place
+PASS manager accepts in browser and applicant sees decision without another registration
+PASS full game still offers application; accepted third player is queued
+PASS organizer bell offers reject and applicant receives the decision
+PASS confirmed results show scorer, assist and protocol with yellow card
+PASS test matches are isolated from real standings
+PASS match sound requires a gesture; live indicator respects reduced motion
+PASS real AudioContext plays goal/assist and start/end whistles once, not on every poll
+PASS day results, requests and protocol fit 320px, mobile and desktop
+PASS new day workflow switches to Kazakh
+RESULT: 15 release 027 browser checks passed; isolated SQL and simulated OAuth/HTTP, not live Supabase.

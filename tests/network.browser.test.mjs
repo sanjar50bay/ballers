@@ -233,7 +233,7 @@ try {
   await captain.getByLabel("Город игры", { exact: true }).selectOption("");
   await captain.getByText("Arsen", { exact: true }).waitFor();
   await captain
-    .getByRole("textbox", { name: "Поиск", exact: true })
+    .getByRole("textbox", { name: "Имя, ник или Baller ID", exact: true })
     .fill("Dana");
   await captain.getByText("Dana", { exact: true }).waitFor();
   await captain.waitForTimeout(700);

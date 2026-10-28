@@ -1,0 +1,18 @@
+
+> ballers@0.2.8-alpha test:reliability
+> node tests/reliability.test.mjs
+
+PASS roles are scoped to the community, not a global account type
+PASS member cannot mutate another response, teams, settings, start or own role
+PASS global directory shows teams and communities belonging to other creators
+PASS home includes unjoined community game but not unrelated private day
+PASS pending guest application appears on home without being marked Going
+PASS accept fills last place once
+PASS next accepted applicant is visibly reserved, not Going
+PASS self cancellation offers the free place to reserve and notifies once
+PASS a later accepted applicant cannot take an offered place
+PASS reserve confirms deliberately, offer retires and duplicate response is safe
+PASS owning another community does not permit accepting this day requests
+PASS anonymous cannot read home or global directory
+PASS 007 repeat is blocked transactionally
+RESULT: 13 reliability checks passed; isolated PostgreSQL, no production access.

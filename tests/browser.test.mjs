@@ -22,6 +22,7 @@ for (const p of [
   "supabase/migrations/20261019_004_mobile_notifications.sql",
   "supabase/migrations/20261024_005_directory_teams.sql",
   "supabase/migrations/20261027_006_day_results_requests.sql",
+  "supabase/migrations/20261028_007_reliability.sql",
 ])
   await db.exec(read(p));
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -344,7 +345,7 @@ try {
     .first()
     .waitFor();
   pass("existing Team Builder remains functional");
-  await page.getByRole("link", { name: /Игровой центр:/ }).click();
+  await page.getByRole("link", { name: /Счёт, очередь и матчи/ }).click();
   await page
     .locator("summary")
     .filter({ hasText: text("Капитаны и ответственные") })
@@ -532,7 +533,7 @@ try {
   await shot("release-communities-mobile.png");
   pass("discovery navigation preserves access to city communities");
   await page.getByRole("button", { name: text("Создать"), exact: true }).click();
-  await page.getByRole("dialog").getByRole("link",{name:text("Игровой день")+" →",exact:true}).click();
+  await page.getByRole("dialog").getByRole("link",{name:text("Игровой день")+" → "+text("Собрать игроков на конкретную дату"),exact:true}).click();
   await page
     .getByRole("heading", { name: text("Игровой день"), exact: true })
     .waitFor();
@@ -721,7 +722,7 @@ try {
   const routes = [
     ["/", "Ең жақын ойын күні"],
     ["/my-game", "Сенің ойының"],
-    ["/communities", "Қауымдастықтар"],
+    ["/communities", "Менің қауымдастықтарым"],
     ["/create", "Ойын күні"],
     ["/communities/create", "Қауымдастық құру"],
     [`/communities/${community}`, "Қауымдастыққа шолу"],

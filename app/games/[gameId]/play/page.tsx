@@ -1,6 +1,7 @@
 "use client";
 import { uiError, t as tx } from "@/lib/i18n";
 
+import { useApp } from "@/app/components/AppState";
 import { useLocale } from "@/app/components/Language";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -115,6 +116,7 @@ const secondary =
 
 export default function PlayPage() {
   useLocale();
+  const { data: home } = useApp();
 
   const { gameId } = useParams<{ gameId: string }>();
   const [s, setS] = useState<Snapshot | null>(null);
@@ -222,8 +224,16 @@ export default function PlayPage() {
           )
         : 0)
     : 0;
+  const isOwner =
+    !!s &&
+    !!home?.communities.some(
+      (c) => c.id === s.game.community_id && c.role === "OWNER",
+    );
   const canOperate =
-    !!s && !!live && (s.manager || live.operator_id === s.my_player_id);
+    !!s &&
+    s.game.id === gameId &&
+    !!live &&
+    (s.manager || live.operator_id === s.my_player_id);
   const autoFinishSent = useRef<string | null>(null);
   useEffect(() => {
     if (
@@ -249,7 +259,7 @@ export default function PlayPage() {
       await refresh();
     })();
   }, [live, canOperate, busy, elapsed, refresh]);
-  if (!s)
+  if (!s || s.game.id !== gameId)
     return (
       <main className="min-h-screen bg-[#050710] text-white p-8">
         <p>{error ? uiError(error) : tx("Загружаем игровой центр…")}</p>
@@ -362,6 +372,15 @@ export default function PlayPage() {
             </span>
           )}
         </div>
+        <p className="role-context mb-4" role="status">
+          {tx(
+            s.manager
+              ? "Ты организатор этого игрового дня"
+              : canOperate
+                ? "Ты оператор текущего матча"
+                : "Ты игрок: управляешь только своим участием",
+          )}
+        </p>
         <DayResults
           matches={s.matches}
           events={s.events}
@@ -789,31 +808,33 @@ export default function PlayPage() {
               >
                 {tx("Все → Не иду")}
               </button>
-              <button
-                className={secondary}
-                disabled={busy}
-                onClick={() => {
-                  if (
-                    confirm(
-                      tx(
-                        "Добавить до 14 синтетических игроков сообщества без Google-аккаунтов? Они не записываются на игру автоматически.",
-                      ),
+              {isOwner && (
+                <button
+                  className={secondary}
+                  disabled={busy}
+                  onClick={() => {
+                    if (
+                      confirm(
+                        tx(
+                          "Добавить до 14 синтетических игроков сообщества без Google-аккаунтов? Они не записываются на игру автоматически.",
+                        ),
+                      )
                     )
-                  )
-                    void run(
-                      () =>
-                        supabase.rpc("ballers_add_test_players", {
-                          p_community: s.game.community_id,
-                          p_count: 14,
-                        }),
-                      tx(
-                        "Тестовые профили добавлены. Пригласи их через Invite Members.",
-                      ),
-                    );
-                }}
-              >
-                {tx("Тестовые игроки +14")}
-              </button>
+                      void run(
+                        () =>
+                          supabase.rpc("ballers_add_test_players", {
+                            p_community: s.game.community_id,
+                            p_count: 14,
+                          }),
+                        tx(
+                          "Тестовые профили добавлены. Пригласи их через Invite Members.",
+                        ),
+                      );
+                  }}
+                >
+                  {tx("Тестовые игроки +14")}
+                </button>
+              )}
             </div>
           )}
           <div className="space-y-2 max-h-72 overflow-y-auto">
@@ -1101,90 +1122,107 @@ export default function PlayPage() {
             </div>
           </details>
         )}
-        <details className={section}>
-          <summary className="min-h-11 py-2 text-lg font-bold">
-            {tx("Капитаны и ответственные")}
-            <span className="text-[#73d4ff]">↓</span>
-          </summary>
-          <div className="space-y-4">
+        {!s.manager ? (
+          <section className={section}>
+            <h2 className="font-bold">{tx("Капитаны и ответственные")}</h2>
             {s.teams.map((t) => {
               const role = s.roles.find((r) => r.team_id === t.id);
               return (
-                <form
-                  key={`${t.id}:${role?.captain_id}:${role?.responsible_id}:${t.player_ids.join()}`}
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget);
-                    void gameAction("ROLES", {
-                      team_id: t.id,
-                      captain_id: fd.get("captain"),
-                      responsible_id: fd.get("responsible"),
-                      can_manage_attendance: fd.get("delegate") === "on",
-                    });
-                  }}
-                  className="border border-white/10 rounded-2xl p-4"
-                >
-                  <h3 className="font-bold mb-3">
-                    {t.name} · {t.player_ids.length}
-                    {tx("игроков")}
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label className="text-sm">
-                      {tx("Капитан")}
-                      <select
-                        name="captain"
-                        className={field}
-                        defaultValue={role?.captain_id || t.player_ids[0] || ""}
-                        disabled={!s.manager || busy || !!live}
-                      >
-                        {t.player_ids.map((id) => (
-                          <option key={id} value={id}>
-                            {playerName(id)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="text-sm">
-                      {tx("Ответственный")}
-                      <select
-                        name="responsible"
-                        className={field}
-                        defaultValue={
-                          role?.responsible_id || t.player_ids[0] || ""
-                        }
-                        disabled={!s.manager || busy || !!live}
-                      >
-                        {t.player_ids.map((id) => (
-                          <option key={id} value={id}>
-                            {playerName(id)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  {s.manager && (
-                    <>
-                      <label className="flex items-center gap-2 text-sm my-3">
-                        <input
-                          name="delegate"
-                          type="checkbox"
-                          defaultChecked={role?.can_manage_attendance}
-                        />
-                        {tx("Капитан может менять ответы своей команды")}
-                      </label>
-                      <button
-                        className={secondary}
-                        disabled={busy || !t.player_ids.length || !!live}
-                      >
-                        {tx("Сохранить роли")} {t.name}
-                      </button>
-                    </>
-                  )}
-                </form>
+                <p className="mt-3" key={t.id}>
+                  {t.name} · {tx("Капитан")}:{" "}
+                  {role?.captain_id ? playerName(role.captain_id) : "—"}
+                </p>
               );
             })}
-          </div>
-        </details>
+          </section>
+        ) : (
+          <details className={section}>
+            <summary className="min-h-11 py-2 text-lg font-bold">
+              {tx("Капитаны и ответственные")}
+              <span className="text-[#73d4ff]">↓</span>
+            </summary>
+            <div className="space-y-4">
+              {s.teams.map((t) => {
+                const role = s.roles.find((r) => r.team_id === t.id);
+                return (
+                  <form
+                    key={`${t.id}:${role?.captain_id}:${role?.responsible_id}:${t.player_ids.join()}`}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const fd = new FormData(e.currentTarget);
+                      void gameAction("ROLES", {
+                        team_id: t.id,
+                        captain_id: fd.get("captain"),
+                        responsible_id: fd.get("responsible"),
+                        can_manage_attendance: fd.get("delegate") === "on",
+                      });
+                    }}
+                    className="border border-white/10 rounded-2xl p-4"
+                  >
+                    <h3 className="font-bold mb-3">
+                      {t.name} · {t.player_ids.length}
+                      {tx("игроков")}
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="text-sm">
+                        {tx("Капитан")}
+                        <select
+                          name="captain"
+                          className={field}
+                          defaultValue={
+                            role?.captain_id || t.player_ids[0] || ""
+                          }
+                          disabled={!s.manager || busy || !!live}
+                        >
+                          {t.player_ids.map((id) => (
+                            <option key={id} value={id}>
+                              {playerName(id)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="text-sm">
+                        {tx("Ответственный")}
+                        <select
+                          name="responsible"
+                          className={field}
+                          defaultValue={
+                            role?.responsible_id || t.player_ids[0] || ""
+                          }
+                          disabled={!s.manager || busy || !!live}
+                        >
+                          {t.player_ids.map((id) => (
+                            <option key={id} value={id}>
+                              {playerName(id)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    {s.manager && (
+                      <>
+                        <label className="flex items-center gap-2 text-sm my-3">
+                          <input
+                            name="delegate"
+                            type="checkbox"
+                            defaultChecked={role?.can_manage_attendance}
+                          />
+                          {tx("Капитан может менять ответы своей команды")}
+                        </label>
+                        <button
+                          className={secondary}
+                          disabled={busy || !t.player_ids.length || !!live}
+                        >
+                          {tx("Сохранить роли")} {t.name}
+                        </button>
+                      </>
+                    )}
+                  </form>
+                );
+              })}
+            </div>
+          </details>
+        )}
         <p className="text-sm text-gray-500">
           {tx(
             "Таймер восстанавливается с сервера. При потере связи действие не считается сохранённым. Точные минуты игроков не рассчитываются: состав матча — заявка, а не журнал замен.",

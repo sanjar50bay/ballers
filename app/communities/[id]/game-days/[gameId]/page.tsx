@@ -179,6 +179,7 @@ export default function GameDayPage() {
   }, [gameId]);
 
   const loadGame = useCallback(async () => {
+    setMyRole(null);
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -780,8 +781,15 @@ export default function GameDayPage() {
           href={`/games/${gameId}/play`}
           className="block mb-6 rounded-2xl border border-violet-500 bg-violet-600 py-4 px-5 font-black text-center"
         >
-          {tx("Игровой центр: правила, очередь и матчи →")}
+          {tx("Счёт, очередь и матчи →")}
         </Link>
+        <p className="role-context mb-4">
+          {tx(
+            canManage
+              ? "Ты организатор этого игрового дня"
+              : "Ты игрок: управляешь только своим участием",
+          )}
+        </p>
         {/* STATUS */}
 
         <section className="mb-7">

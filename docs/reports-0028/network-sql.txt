@@ -1,0 +1,23 @@
+
+> ballers@0.2.8-alpha test:network
+> node tests/network.test.mjs
+
+PASS directory normalizes city aliases, excludes synthetic profiles and whitelists fields
+PASS create retry is idempotent and only creator becomes captain
+PASS invitation does not add players and duplicate send is safe
+PASS outsider cannot invite, remove, approve requests, or link community
+PASS public team detail does not leak pending invitations
+PASS request requires captain confirmation
+PASS only intended recipient sees and accepts own invitation
+PASS captain approves request and requester role remains PLAYER
+PASS captain cannot leave or remove their own captain seat
+PASS community link requires independent manager confirmation
+PASS one team joins multiple communities without duplicate team identity
+PASS move city preserves Baller ID, profile and team membership
+PASS free status and game invitation preference remain independent of membership
+PASS declining invitation has no membership and no stale inbox item
+PASS direct table writes and role escalation are denied
+PASS lost invitation acknowledgement can be retried without resurrecting a declined request
+PASS anonymous cannot discover profiles or mutate membership
+PASS repeat migration is blocked transactionally
+RESULT: 18 directory/team SQL checks passed; isolated PostgreSQL, not live Supabase.

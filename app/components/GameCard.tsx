@@ -8,14 +8,22 @@ import type { GameDay } from "./AppState";
 export function attendanceLabel(g: GameDay) {
   return g.status !== "OPEN"
     ? tx("День завершён")
-    : g.live
-      ? tx("● Матч идёт")
-      : {
-          GOING: tx("● Ты идёшь"),
-          MAYBE: tx("● Под вопросом"),
-          DECLINED: tx("Ты не идёшь"),
-          INVITED: tx("Приглашение"),
-        }[g.attendance_status || ""] || tx("Можно присоединиться");
+    : g.queued
+      ? tx(
+          g.place_offered
+            ? "Место предложено — подтверди участие"
+            : "Ты в резерве",
+        )
+      : g.request_status === "PENDING"
+        ? tx("Заявка ожидает решения")
+        : g.live
+          ? tx("● Матч идёт")
+          : {
+              GOING: tx("● Ты идёшь"),
+              MAYBE: tx("● Под вопросом"),
+              DECLINED: tx("Ты не идёшь"),
+              INVITED: tx("Приглашение"),
+            }[g.attendance_status || ""] || tx("Можно присоединиться");
 }
 export default function GameCard({
   game,

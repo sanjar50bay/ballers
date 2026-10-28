@@ -12,8 +12,11 @@ export default function Page() {
   return (
     <main className="ballers-shell">
       <AppHeader />
-      <h1 className="page-title">{tx("Сообщества")}</h1>
+      <h1 className="page-title">{tx("Мои сообщества")}</h1>
       <p className="ballers-muted mb-6">{tx("Твои футбольные компании")}</p>
+      <Link className="neon-button mb-5" href="/discover?kind=communities">
+        {tx("Найти все сообщества →")}
+      </Link>
       <MyCommunities />
       <Link className="neon-button green mt-6" href="/communities/create">
         {tx("Создать сообщество →")}

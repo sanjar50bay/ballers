@@ -136,8 +136,13 @@ export default function Home() {
     );
   const profile = data.profile,
     name = profile.display_name || profile.first_name;
-  const game =
-    data.games.find((g) => g.attendance_status === "GOING") || data.games[0];
+  const game = [...data.games].sort(
+    (a, b) =>
+      Number(b.live) - Number(a.live) ||
+      a.game_date.localeCompare(b.game_date) ||
+      (a.start_time || "99:99").localeCompare(b.start_time || "99:99") ||
+      a.id.localeCompare(b.id),
+  )[0];
   return (
     <main className="ballers-shell">
       <AppHeader />
@@ -168,33 +173,48 @@ export default function Home() {
         <GameCard game={game} />
       ) : (
         <section className="neon-panel">
-          <h3 className="font-bold">{tx("Скоро здесь будет твоя игра")}</h3>
+          <h3 className="font-bold">
+            {tx(
+              error
+                ? "Не удалось проверить ближайшие игры"
+                : "Ты пока не записан на ближайшие игры",
+            )}
+          </h3>
           <p className="ballers-muted mt-2">
-            {tx("Выбирай открытый игровой день или собери свой.")}
+            {tx(
+              "Проверь игры своего сообщества, найди открытый набор или собери свой день.",
+            )}
           </p>
-          <Link href="/open-games" className="text-link">
-            {tx("Найти игру →")}
-          </Link>
+          <div className="network-actions mt-4">
+            <Link href="/open-games" className="neon-button">
+              {tx("Найти игру →")}
+            </Link>
+            <Link href="/create" className="network-secondary">
+              {tx("Создать игровой день →")}
+            </Link>
+          </div>
         </section>
       )}
       <PlayerStats playerId={profile.id} compact />
-      <Link href="/open-games" className="search-panel">
-        <span className="search-icon">
-          <Icon name="search" />
-        </span>
-        <div className="flex-1">
-          <b>{tx("Хочется ещё футбола?")}</b>
-          <p className="ballers-muted">
-            {tx("Найти игру")}
-            {profile.city ? ` · ${profile.city}` : ""}
-          </p>
-        </div>
-        <Icon name="chevron" size={18} />
-      </Link>
+      {game && (
+        <Link href="/open-games" className="search-panel">
+          <span className="search-icon">
+            <Icon name="search" />
+          </span>
+          <div className="flex-1">
+            <b>{tx("Хочется ещё футбола?")}</b>
+            <p className="ballers-muted">
+              {tx("Найти ещё игру")}
+              {profile.city ? ` · ${profile.city}` : ""}
+            </p>
+          </div>
+          <Icon name="chevron" size={18} />
+        </Link>
+      )}
       <div className="section-heading">
         <h2>{tx("Твои сообщества")}</h2>
-        <Link className="text-link" href="/communities">
-          {tx("Все →")}
+        <Link className="text-link" href="/discover?kind=communities">
+          {tx("Все сообщества →")}
         </Link>
       </div>
       {data.communities.slice(0, 2).map((c) => (

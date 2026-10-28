@@ -6,7 +6,7 @@ import { useLocale } from "@/app/components/Language";
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/app/components/AppState";
 import { CitySelect } from "@/app/components/Network";
-import { cityKey } from "@/lib/network";
+import { cityKey, cityLabel } from "@/lib/network";
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -26,9 +26,10 @@ type Game = {
 };
 export default function OpenGames() {
   useLocale();
-  const { data: home } = useApp();
+  const { data: home, session, loading: authLoading } = useApp();
   const initialCity = useRef(false);
   const [games, setGames] = useState<Game[]>([]);
+  const [loading, setLoading] = useState(true);
   const [city, setCity] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,16 +42,32 @@ export default function OpenGames() {
   }, [home]);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.rpc("ballers_open_games");
-    if (error) setError(error.message);
-    else setGames((data || []) as Game[]);
-  }, []);
+    if (!session) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const { data, error } = await supabase.rpc("ballers_open_games");
+      if (error) setError(error.message);
+      else setGames((data || []) as Game[]);
+    } catch {
+      setError("NETWORK_ERROR");
+    } finally {
+      setLoading(false);
+    }
+  }, [session]);
   useEffect(() => {
     const t = setTimeout(() => {
       void load();
     }, 0);
     return () => clearTimeout(t);
   }, [load]);
+  const visibleGames = games.filter(
+    (g) =>
+      !city || cityKey(g.city).toLowerCase() === cityKey(city).toLowerCase(),
+  );
   return (
     <main className="min-h-screen bg-[#050710] text-white p-4">
       <div className="max-w-xl mx-auto py-6">
@@ -60,7 +77,7 @@ export default function OpenGames() {
         <h1 className="text-3xl font-black my-5">{tx("Открытые игры")}</h1>
         <p className="text-gray-400 text-sm mb-5">
           {tx(
-            "Менеджер открывает набор в игровом центре. Для вступления нужен профиль BALLERS, постоянная команда не нужна.",
+            "Здесь игры, которым нужны дополнительные игроки. Выбери игру и подай заявку — постоянная команда не нужна.",
           )}
         </p>
         <CitySelect value={city} onChange={setCity} all id="games-city" />
@@ -69,13 +86,15 @@ export default function OpenGames() {
             {uiError(error)}
           </p>
         )}
-        {games
-          .filter(
-            (g) =>
-              !city ||
-              cityKey(g.city).toLowerCase() === cityKey(city).toLowerCase(),
-          )
-          .map((g) => (
+        {!session && !authLoading && (
+          <Link className="neon-button" href="/">
+            {tx("Войти через Google")}
+          </Link>
+        )}
+        {(loading || authLoading) && <p role="status">{tx("Загружаем…")}</p>}
+        {session &&
+          !loading &&
+          visibleGames.map((g) => (
             <article
               key={g.id}
               className="rounded-3xl bg-[#0d1120] border border-white/10 p-5 mb-4"
@@ -112,12 +131,23 @@ export default function OpenGames() {
               </button>
             </article>
           ))}
-        {!games.length && !error && (
-          <p className="text-gray-400">
-            {tx(
-              "Пока нет опубликованных игр. Войди в аккаунт; менеджер может открыть свою игру для добора.",
-            )}
-          </p>
+        {session &&
+          !authLoading &&
+          !loading &&
+          !visibleGames.length &&
+          !error && (
+            <p className="text-gray-400">
+              {city
+                ? tx("В городе {city} пока нет игр с открытым набором.", {
+                    city: cityLabel(city),
+                  })
+                : tx("Пока нет игр с открытым набором.")}
+            </p>
+          )}
+        {error && (
+          <button className="text-link" onClick={() => void load()}>
+            {tx("Повторить загрузку")}
+          </button>
         )}
       </div>
     </main>
