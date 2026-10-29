@@ -1,4 +1,5 @@
 export type DayMatch = {
+  result_mode?: "TRUSTED" | "CAPTAINS";
   id: string;
   sequence: number;
   team_a: string;

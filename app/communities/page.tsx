@@ -13,7 +13,11 @@ export default function Page() {
     <main className="ballers-shell">
       <AppHeader />
       <h1 className="page-title">{tx("Мои сообщества")}</h1>
-      <p className="ballers-muted mb-6">{tx("Твои футбольные компании")}</p>
+      <p className="ballers-muted mb-6">
+        {tx(
+          "Здесь сообщества, в которых ты участвуешь. Другие ищи в общем каталоге.",
+        )}
+      </p>
       <Link className="neon-button mb-5" href="/discover?kind=communities">
         {tx("Найти все сообщества →")}
       </Link>

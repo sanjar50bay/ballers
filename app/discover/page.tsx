@@ -76,6 +76,17 @@ function Discover() {
     {},
     !!home?.profile,
   );
+  useEffect(() => {
+    const next = params.get("kind") || "players";
+    const tm = setTimeout(() => {
+      setKind(next);
+      setQuery("");
+      setDebounced("");
+      setOffset(0);
+      setFree(false);
+    }, 0);
+    return () => clearTimeout(tm);
+  }, [params]);
   const choose = (s: string) => {
     setKind(s);
     setOffset(0);
@@ -121,10 +132,13 @@ function Discover() {
           + {t("Команда")}
         </Link>
       </div>
-      <p className="ballers-muted mb-5">
-        {t("Приходи один. Находи своих. Играй вместе.")}
+      <p className="ballers-muted mb-5" data-coach="catalog-intro">
+        {t(
+          "Общий каталог: игроки, постоянные команды и сообщества всех организаторов.",
+        )}
       </p>
       <div
+        data-coach="directory"
         className="directory-tabs"
         role="group"
         aria-label={t("Категории поиска")}
@@ -148,6 +162,11 @@ function Discover() {
           </button>
         ))}
       </div>
+      {kind === "communities" && (
+        <Link className="text-link mb-4" href="/communities">
+          {t("Мои сообщества →")}
+        </Link>
+      )}
       {kind !== "inbox" && (
         <>
           <CitySelect

@@ -75,7 +75,7 @@ await db.query(
   [day, id(30), uid(1)],
 );
 await db.query(
-  "INSERT INTO ballers_game_settings(game_day_id,is_open) VALUES($1,true)",
+  "INSERT INTO ballers_game_settings(game_day_id,is_open,result_mode) VALUES($1,true,'CAPTAINS')",
   [day],
 );
 await db.query(
@@ -534,7 +534,7 @@ try {
   );
   await captain.reload();
   const results = captain.getByRole("region", { name: "Итоги игрового дня" });
-  await results.getByText("Подтверждено: 1", { exact: false }).waitFor();
+  await results.getByText("Учтено: 1", { exact: false }).waitFor();
   await results.screenshot({
     path: new URL("../docs/release027-table-mobile.png", import.meta.url)
       .pathname,
@@ -558,7 +558,7 @@ try {
   await results
     .getByRole("button", { name: "Тестовые матчи", exact: true })
     .click();
-  await results.getByText("Подтверждено: 0", { exact: false }).waitFor();
+  await results.getByText("Учтено: 0", { exact: false }).waitFor();
   await results
     .getByRole("button", { name: "Реальные матчи", exact: true })
     .click();

@@ -1,0 +1,27 @@
+
+> ballers@0.2.10-alpha test:trusted
+> node tests/trusted.test.mjs
+
+(node:10027) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///data/ballers-030/lib/day-results.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /data/ballers-030/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS migration preserves old pending/live policies and scores without automatic acceptance
+PASS new match snapshots trusted default and resting-team operator
+PASS member and outsider cannot change policy or finish the match
+PASS live goals stay out of final career stats until match completion
+PASS manual finish counts standings and scorer immediately without captain flags or confirmation requests
+PASS duplicate finish is rejected without another rotation
+PASS only organizer can correct completed trusted match, with meaningful reason
+PASS undo preserves accounted status, recalculates stats and records author/reason without confirmation spam
+PASS correction adds missed goal with dedupe and no double counting or rotation rewrite
+PASS correction stale version and ordinary direct table writes are blocked
+PASS goal-limit completion auto-accounts and repeated event does not rotate twice
+PASS strict mode still requires both captains; mode changes never alter existing snapshots
+PASS strict rule edits preserve policy and undo still resets captain confirmations
+PASS time-limit completion accounts immediately without changing clock protections
+PASS old pending result can be accepted explicitly only by organizer with a reason
+PASS test matches remain isolated from real career and real standings
+PASS history is readable by game viewers, not outsiders or anonymous callers
+PASS migration repeat is rejected transactionally
+RESULT: 18 trusted-result SQL checks passed; isolated PostgreSQL, no live database access.

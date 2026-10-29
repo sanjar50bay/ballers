@@ -91,7 +91,7 @@ export default function PlayerPage() {
             </p>
           </section>
           <section className="network-card">
-            <h2>{t("Подтверждённая статистика")}</h2>
+            <h2>{t("Учтённая статистика")}</h2>
             <div className="stats-grid mt-4">
               {[
                 ["Матчи", p.stats.matches],
@@ -105,7 +105,7 @@ export default function PlayerPage() {
               ))}
             </div>
             <p className="ballers-muted mt-3">
-              {t("Только подтверждённые результаты")}
+              {t("Только учтённые результаты")}
             </p>
           </section>
           <h2 className="section-title">{t("Команды игрока")}</h2>

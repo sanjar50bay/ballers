@@ -1,6 +1,6 @@
 {
   "name": "ballers",
-  "version": "0.2.8-alpha",
+  "version": "0.2.10-alpha",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,7 +19,10 @@
     "test:release027": "node tests/release027.test.mjs",
     "test:release027:browser": "node tests/release027.browser.test.mjs",
     "test:reliability": "node tests/reliability.test.mjs",
-    "test:reliability:browser": "node tests/reliability.browser.test.mjs"
+    "test:reliability:browser": "node tests/reliability.browser.test.mjs",
+    "test:ux:browser": "node tests/ux.browser.test.mjs",
+    "test:trusted": "node tests/trusted.test.mjs",
+    "test:trusted:browser": "node tests/trusted.browser.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

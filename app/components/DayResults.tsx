@@ -61,7 +61,7 @@ export default function DayResults({
         </button>
       </div>
       <p className="ballers-muted my-3">
-        {t("Подтверждено: {count}", { count: d.confirmed })} ·{" "}
+        {t("Учтено: {count}", { count: d.confirmed })} ·{" "}
         {t("Ждут решения: {count}", { count: d.pending })}
       </p>
       <div
@@ -176,7 +176,10 @@ export default function DayResults({
                     {t(
                       (
                         {
-                          VERIFIED: "Подтверждён",
+                          VERIFIED:
+                            m.result_mode === "TRUSTED"
+                              ? "Учтён ведущим"
+                              : "Подтверждён",
                           PENDING: "Ждёт подтверждений",
                           DISPUTED: "Спор",
                           LIVE: "Идёт матч",
@@ -220,7 +223,7 @@ export default function DayResults({
                     </p>
                   ))}
                 <a className="text-link mt-3" href={"#match-" + m.id}>
-                  {t("Подтверждения и спор →")}
+                  {t("Результат и история →")}
                 </a>
               </details>
             ))}
@@ -231,7 +234,7 @@ export default function DayResults({
       )}
       <p className="ballers-muted mt-4">
         {t(
-          "В зачёт идут только подтверждённые матчи выбранного типа. Автоголы не входят в личные голы.",
+          "В зачёт идут завершённые матчи доверенного режима и подтверждённые матчи строгого режима выбранного типа. Автоголы не входят в личные голы.",
         )}
       </p>
     </section>

@@ -1,0 +1,15 @@
+
+> ballers@0.2.9-alpha test:network:browser
+> node tests/network.browser.test.mjs
+
+PASS city directory, all-city selection and name search work
+PASS double create creates one persistent team and captain
+PASS captain selects two players across cities; pending invites are not active membership
+PASS Kazakh player accepts own invitation and appears in confirmed roster
+PASS decline clears invitation; later application requires captain approval
+PASS independent community manager confirms one team in two communities
+PASS moving city retains identity/team; free-player status is independent
+PASS team roster layouts fit 320px, mobile and desktop
+PASS switching RU/KK on new pages persists after reload
+PASS shared team link preserves destination for login without auto-joining
+RESULT: 10 network browser checks passed; isolated SQL, simulated OAuth/HTTP, not live Supabase.

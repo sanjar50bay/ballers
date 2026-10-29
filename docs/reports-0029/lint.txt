@@ -1,0 +1,18 @@
+
+> ballers@0.2.9-alpha lint
+> eslint
+
+
+/data/ballers-029/app/communities/[id]/game-days/[gameId]/page.tsx
+  1745:10  warning  'PlayerListSection' is defined but never used  @typescript-eslint/no-unused-vars
+  1935:10  warning  'TeamModeBadge' is defined but never used      @typescript-eslint/no-unused-vars
+
+/data/ballers-029/app/communities/[id]/page.tsx
+  192:6  warning  React Hook useEffect has a missing dependency: 'loadCommunity'. Either include it or remove the dependency array                                                                                                                                                                         react-hooks/exhaustive-deps
+  680:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/data/ballers-029/app/profile/edit/page.tsx
+  153:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+✖ 5 problems (0 errors, 5 warnings)
+

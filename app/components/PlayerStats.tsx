@@ -45,7 +45,7 @@ export default function PlayerStats({
         <>
           <div className="stats-grid">
             {[
-              [tx("В заявках"), stats.matches],
+              [tx("Матчи в составе"), stats.matches],
               [tx("Голы"), stats.goals],
               [tx("Ассисты"), stats.assists],
               [tx("Сейвы"), stats.saves],
@@ -58,7 +58,7 @@ export default function PlayerStats({
           </div>
           <p className="ballers-muted mt-4">
             {tx(
-              "Матчи в заявке, не минуты на поле. Рейтинг силы пока не определён.",
+              "Учтённые реальные матчи, в составе которых ты указан. Это не учёт минут на поле. Рейтинг силы пока не определён.",
             )}
           </p>
           {stats.test_matches > 0 && (
@@ -97,9 +97,7 @@ export default function PlayerStats({
     </details>
   ) : (
     <section className="neon-panel my-5">
-      <h2 className="font-bold mb-4 text-xl">
-        {tx("Подтверждённая статистика")}
-      </h2>
+      <h2 className="font-bold mb-4 text-xl">{tx("Учтённая статистика")}</h2>
       {body}
     </section>
   );

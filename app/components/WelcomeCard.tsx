@@ -94,7 +94,7 @@ export function PlayerCard({
           ))}
         </div>
         <p className="ballers-muted card-proof">
-          {t("Только подтверждённые результаты")}
+          {t("Только учтённые результаты")}
         </p>
         <button
           autoFocus
@@ -124,7 +124,11 @@ export default function WelcomeCard({
     if (path !== "/") return;
     let first: ReturnType<typeof setTimeout> | undefined;
     const showIfDue = () => {
-      if (document.visibilityState !== "visible") return;
+      if (
+        document.visibilityState !== "visible" ||
+        document.documentElement.dataset.coachActive === "true"
+      )
+        return;
       try {
         const key = `ballers:welcome:${profile.id}`;
         const last = Number(localStorage.getItem(key));
@@ -144,11 +148,14 @@ export default function WelcomeCard({
       attemptedEntries.add(profile.id);
       showIfDue();
     }
+    const hideForGuide = () => setOpen(false);
+    window.addEventListener("ballers:guide-start", hideForGuide);
     // Returning from a background tab also counts as a return, after the cooldown.
     window.addEventListener("focus", showIfDue);
     document.addEventListener("visibilitychange", showIfDue);
     return () => {
       clearTimeout(first);
+      window.removeEventListener("ballers:guide-start", hideForGuide);
       window.removeEventListener("focus", showIfDue);
       document.removeEventListener("visibilitychange", showIfDue);
     };

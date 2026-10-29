@@ -1,0 +1,11 @@
+
+> ballers@0.2.10-alpha test:trusted:browser
+> node tests/trusted.browser.test.mjs
+
+PASS operator finishes: result, points and scorer appear without captain confirmations; no post-match correction privileges
+PASS organizer correction updates score immediately and exposes author, time and reason in history
+PASS strict mode remains selectable and finished strict match still requests captain approval
+PASS organizer can explicitly account an old pending result with a recorded reason
+PASS career includes accounted trusted matches with clear terminology
+PASS Kazakh result view fits 320px and ordinary member has no correction or policy controls
+RESULT: 6 trusted-result browser checks passed; isolated SQL, simulated OAuth/HTTP, no production changes.

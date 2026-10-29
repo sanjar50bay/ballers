@@ -1,0 +1,17 @@
+
+> ballers@0.2.9-alpha test:ux:browser
+> node tests/ux.browser.test.mjs
+
+PASS first visit offers, but never forces, a player guide
+PASS four highlighted steps navigate/back correctly and do not create communities or applications
+PASS completion persists per account in this browser and never auto-replays
+PASS help clearly separates personal communities from other creators in the global catalog
+PASS guide is skippable with Escape and restores focus to a connected help control
+PASS keyboard focus remains in the instruction or highlighted control
+PASS missing target times out to an accessible skip/next instead of trapping the user
+PASS another account is not marked trained by the first account; declining is remembered
+PASS community name starts empty, remains labelled, and whitespace cannot be submitted
+PASS one double-click creates one trimmed community and capacity is not labelled as member count
+PASS lost creation response preserves the draft, prevents duplicate retries and leads to the saved record
+PASS Kazakh labels, optional guide and form fit 320px; form text is at least 16px
+RESULT: 12 UX browser checks passed; isolated SQL, simulated OAuth/HTTP, not live Supabase.

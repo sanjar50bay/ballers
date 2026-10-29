@@ -1,0 +1,5 @@
+
+> ballers@0.2.9-alpha test:i18n
+> node tests/i18n.test.mjs
+
+PASS localization: 994 complete RU/KK entries, status/date/errors/templates, user content preserved, 22 page files subscribed

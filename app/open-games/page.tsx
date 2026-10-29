@@ -80,7 +80,9 @@ export default function OpenGames() {
             "Здесь игры, которым нужны дополнительные игроки. Выбери игру и подай заявку — постоянная команда не нужна.",
           )}
         </p>
-        <CitySelect value={city} onChange={setCity} all id="games-city" />
+        <div data-coach="game-city">
+          <CitySelect value={city} onChange={setCity} all id="games-city" />
+        </div>
         {error && (
           <p role="alert" className="text-red-300">
             {uiError(error)}
@@ -109,6 +111,7 @@ export default function OpenGames() {
               </p>
               <button
                 className="bg-violet-600 rounded-xl px-4 py-3 font-bold disabled:opacity-40"
+                data-coach="join-game"
                 disabled={busy}
                 onClick={() => {
                   void (async () => {

@@ -59,7 +59,7 @@ export default function CareerPage() {
     PAUSED: tx("Пауза"),
     PENDING: tx("Ожидает подтверждения"),
     DISPUTED: tx("Спор"),
-    VERIFIED: tx("Подтверждён"),
+    VERIFIED: tx("Учтён"),
     CANCELLED: tx("Отменён"),
   };
   return (
@@ -86,7 +86,7 @@ export default function CareerPage() {
             <h2 className="text-xl font-bold my-5">{tx("История матчей")}</h2>
             <p className="text-sm text-gray-300 mb-4">
               {tx(
-                "Матчи, в которых ты был в заявке. Неподтверждённые и тестовые результаты не входят в реальные показатели.",
+                "Матчи, в составе которых ты указан. В реальные показатели входят завершённые матчи доверенного режима и подтверждённые матчи строгого режима. Тестовые результаты отдельно.",
               )}
             </p>
             {data.matches.length === 0 && (

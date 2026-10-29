@@ -39,6 +39,7 @@ export function BellButton() {
   const { count, show } = useContext(BellContext);
   return (
     <button
+      data-coach="notifications"
       className="icon-button"
       aria-label={`${tx("Уведомления")}${count ? `, ${tx("непрочитанных")} ${count}` : ""}`}
       onClick={show}
@@ -205,6 +206,7 @@ export default function Notifications({
           "/my-game",
           "/profile",
           "/communities",
+          "/communities/create",
           "/create",
           "/discover",
           "/profile/football",
@@ -255,6 +257,7 @@ export default function Notifications({
             <header>
               <h2>{tx("Уведомления")}</h2>
               <button
+                data-coach="notifications"
                 className="icon-button"
                 aria-label={tx("Закрыть уведомления")}
                 onClick={close}

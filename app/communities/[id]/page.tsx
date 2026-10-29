@@ -319,7 +319,7 @@ export default function CommunityPage() {
                 {tx(
                   (
                     {
-                      RANDOM: "Random",
+                      RANDOM: "Случайное распределение по командам",
                       FIXED: "Fixed",
                       MIXED: "Mixed",
                     } as Record<string, string>
@@ -329,7 +329,9 @@ export default function CommunityPage() {
 
               {community.default_capacity && (
                 <CommunityTag>
-                  {community.default_capacity} {tx("игроков")}
+                  {tx("{count} мест на игру по умолчанию", {
+                    count: community.default_capacity,
+                  })}
                 </CommunityTag>
               )}
             </div>
@@ -639,7 +641,7 @@ export default function CommunityPage() {
               value={tx(
                 (
                   {
-                    RANDOM: "Random",
+                    RANDOM: "Случайное распределение по командам",
                     FIXED: "Fixed",
                     MIXED: "Mixed",
                   } as Record<string, string>

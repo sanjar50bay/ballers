@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import MatchCorrections from "@/app/components/MatchCorrections";
 import DayResults, { eventLabel } from "@/app/components/DayResults";
 import DayRequests from "@/app/components/DayRequests";
 import MatchSound from "@/app/components/MatchSound";
@@ -33,6 +34,7 @@ type Role = {
   can_manage_attendance: boolean;
 };
 type Match = {
+  result_mode?: "TRUSTED" | "CAPTAINS";
   id: string;
   sequence: number;
   team_a: string;
@@ -82,7 +84,7 @@ type Snapshot = {
   my_player_id: string;
   manager: boolean;
   server_now: string;
-  settings: Partial<Settings>;
+  settings: Partial<Settings> & { result_mode?: "TRUSTED" | "CAPTAINS" };
   teams: Team[];
   roles: Role[];
   players: Player[];
@@ -652,7 +654,7 @@ export default function PlayPage() {
           className={section}
         >
           <h2 className="text-xl font-bold mb-4">
-            {tx("Результаты и подтверждения")}{" "}
+            {tx("Результаты и исправления")}{" "}
             {pending.length > 0 && `· ${pending.length} ${tx("Ожидание")}`}
           </h2>
           {!s.matches.length && (
@@ -671,14 +673,24 @@ export default function PlayPage() {
                   {teamName(m.team_b)}
                 </b>
                 <span className="text-sm text-violet-300">
-                  {tx(statuses[m.status] || "Ожидает подтверждения")}
+                  {tx(
+                    m.status === "VERIFIED" && m.result_mode === "TRUSTED"
+                      ? "Учтён ведущим"
+                      : statuses[m.status] || "Ожидает подтверждения",
+                  )}
                   {m.is_test ? tx(" · тест") : ""}
                 </span>
               </div>
               <p className="text-sm text-gray-400 mt-2">
                 {tx("Капитаны:")}
-                {m.confirmed_a ? "✓" : "…"} {playerName(m.captain_a)} /{" "}
-                {m.confirmed_b ? "✓" : "…"} {playerName(m.captain_b)}
+                {m.result_mode === "TRUSTED"
+                  ? ""
+                  : m.confirmed_a
+                    ? "✓"
+                    : "…"}{" "}
+                {playerName(m.captain_a)} /{" "}
+                {m.result_mode === "TRUSTED" ? "" : m.confirmed_b ? "✓" : "…"}{" "}
+                {playerName(m.captain_b)}
               </p>
               {m.resolution_note && (
                 <p className="text-sm text-amber-200 mt-2">
@@ -754,12 +766,31 @@ export default function PlayPage() {
                             : ""}
                         </span>
                         {!e.voided &&
-                          (s.manager || m.operator_id === s.my_player_id) && (
+                          (s.manager ||
+                            (m.operator_id === s.my_player_id &&
+                              !(
+                                m.result_mode === "TRUSTED" &&
+                                m.status === "VERIFIED"
+                              ))) && (
                             <button
                               disabled={busy}
                               className="text-violet-300"
                               onClick={() => {
                                 if (
+                                  m.result_mode === "TRUSTED" &&
+                                  m.status === "VERIFIED"
+                                ) {
+                                  const reason = prompt(
+                                    tx(
+                                      "Причина исправления (минимум 5 символов)",
+                                    ),
+                                  );
+                                  if (reason && reason.trim().length >= 5)
+                                    void matchAction(m, "UNDO", {
+                                      id: e.id,
+                                      reason: reason.trim(),
+                                    });
+                                } else if (
                                   confirm(
                                     tx(
                                       "Отменить событие? Подтверждения завершённого матча будут сброшены.",
@@ -776,6 +807,25 @@ export default function PlayPage() {
                     ))}
                 </div>
               </details>
+              {["VERIFIED", "PENDING", "DISPUTED"].includes(m.status) && (
+                <MatchCorrections
+                  matchId={m.id}
+                  version={m.version}
+                  manager={s.manager}
+                  trusted={
+                    m.result_mode === "TRUSTED" && m.status === "VERIFIED"
+                  }
+                  pending={m.status === "PENDING"}
+                  busy={busy}
+                  players={s.rosters
+                    .filter((r) => r.match_id === m.id)
+                    .map((r) => ({
+                      id: r.player_id,
+                      name: playerName(r.player_id),
+                    }))}
+                  onAction={(a, p) => void matchAction(m, a, p)}
+                />
+              )}
             </article>
           ))}
         </section>
@@ -960,6 +1010,48 @@ export default function PlayPage() {
             </form>
           </details>
         )}
+        <section className={section} aria-label={tx("Учёт результатов")}>
+          <h2 className="text-lg font-bold">{tx("Учёт результатов")}</h2>
+          {s.manager && s.game.status === "OPEN" ? (
+            <label className="block mt-3">
+              {tx("Режим для новых матчей")}
+              <select
+                className={field}
+                aria-label={tx("Режим для новых матчей")}
+                value={s.settings.result_mode || "TRUSTED"}
+                disabled={busy}
+                onChange={(e) =>
+                  void run(() =>
+                    supabase.rpc("ballers_result_mode", {
+                      p_game: gameId,
+                      p_mode: e.target.value,
+                    }),
+                  )
+                }
+              >
+                <option value="TRUSTED">
+                  {tx("Доверяем ведущему — сразу в статистику")}
+                </option>
+                <option value="CAPTAINS">
+                  {tx("Строгий — подтверждения капитанов")}
+                </option>
+              </select>
+            </label>
+          ) : (
+            <p>
+              {tx(
+                s.settings.result_mode === "CAPTAINS"
+                  ? "Строгий — подтверждения капитанов"
+                  : "Доверяем ведущему — сразу в статистику",
+              )}
+            </p>
+          )}
+          <p className="ballers-muted mt-3">
+            {tx(
+              "Режим сохраняется при старте матча. Уже начатые и старые матчи не меняются автоматически.",
+            )}
+          </p>
+        </section>
         {s.manager && s.game.status === "OPEN" && (
           <details className={section}>
             <summary className="min-h-11 py-2 text-lg font-bold">

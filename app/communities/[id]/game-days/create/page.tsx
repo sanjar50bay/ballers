@@ -226,12 +226,13 @@ export default function CreateGameDayPage() {
 
           <div>
             <label className="text-sm text-gray-400 block mb-2">
-              {tx("Player capacity")}
+              {tx("Мест на этот игровой день")}
             </label>
 
             <input
               type="number"
-              min="2"
+              min="1"
+              aria-label={tx("Мест на этот игровой день")}
               value={capacity}
               onChange={(e) => setCapacity(e.target.value)}
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"

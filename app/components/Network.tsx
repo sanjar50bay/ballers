@@ -190,7 +190,7 @@ export function MyTeams() {
       </Link>
     );
   return (
-    <section>
+    <section id="my-teams">
       <div className="section-heading">
         <h2>{t("Твои команды")}</h2>
         <Link className="text-link" href="/discover?kind=teams">
@@ -214,7 +214,7 @@ export function MyTeams() {
         </Link>
       ))}
       {!data?.teams.length && (
-        <Link href="/discover" className="network-card">
+        <Link href="/discover?kind=teams" className="network-card">
           <b>{t("Команды пока нет? Это нормально.")}</b>
           <p className="ballers-muted mt-2">
             {t("Найди свою или начни с открытой игры.")}

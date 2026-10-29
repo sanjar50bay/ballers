@@ -1,0 +1,17 @@
+
+> ballers@0.2.9-alpha test:reliability:browser
+> node tests/reliability.browser.test.mjs
+
+PASS global catalog shows other creators teams/communities; contextual search labels have no developer text
+PASS personal communities page is explicitly personal and links to the global catalog
+PASS nearest community game appears before the member has joined
+PASS no relevant game: one find action, create action, no duplicate panel
+PASS ordinary player has no bulk, test-player, rules or role-edit controls
+PASS owner/manager controls are scoped, and only owner sees synthetic-player creation
+PASS pending guest request remains visible on home without false Going
+PASS accepted first player fills last place and next accepted applicant sees reserve on home
+PASS cancellation offers reserve a place; own explicit confirmation changes it to Going
+PASS context explanations and localized main screen fit 320px
+PASS empty city filter does not pretend the authenticated player needs to sign in
+PASS open-game request error has retry, not a false empty state
+RESULT: 12 reliability browser checks passed; isolated SQL, simulated OAuth/HTTP, not live Supabase.

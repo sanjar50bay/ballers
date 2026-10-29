@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import type { Provider } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useApp } from "./components/AppState";
+import { GuideInvite } from "./components/Coach";
 import AppHeader from "./components/AppHeader";
 import BottomNav from "./components/BottomNav";
 import Avatar from "./components/Avatar";
@@ -146,7 +147,7 @@ export default function Home() {
   return (
     <main className="ballers-shell">
       <AppHeader />
-      <Link href="/profile" className="profile-strip">
+      <Link href="/profile" className="profile-strip" data-coach="profile">
         <Avatar src={profile.avatar_url} name={name} />
         <div>
           <p className="ballers-muted">{tx("Хорошей игры,")}</p>
@@ -164,6 +165,7 @@ export default function Home() {
           <button onClick={() => void refresh()}>{tx("Повторить")}</button>
         </p>
       )}
+      <GuideInvite />
       <FootballWelcome />
       <div className="section-heading">
         <h2>{tx("Ближайший игровой день")}</h2>
@@ -241,7 +243,7 @@ export default function Home() {
         </Link>
       ))}
       {!data.communities.length && (
-        <Link className="text-link" href="/communities">
+        <Link className="text-link" href="/discover?kind=communities">
           {tx("Найти своё сообщество →")}
         </Link>
       )}

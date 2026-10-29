@@ -1,150 +1,228 @@
 "use client";
-import { t as tx } from "@/lib/i18n";
-
-import { useLocale } from "@/app/components/Language";
-
-import { useState } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { t } from "@/lib/i18n";
+import { useLocale } from "@/app/components/Language";
+import { useApp } from "@/app/components/AppState";
+import { NetworkShell } from "@/app/components/Network";
 import { supabase } from "@/lib/supabase";
-import { preMatchError } from "@/lib/pre-match";
 
 export default function CreateCommunityPage() {
   useLocale();
-
   const router = useRouter();
-
-  const [name, setName] = useState("Wednesday Football");
-  const [city, setCity] = useState("Astana");
-  const [teamMode, setTeamMode] = useState("RANDOM");
-  const [format, setFormat] = useState("5");
-  const [teamCount, setTeamCount] = useState("3");
-  const [capacity, setCapacity] = useState("15");
-  const [loading, setLoading] = useState(false);
-
-  const createCommunity = async () => {
-    setLoading(true);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      alert(tx("User not found"));
-      setLoading(false);
+  const { refresh } = useApp();
+  const lock = useRef(false);
+  const [name, setName] = useState(""),
+    [city, setCity] = useState("Astana"),
+    [mode, setMode] = useState("RANDOM"),
+    [format, setFormat] = useState("5"),
+    [teams, setTeams] = useState("3"),
+    [capacity, setCapacity] = useState("15");
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [uncertain, setUncertain] = useState(false);
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (lock.current || uncertain) return;
+    setError("");
+    if (!name.trim()) {
+      setError("Введи название сообщества.");
       return;
     }
-
-    const { data: profile, error: profileError } = await supabase
-      .from("player_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (profileError || !profile) {
-      alert(tx("Player profile not found"));
-      setLoading(false);
+    if (name.trim().length > 120) {
+      setError("Название должно быть не длиннее 120 символов.");
       return;
     }
-
-    const { error } = await supabase.rpc("ballers_create_community", {
-      p_name: name,
-      p_city: city,
-      p_team_mode: teamMode,
-      p_format: Number(format),
-      p_team_count: Number(teamCount),
-      p_capacity: capacity ? Number(capacity) : null,
-    });
-    if (error) {
-      alert(preMatchError(error));
-      setLoading(false);
+    if (
+      !Number.isInteger(+teams) ||
+      +teams < 2 ||
+      +teams > 8 ||
+      !Number.isInteger(+format) ||
+      +format < 1 ||
+      +format > 11 ||
+      (capacity !== "" && (!Number.isSafeInteger(+capacity) || +capacity < 1))
+    ) {
+      setError("Проверь количество команд и мест.");
       return;
     }
-
-    router.push("/");
-  };
-
+    lock.current = true;
+    setBusy(true);
+    try {
+      // One authoritative RPC: no redundant getUser/profile round trips. Server checks auth/role.
+      const { data, error } = await supabase
+        .rpc("ballers_create_community", {
+          p_name: name.trim(),
+          p_city: city.trim(),
+          p_team_mode: mode,
+          p_format: +format,
+          p_team_count: +teams,
+          p_capacity: capacity ? +capacity : null,
+        })
+        .abortSignal(AbortSignal.timeout(15000));
+      if (error) {
+        if (!error.code || /abort|timeout|fetch|network/i.test(error.message)) {
+          setUncertain(true);
+          setError(
+            "Не удалось подтвердить создание. Проверь «Мои сообщества» перед повторной попыткой: запись могла сохраниться.",
+          );
+        } else
+          setError(
+            "Не удалось создать сообщество. Проверь данные и доступ к аккаунту.",
+          );
+        return;
+      }
+      void refresh();
+      router.push(
+        typeof data === "string" ? `/communities/${data}` : "/communities",
+      );
+    } catch {
+      setUncertain(true);
+      setError(
+        "Не удалось подтвердить создание. Проверь «Мои сообщества» перед повторной попыткой: запись могла сохраниться.",
+      );
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
   return (
-    <main className="min-h-screen bg-black text-white px-6 py-8">
-      <div className="max-w-md mx-auto">
-        <button onClick={() => router.back()} className="text-gray-400 mb-6">
-          {tx("← Back")}
-        </button>
-
-        <h1 className="text-3xl font-bold mb-2">{tx("Create Community")}</h1>
-
-        <p className="text-gray-400 mb-8">
-          {tx("Create a permanent football group.")}
-        </p>
-
-        <div className="space-y-4">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={tx("Community name")}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-          />
-
-          <input
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            placeholder={tx("City")}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-          />
-
-          <select
-            value={teamMode}
-            onChange={(e) => setTeamMode(e.target.value)}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
+    <NetworkShell>
+      <Link
+        className="text-link"
+        href="/communities"
+        onClick={() => void refresh()}
+      >
+        {t("← Мои сообщества")}
+      </Link>
+      <h1 className="page-title mt-5">{t("Create Community")}</h1>
+      <p className="ballers-muted mb-6">
+        {t(
+          "Одно сообщество — общая компания. Играть можно в разные дни и на разных аренах.",
+        )}
+      </p>
+      <form className="network-form" onSubmit={submit}>
+        {error && (
+          <p className="error-panel" role="alert">
+            {t(error)}
+          </p>
+        )}
+        {uncertain && (
+          <Link
+            className="text-link"
+            href="/communities"
+            onClick={() => void refresh()}
           >
-            <option value="RANDOM">{tx("Random teams")}</option>
-            <option value="FIXED">{tx("Fixed teams")}</option>
-            <option value="MIXED">{tx("Mixed")}</option>
-          </select>
-
-          <select
-            value={format}
-            onChange={(e) => setFormat(e.target.value)}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-          >
-            <option value="1">1×1</option>
-            <option value="2">2×2</option>
-            <option value="3">3×3</option>
-            <option value="4">4×4</option>
-            <option value="5">5×5</option>
-            <option value="6">6×6</option>
-            <option value="7">7×7</option>
-            <option value="8">8×8</option>
-            <option value="9">9×9</option>
-            <option value="10">10×10</option>
-            <option value="11">11×11</option>
-          </select>
-
-          <input
-            value={teamCount}
-            onChange={(e) => setTeamCount(e.target.value)}
-            type="number"
-            min="2"
-            placeholder={tx("Number of teams")}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-          />
-
-          <input
-            value={capacity}
-            onChange={(e) => setCapacity(e.target.value)}
-            type="number"
-            placeholder={tx("Player capacity")}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-          />
-
+            {t("Проверить мои сообщества →")}
+          </Link>
+        )}
+        <fieldset className="network-form" disabled={busy || uncertain}>
+          <label className="network-field" htmlFor="community-name">
+            <span id="community-name-label">{t("Название сообщества")}</span>
+            <input
+              id="community-name"
+              aria-labelledby="community-name-label"
+              className="network-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t("Назови своё сообщество")}
+              maxLength={120}
+              required
+              aria-describedby="community-name-hint"
+            />
+            <small id="community-name-hint" className="ballers-muted">
+              {t("Например: «Достар Астана» или «Футбол для своих».")}
+            </small>
+          </label>
+          <label className="network-field" htmlFor="community-city">
+            <span>{t("Город")}</span>
+            <input
+              id="community-city"
+              className="network-input"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              maxLength={100}
+            />
+          </label>
+          <label className="network-field" htmlFor="community-mode">
+            <span>{t("Распределение по командам")}</span>
+            <select
+              id="community-mode"
+              className="network-input"
+              value={mode}
+              onChange={(e) => setMode(e.target.value)}
+            >
+              <option value="RANDOM">
+                {t("Случайное распределение по командам")}
+              </option>
+              <option value="FIXED">{t("Fixed teams")}</option>
+              <option value="MIXED">{t("Mixed")}</option>
+            </select>
+          </label>
+          <label className="network-field" htmlFor="community-format">
+            <span>{t("Формат игры")}</span>
+            <select
+              id="community-format"
+              className="network-input"
+              value={format}
+              onChange={(e) => setFormat(e.target.value)}
+            >
+              {Array.from({ length: 11 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n}×{n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="network-field" htmlFor="community-teams">
+            <span>{t("Количество команд")}</span>
+            <input
+              id="community-teams"
+              className="network-input"
+              type="number"
+              min="2"
+              max="8"
+              step="1"
+              value={teams}
+              onChange={(e) => setTeams(e.target.value)}
+              required
+            />
+          </label>
+          <label className="network-field" htmlFor="community-capacity">
+            <span id="community-capacity-label">
+              {t("Мест на игровой день по умолчанию")}
+            </span>
+            <input
+              id="community-capacity"
+              aria-labelledby="community-capacity-label"
+              className="network-input"
+              type="number"
+              min="1"
+              step="1"
+              value={capacity}
+              onChange={(e) => setCapacity(e.target.value)}
+              aria-describedby="community-capacity-hint"
+            />
+            <small id="community-capacity-hint" className="ballers-muted">
+              {t(
+                "Не ограничивает число участников сообщества. Для каждого игрового дня можно задать своё количество мест. Пусто — без лимита.",
+              )}
+            </small>
+          </label>
           <button
-            onClick={createCommunity}
-            disabled={loading || !name}
-            className="w-full bg-white text-black rounded-xl py-4 font-semibold disabled:opacity-50"
+            className="neon-button w-full"
+            type="submit"
+            disabled={busy || uncertain}
           >
-            {loading ? tx("Creating...") : tx("Create Community")}
+            {t(busy ? "Creating..." : "Create Community")}
           </button>
-        </div>
-      </div>
-    </main>
+        </fieldset>
+        {busy && (
+          <p role="status" className="ballers-muted">
+            {t("Сохраняем сообщество…")}
+          </p>
+        )}
+      </form>
+    </NetworkShell>
   );
 }
