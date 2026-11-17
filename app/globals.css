@@ -1503,6 +1503,13 @@ body{line-height:1.6} .ballers-muted{font-size:15px;line-height:1.55;color:#b6c2
   border-color: #bb94ff;
   font-weight: 800;
 }
+
+.game-tabs { display: flex; gap: 6px; margin: 16px 0; }
+.game-tabs a { flex: 1; min-height: 48px; display: flex; align-items: center; justify-content: center; padding: 10px 6px; border: 1px solid #45516a; border-radius: 12px; color: #d6e0f3; font-size: 15px; }
+.game-tabs a[aria-current="page"] { background: #163a4b; color: #8cddff; border-color: #78d8ff; font-weight: 800; }
+.leader-panel { padding: 16px; margin: 16px 0; border: 1px solid #405c70; border-radius: 16px; background: #101e2a; }
+.leader-panel .network-field select, .leader-panel .network-field input { width: 100%; min-height: 48px; padding: 10px; background: #101b2b; border: 1px solid #53617c; border-radius: 10px; font-size: 16px; }
+.organizer-settings { border-top: 1px solid #45516a; padding-top: 10px; margin-top: 20px; }
 @media (min-width: 480px) {
   .search-categories {
     grid-template-columns: repeat(4, minmax(0, 1fr));

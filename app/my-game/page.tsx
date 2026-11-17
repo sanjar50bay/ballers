@@ -1,362 +1,109 @@
 "use client";
-import { uiError, t as tx, dateLocale } from "@/lib/i18n";
-
-import { useLocale } from "@/app/components/Language";
-
-import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { countLabel } from "@/lib/display";
-import { supabase } from "@/lib/supabase";
-import { setAttendance } from "@/lib/pre-match";
-import { useApp } from "../components/AppState";
-import GameCard from "../components/GameCard";
-type Snapshot = {
-  manager: boolean;
-  my_player_id: string;
-  teams: {
-    id: string;
-    name: string;
-    color_key: string;
-    player_ids: string[];
-  }[];
-  players: { id: string; name: string; position: string }[];
-};
-function MyGame() {
+import { t, dateLocale } from "@/lib/i18n";
+import { useLocale } from "@/app/components/Language";
+import { useApp } from "@/app/components/AppState";
+import GameCard from "@/app/components/GameCard";
+export default function Page() {
+  return (
+    <Suspense fallback={<p>…</p>}>
+      <MyGames />
+    </Suspense>
+  );
+}
+function MyGames() {
   useLocale();
-
-  const query = useSearchParams(),
-    router = useRouter();
   const { data, session, loading, error, refresh } = useApp();
-  const tab = query.get("history") ? "history" : "current";
-  const setTab = (next: string) => {
-    const params = new URLSearchParams(query.toString());
-    if (next === "history") params.set("history", "1");
-    else params.delete("history");
-    router.push(`/my-game${params.size ? `?${params}` : ""}`, {
-      scroll: false,
-    });
-  };
-  const [snap, setSnap] = useState<Snapshot | null>(null),
-    [notice, setNotice] = useState(""),
-    [busy, setBusy] = useState(false);
-  const selected = query.get("game");
-  const pool = [...(data?.games || []), ...(data?.history || [])];
-  const game =
-    pool.find((g) => g.id === selected) ||
-    data?.games.find((g) => g.attendance_status === "GOING") ||
-    data?.games[0];
-  const gameId = game?.id;
-  const load = useCallback(async () => {
-    if (!gameId) return;
-    const { data, error } = await supabase.rpc("ballers_alpha_snapshot", {
-      p_game: gameId,
-    });
-    if (error) {
-      setNotice(tx("Составы пока недоступны. Попробуй обновить страницу."));
-      return;
-    }
-    setSnap(data as Snapshot);
-  }, [gameId]);
+  const params = useSearchParams(),
+    router = useRouter();
+  const history = params.get("history") === "1";
+  const selected = params.get("game");
   useEffect(() => {
-    const start = setTimeout(() => {
-      setSnap(null);
-      void load();
-    }, 0);
-    const poll = setInterval(() => {
-      if (document.visibilityState === "visible") void load();
-    }, 15000);
-    return () => {
-      clearTimeout(start);
-      clearInterval(poll);
-    };
-  }, [load]);
-  async function answer(status: "GOING" | "MAYBE" | "DECLINED") {
-    if (!game || !data?.profile) return;
-    setBusy(true);
-    setNotice("");
-    try {
-      const { error } = await setAttendance(game.id, data.profile.id, status);
-      if (error) throw error;
-      await refresh();
-      await load();
-      setNotice(tx("Ответ сохранён."));
-      window.dispatchEvent(new Event("ballers:data-changed"));
-    } catch (e) {
-      setNotice(
-        e instanceof Error
-          ? e.message
-          : tx("Ответ не сохранён. Попробуй снова."),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function finishDay() {
     if (
-      !game ||
-      !confirm(
-        tx(
-          "Завершить игровой день «{title}»? Сыграно матчей: {count}. Ожидающие результаты можно будет подтвердить позже.",
-          { title: game.title, count: game.match_count },
-        ),
+      selected &&
+      [...(data?.games || []), ...(data?.history || [])].some(
+        (g) => g.id === selected,
       )
     )
-      return;
-    setBusy(true);
-    try {
-      const { error } = await supabase.rpc("ballers_game_action", {
-        p_game: game.id,
-        p_action: "CLOSE",
-        p_payload: {},
-      });
-      if (error) throw error;
-      await refresh();
-      setTab("history");
-      setNotice(tx("Игровой день завершён. Результаты сохранены в истории."));
-    } catch (e) {
-      setNotice(
-        e instanceof Error ? e.message : tx("Не удалось завершить день."),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
+      router.replace(`/games/${encodeURIComponent(selected)}/play`);
+  }, [selected, data, router]);
+  const games = history ? data?.history : data?.games;
   return (
     <main className="ballers-shell">
-      <h1 className="page-title">{tx("Мои игры")}</h1>
-      <div className="tab-bar">
-        <button
-          className={tab === "current" ? "selected" : ""}
-          aria-pressed={tab === "current"}
-          onClick={() => setTab("current")}
+      <h1 className="page-title my-5">{t("Мои игры")}</h1>
+      <nav className="game-tabs mb-5" aria-label={t("Список игр")}>
+        <Link href="/my-game" aria-current={!history ? "page" : undefined}>
+          {t("Ближайшие игры")}
+        </Link>
+        <Link
+          href="/my-game?history=1"
+          aria-current={history ? "page" : undefined}
         >
-          {tx("Ближайшие игры")}
-        </button>
-        <button
-          className={tab === "history" ? "selected" : ""}
-          aria-pressed={tab === "history"}
-          onClick={() => setTab("history")}
-        >
-          {tx("История игр")}
-        </button>
-      </div>
-      {notice && (
-        <p role="status" className="neon-panel mb-4">
-          {uiError(notice)}
-        </p>
-      )}
+          {t("История игр")}
+        </Link>
+      </nav>
       {error && (
-        <p className="error-panel">
-          {tx("Не удалось обновить данные.")}{" "}
-          <button onClick={() => void refresh()}>{tx("Повторить")}</button>
+        <p role="alert" className="error-panel">
+          {t("Не удалось обновить данные.")}{" "}
+          <button onClick={() => void refresh()}>{t("Повторить")}</button>
         </p>
       )}
       {loading ? (
-        <p className="inline-loading">{tx("Загружаем игры…")}</p>
+        <p role="status">{t("Загружаем игры…")}</p>
       ) : !session ? (
-        <Link className="text-link" href="/">
-          {tx("Войди на главной →")}
+        <Link href="/" className="neon-button">
+          {t("Войти")}
         </Link>
-      ) : tab === "history" ? (
+      ) : (
         <>
-          <Link className="text-link mb-3" href="/career">
-            {tx("Мои матчи и статистика →")}
-          </Link>
-          {!data?.history.length && (
-            <p className="ballers-muted">
-              {tx("Здесь появятся сыгранные матчи и завершённые дни.")}
-            </p>
-          )}
-          {data?.history.map((g) => (
-            <section key={g.id} className="neon-panel history-day">
-              <h2 className="font-bold text-lg">{g.title}</h2>
-              <p className="ballers-muted mt-1">
-                {new Date(g.game_date + "T12:00:00").toLocaleDateString(
-                  dateLocale(),
-                )}{" "}
-                ·{" "}
-                {countLabel(
-                  g.match_count,
-                  tx("матч"),
-                  tx("матча"),
-                  tx("матчей"),
-                )}{" "}
-                ·{" "}
-                {g.status === "COMPLETED" ? tx("Завершён") : tx("Игровой день")}
-              </p>
-              <Link href={`/games/${g.id}/play#results`} className="text-link">
-                {tx("Результаты матчей →")}
-              </Link>
-            </section>
-          ))}
-        </>
-      ) : game ? (
-        <>
-          {(data?.games.length || 0) > 1 && (
-            <label className="block ballers-muted mb-4">
-              {tx("Выбрать игровой день")}
-              <select
-                aria-label={tx("Выбрать игровой день")}
-                className="w-full rounded-xl p-3 mt-1 bg-[#101b2b] border border-[#40536c]"
-                value={game.id}
-                onChange={(e) => {
-                  router.push(`/my-game?game=${e.target.value}`);
-                }}
-              >
-                {data?.games.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.game_date} · {g.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <GameCard game={game} compact />
-          <div className="flex gap-3 justify-between my-3 flex-wrap">
-            <Link className="text-link" href={`/games/${game.id}/play#results`}>
-              {tx("Матчи ·")}
-              {game.match_count} →
+          {history && (
+            <Link className="text-link mb-4" href="/career">
+              {t("Мои матчи и статистика →")}
             </Link>
-            <Link className="text-link" href={`/games/${game.id}/play`}>
-              {tx("Игровой центр →")}
-            </Link>
-          </div>
-          {game.status === "OPEN" && (
+          )}
+          {!games?.length && (
             <section className="neon-panel">
-              <h2 className="font-bold">{tx("Будешь играть?")}</h2>
-              <div className="attendance-options">
-                {(
-                  [
-                    ["GOING", tx("✓ Иду")],
-                    ["MAYBE", tx("Возможно")],
-                    ["DECLINED", tx("Не иду")],
-                  ] as const
-                ).map(([status, label]) => (
-                  <button
-                    key={status}
-                    disabled={busy}
-                    className={
-                      game.attendance_status === status ? "chosen" : ""
-                    }
-                    onClick={() => void answer(status)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <p className="ballers-muted">
-                {game.attendance_status === "GOING"
-                  ? tx("Место за тобой")
-                  : game.going >= (game.capacity ?? Infinity)
-                    ? tx("Мест нет — при ответе «Иду» попадёшь в очередь")
-                    : tx("Ответь, чтобы организатор видел твой статус")}
-              </p>
-            </section>
-          )}
-          <div className="section-heading mt-6">
-            <h2>{tx("Команды")}</h2>
-            <span className="ballers-muted">
-              {countLabel(game.going, tx("игрок"), tx("игрока"), tx("игроков"))}
-            </span>
-          </div>
-          {snap?.teams.map((t) => (
-            <details className="team-row" key={t.id}>
-              <summary>
-                <span
-                  className="color-bar"
-                  style={{
-                    background:
-                      {
-                        blue: "#63ceff",
-                        red: "#ff809c",
-                        yellow: "#ffe374",
-                        green: "#79ffb0",
-                        purple: "#b58aff",
-                      }[t.color_key.toLowerCase()] || "#b58aff",
-                  }}
-                />
-                <div>
-                  <b>{t.name}</b>
-                  <p className="ballers-muted">
-                    {t.player_ids.includes(snap.my_player_id)
-                      ? tx("Твоя команда ·") + " "
-                      : ""}
-                    {countLabel(
-                      t.player_ids.length,
-                      tx("игрок"),
-                      tx("игрока"),
-                      tx("игроков"),
-                    )}
-                  </p>
-                </div>
-              </summary>
-              <div className="team-list">
-                {t.player_ids.map((id) => (
-                  <p key={id} className="py-1">
-                    {snap.players.find((p) => p.id === id)?.name || tx("Игрок")}
-                  </p>
-                ))}
-              </div>
-            </details>
-          ))}
-          {snap?.teams.length === 0 && (
-            <p className="ballers-muted">{tx("Команды ещё не собраны.")}</p>
-          )}
-          {!snap && <p className="ballers-muted">{tx("Загружаем составы…")}</p>}
-          <Link
-            className="text-link"
-            href={`/communities/${game.community_id}/game-days/${game.id}`}
-          >
-            {snap?.manager ? tx("Составы и приглашения") : tx("Все участники")}{" "}
-            →
-          </Link>
-          {snap?.manager && game.status === "OPEN" && (
-            <section className="neon-panel mt-6">
-              <h2 className="font-bold mb-2">{tx("Закончили играть?")}</h2>
-              <p className="ballers-muted mb-4">
-                {tx(
-                  "Матчей может быть сколько угодно. Закрой день, когда все разошлись.",
+              <h2>
+                {t(
+                  history
+                    ? "Здесь появятся сыгранные матчи и завершённые дни."
+                    : "Пока нет ближайшей игры",
                 )}
-              </p>
-              <button
-                className="neon-button green w-full"
-                disabled={busy || game.live}
-                onClick={() => void finishDay()}
-              >
-                {tx("Завершить игровой день")}
-              </button>
-              {game.live && (
-                <p className="ballers-muted mt-2">
-                  {tx("Сначала заверши текущий матч в игровом центре.")}
-                </p>
+              </h2>
+              {!history && (
+                <Link className="neon-button mt-4" href="/open-games">
+                  {t("Найти игру →")}
+                </Link>
               )}
             </section>
           )}
+          <div className="space-y-4">
+            {games?.map((g) =>
+              history ? (
+                <section key={g.id} className="neon-panel">
+                  <h2>{g.title}</h2>
+                  <p className="ballers-muted mt-2">
+                    {new Date(g.game_date + "T12:00:00").toLocaleDateString(
+                      dateLocale(),
+                    )}{" "}
+                    · {g.match_count} {t("матчей")}
+                  </p>
+                  <Link
+                    className="text-link mt-3"
+                    href={`/games/${g.id}/play?tab=matches`}
+                  >
+                    {t("Результаты матчей →")}
+                  </Link>
+                </section>
+              ) : (
+                <GameCard game={g} key={g.id} />
+              ),
+            )}
+          </div>
         </>
-      ) : (
-        <section className="neon-panel">
-          <h2 className="font-bold">{tx("Пока нет ближайшей игры")}</h2>
-          <Link href="/open-games" className="text-link">
-            {tx("Найти открытый игровой день →")}
-          </Link>
-          <br />
-          <Link href="/create" className="text-link">
-            {tx("Создать игровой день →")}
-          </Link>
-        </section>
       )}
     </main>
-  );
-}
-export default function MyGamePage() {
-  useLocale();
-
-  return (
-    <Suspense
-      fallback={<main className="ballers-shell">{tx("Загружаем…")}</main>}
-    >
-      <MyGame />
-    </Suspense>
   );
 }

@@ -762,35 +762,35 @@ try {
   );
   await navigation.goto(base + "/my-game?history=1");
   await navigation
-    .getByRole("button", { name: "История игр", exact: true })
+    .getByRole("link", { name: "История игр", exact: true })
     .waitFor();
   assert.equal(
     await navigation
-      .getByRole("button", { name: "История игр", exact: true })
-      .getAttribute("aria-pressed"),
-    "true",
+      .getByRole("link", { name: "История игр", exact: true })
+      .getAttribute("aria-current"),
+    "page",
   );
   await navigation.reload();
   await navigation
-    .getByRole("button", { name: "История игр", exact: true })
+    .getByRole("link", { name: "История игр", exact: true })
     .waitFor();
   assert.equal(
     await navigation
-      .getByRole("button", { name: "История игр", exact: true })
-      .getAttribute("aria-pressed"),
-    "true",
+      .getByRole("link", { name: "История игр", exact: true })
+      .getAttribute("aria-current"),
+    "page",
   );
   await navigation
-    .getByRole("button", { name: "Ближайшие игры", exact: true })
+    .getByRole("link", { name: "Ближайшие игры", exact: true })
     .click();
   await navigation.waitForURL("**/my-game");
   await navigation.goBack();
   await navigation.waitForURL("**/my-game?history=1");
   assert.equal(
     await navigation
-      .getByRole("button", { name: "История игр", exact: true })
-      .getAttribute("aria-pressed"),
-    "true",
+      .getByRole("link", { name: "История игр", exact: true })
+      .getAttribute("aria-current"),
+    "page",
   );
   pass(
     "history tab survives refresh and browser Back; current games remain directly reachable",

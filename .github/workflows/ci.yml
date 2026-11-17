@@ -31,3 +31,16 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - name: Install browser for game-control scenarios
+        run: npx playwright install --with-deps chromium
+      - name: Verify leader handoff and competing starts
+        shell: bash
+        run: |
+          npm run start -- --hostname 127.0.0.1 --port 3014 > "$RUNNER_TEMP/ballers-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --silent --fail http://127.0.0.1:3014/ > /dev/null; then break; fi
+            sleep 1
+          done
+          TEST_BASE_URL=http://127.0.0.1:3014 npm run test:leader:browser

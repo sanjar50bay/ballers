@@ -37,7 +37,7 @@ export function navigationFor(path: string): LocationInfo {
         path === "/my-game"
           ? "Мои игры"
           : path.endsWith("/play")
-            ? "Игровой центр"
+            ? "Игра"
             : path.endsWith("/games")
               ? "Игры сообщества"
               : "Участники игры",

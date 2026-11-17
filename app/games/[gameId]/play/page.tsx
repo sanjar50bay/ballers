@@ -4,10 +4,18 @@ import { uiError, t as tx } from "@/lib/i18n";
 import { useApp } from "@/app/components/AppState";
 import { useLocale } from "@/app/components/Language";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import {
+  useParams,
+  usePathname,
+  useSearchParams,
+  useRouter,
+} from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import GameLeader, { type GameControl } from "@/app/components/GameLeader";
+import dynamic from "next/dynamic";
+import { readStart, saveStart, type StartOperation } from "@/lib/game-start";
 import MatchCorrections from "@/app/components/MatchCorrections";
 import DayResults, { eventLabel } from "@/app/components/DayResults";
 import DayRequests from "@/app/components/DayRequests";
@@ -72,12 +80,16 @@ type Settings = {
   is_open: boolean;
 };
 type Snapshot = {
+  control?: GameControl;
   game: {
     id: string;
     community_id: string;
     title: string;
     status: string;
     format: number;
+    game_date: string;
+    start_time: string | null;
+    venue: string | null;
     capacity: number | null;
   };
   my_player_id: string;
@@ -114,12 +126,47 @@ const field =
   "w-full rounded-xl border border-white/15 bg-[#161b2c] p-3 text-white";
 const secondary =
   "rounded-xl border border-white/15 px-4 py-3 text-sm font-bold disabled:opacity-40 cursor-pointer";
+const GameParticipants = dynamic(
+  () => import("@/app/components/GameParticipants"),
+  { loading: () => <p role="status">{tx("Загружаем…")}</p> },
+);
 
 export default function PlayPage() {
+  return (
+    <Suspense fallback={<p>…</p>}>
+      <UnifiedGame />
+    </Suspense>
+  );
+}
+function UnifiedGame() {
   useLocale();
   const { data: home } = useApp();
 
   const { gameId } = useParams<{ gameId: string }>();
+  const params = useSearchParams(),
+    router = useRouter(),
+    path = usePathname();
+  const selected = params.get("tab");
+  const tab =
+    selected === "participants" || selected === "matches"
+      ? selected
+      : "overview";
+  const chooseTab = (next: string) =>
+    router.push(path + "?tab=" + next, { scroll: false });
+  useEffect(() => {
+    const follow = () => {
+      if (location.hash === "#results" || location.hash.startsWith("#match-"))
+        router.replace(path + "?tab=matches" + location.hash, {
+          scroll: false,
+        });
+    };
+    follow();
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
+  }, [path, router]);
+  const [pendingStart, setPendingStart] = useState<StartOperation | null>(null);
+  const actionLock = useRef(false);
+
   const [s, setS] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -133,11 +180,19 @@ export default function PlayPage() {
     max_streak: null,
     is_open: false,
   });
-  const initialized = useRef(false);
+  const initialized = useRef<string | null>(null);
+  const activeGame = useRef<string | null>(gameId);
+  useEffect(() => {
+    activeGame.current = gameId;
+    return () => {
+      activeGame.current = null;
+    };
+  }, [gameId]);
   const refresh = useCallback(async () => {
     const { data, error } = await supabase.rpc("ballers_alpha_snapshot", {
       p_game: gameId,
     });
+    if (activeGame.current !== gameId) return;
     if (error) {
       setError(error.message);
       return;
@@ -147,9 +202,9 @@ export default function PlayPage() {
     setError("");
     setOffset(new Date(snap.server_now).getTime() - Date.now());
     setClock(Date.now());
-    if (!initialized.current) {
+    if (initialized.current !== gameId) {
       setSettings((old) => ({ ...old, ...snap.settings }));
-      initialized.current = true;
+      initialized.current = gameId;
     }
   }, [gameId]);
   useEffect(() => {
@@ -170,7 +225,8 @@ export default function PlayPage() {
     task: () => PromiseLike<{ error: { message: string } | null }>,
     message = tx("Сохранено"),
   ) {
-    if (busy) return;
+    if (actionLock.current) return;
+    actionLock.current = true;
     setBusy(true);
     try {
       const result = await task();
@@ -187,19 +243,68 @@ export default function PlayPage() {
           : tx("Нет соединения: действие не подтверждено сервером"),
       );
     } finally {
+      actionLock.current = false;
       setBusy(false);
     }
   }
   const gameAction = (action: string, payload: Record<string, unknown> = {}) =>
     run(() =>
-      action === "START"
-        ? supabase.rpc("ballers_start_match", { p_game: gameId })
-        : supabase.rpc("ballers_game_action", {
-            p_game: gameId,
-            p_action: action,
-            p_payload: payload,
-          }),
+      supabase.rpc("ballers_game_action", {
+        p_game: gameId,
+        p_action: action,
+        p_payload: payload,
+      }),
     );
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (s?.my_player_id) setPendingStart(readStart(gameId, s.my_player_id));
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [gameId, s?.my_player_id]);
+  const startMatch = async () => {
+    if (!s?.control || actionLock.current) return;
+    actionLock.current = true;
+    setBusy(true);
+    setNotice("");
+    const operation = pendingStart ||
+      readStart(gameId, s.my_player_id) || {
+        id: crypto.randomUUID(),
+        sequence: s.control.sequence,
+        leaderVersion: s.control.version,
+      };
+    saveStart(gameId, s.my_player_id, operation);
+    setPendingStart(operation);
+    try {
+      const result = await supabase
+        .rpc("ballers_start_game_match", {
+          p_game: gameId,
+          p_operation: operation.id,
+          p_expected_sequence: operation.sequence,
+          p_leader_version: operation.leaderVersion,
+        })
+        .abortSignal(AbortSignal.timeout(15000));
+      if (result.error) {
+        setNotice(result.error.message);
+        if (result.error.code === "P0001") {
+          saveStart(gameId, s.my_player_id, null);
+          setPendingStart(null);
+        }
+      } else {
+        saveStart(gameId, s.my_player_id, null);
+        setPendingStart(null);
+        chooseTab("matches");
+        window.dispatchEvent(new Event("ballers:data-changed"));
+      }
+      await refresh();
+    } catch {
+      setNotice(
+        tx("Связь прервалась. Проверь запуск — повтор не создаст второй матч."),
+      );
+    } finally {
+      actionLock.current = false;
+      setBusy(false);
+    }
+  };
   const matchAction = (
     m: Match,
     action: string,
@@ -234,7 +339,8 @@ export default function PlayPage() {
     !!s &&
     s.game.id === gameId &&
     !!live &&
-    (s.manager || live.operator_id === s.my_player_id);
+    s.control?.leader_id === s.my_player_id &&
+    live.operator_id === s.my_player_id;
   const autoFinishSent = useRef<string | null>(null);
   useEffect(() => {
     if (
@@ -279,44 +385,26 @@ export default function PlayPage() {
   const pending = s.matches.filter((m) =>
     ["PENDING", "DISPUTED"].includes(m.status),
   );
-  const doBulk = (status: "GOING" | "DECLINED") => {
-    if (
-      !confirm(
-        tx(
-          "Изменить ответы всех участников на «{status}»? При нехватке мест игроки попадут в очередь ожидания.",
-          { status: status === "GOING" ? tx("Иду") : tx("Не иду") },
-        ),
-      )
-    )
-      return;
-    void run(async () => {
-      for (const p of s.participants) {
-        const { error } = await setAttendance(gameId, p.player_id, status);
-        if (error) return { error };
-      }
-      return { error: null };
-    }, tx("Ответы обновлены. Проверьте пул и очередь."));
-  };
   return (
     <main className="min-h-screen bg-[#050710] text-white pb-24">
       <div className="max-w-3xl mx-auto px-4 pt-6 pb-16">
-        <header className="flex justify-between items-start gap-4 mb-6">
-          <div>
+        <h1 className="page-title my-4">{s.game.title}</h1>
+        <nav className="game-tabs" aria-label={tx("Разделы игры")}>
+          {[
+            ["overview", "Обзор"],
+            ["participants", "Участники"],
+            ["matches", "Матчи"],
+          ].map(([key, label]) => (
             <Link
-              className="text-violet-300 text-sm"
-              href={`/communities/${s.game.community_id}/game-days/${gameId}`}
+              key={key}
+              id={"tab-" + key}
+              href={path + "?tab=" + key}
+              aria-current={tab === key ? "page" : undefined}
             >
-              {tx("← Составы и приглашения")}
+              {tx(label)}
             </Link>
-            <h1 className="text-3xl font-black mt-3">{tx("Игровой центр")}</h1>
-            <p className="text-gray-400 mt-1">
-              {s.game.title} · {s.game.format}×{s.game.format}
-            </p>
-          </div>
-          <Link href="/my-game" className="text-sm text-[#78dcff] mt-12">
-            {tx("Моя игра →")}
-          </Link>
-        </header>
+          ))}
+        </nav>
         {error && (
           <div
             role="alert"
@@ -340,985 +428,965 @@ export default function PlayPage() {
             </button>
           </div>
         )}
-        <div className="flex flex-wrap gap-3 mb-5 items-center">
-          <a className="neon-button blue" href="#results">
-            {tx("Матчи ·")}
-            {s.matches.length}
-          </a>
-          <Link className="text-link" href="/my-game?history=1">
-            {tx("История игр →")}
-          </Link>
-          {s.manager && s.game.status === "OPEN" && (
-            <button
-              className="neon-button green"
-              disabled={busy || !!live}
-              onClick={() => {
-                if (
-                  confirm(
-                    tx(
-                      "Завершить игровой день? Матчей: {count}. Результаты и подтверждения сохранятся.",
-                      { count: s.matches.length },
-                    ),
-                  )
-                )
-                  void gameAction("CLOSE");
-              }}
-            >
-              {tx("Завершить игровой день")}
-            </button>
-          )}
-          {s.game.status !== "OPEN" && (
-            <span className="text-[#79ffb0]">
-              {tx("Игровой день завершён")}
-            </span>
-          )}
-        </div>
-        <p className="role-context mb-4" role="status">
-          {tx(
-            s.manager
-              ? "Ты организатор этого игрового дня"
-              : canOperate
-                ? "Ты оператор текущего матча"
-                : "Ты игрок: управляешь только своим участием",
-          )}
-        </p>
-        <DayResults
-          matches={s.matches}
-          events={s.events}
-          teams={s.teams}
-          rosters={s.rosters}
-          players={s.players}
-        />
-        <DayRequests gameId={gameId} open={s.game.status === "OPEN"} />
-        <MatchSound
+        <GameLeader
           gameId={gameId}
-          matches={s.matches}
-          events={s.events}
-          ready={true}
+          control={s.control}
+          manager={s.manager}
+          open={s.game.status === "OPEN"}
+          players={s.players.filter(
+            (p) =>
+              p.user_id &&
+              (s.participants.some(
+                (a) => a.player_id === p.id && a.attendance_status === "GOING",
+              ) ||
+                (s.manager && p.id === s.my_player_id)),
+          )}
+          refresh={refresh}
         />
-        {live && (
-          <section className="rounded-3xl border border-violet-500 bg-gradient-to-br from-violet-950 to-[#09131d] p-5 mb-5">
-            <div className="flex justify-between gap-2 text-sm text-gray-300">
-              <span>
-                {live.status === "LIVE" && (
-                  <span
-                    className="live-ball"
-                    role="img"
-                    aria-label={tx("Матч идёт")}
-                  >
-                    ⚽
-                  </span>
-                )}{" "}
-                {tx("Матч #")}
-                {live.sequence} · {tx(statuses[live.status])}
-              </span>
-              <span>{live.is_test ? tx("ТЕСТОВЫЙ") : ""}</span>
-            </div>
-            <div className="grid grid-cols-3 items-center text-center my-6">
-              <b>{teamName(live.team_a)}</b>
-              <strong className="text-5xl">
-                {live.score_a}:{live.score_b}
-              </strong>
-              <b>{teamName(live.team_b)}</b>
-            </div>
-            <p className="text-center text-4xl font-mono mb-2">
-              {String(Math.floor(elapsed / 60)).padStart(2, "0")}:
-              {String(elapsed % 60).padStart(2, "0")}
+        {pendingStart && (
+          <button
+            disabled={busy}
+            className="neon-button mb-4"
+            onClick={() => void startMatch()}
+          >
+            {tx("Проверить запуск")}
+          </button>
+        )}
+        <section hidden={tab !== "overview"} aria-labelledby="tab-overview">
+          <div className="neon-panel mb-4">
+            <h2>{tx("Когда и где")}</h2>
+            <p className="mt-2">
+              {s.game.game_date} ·{" "}
+              {s.game.start_time?.slice(0, 5) || tx("Время уточняется")}
             </p>
-            <p className="text-center text-sm text-gray-400 mb-5">
-              {live.duration_seconds / 60} {tx("мин · до")} {live.goal_limit}
-              {tx("голов · оператор:")}
-              {playerName(live.operator_id)}
+            <p>{s.game.venue || tx("Место уточняется")}</p>
+            <p className="ballers-muted mt-2">
+              {s.game.format}×{s.game.format} ·{" "}
+              {
+                s.participants.filter((p) => p.attendance_status === "GOING")
+                  .length
+              }
+              /{s.game.capacity ?? "∞"} {tx("игроков")}
             </p>
-            {canOperate && (
-              <>
-                <div className="flex gap-2 justify-center mb-5">
-                  <button
-                    className={secondary}
-                    disabled={busy}
-                    onClick={() => {
-                      void matchAction(
-                        live,
-                        live.status === "PAUSED" ? "RESUME" : "PAUSE",
-                      );
-                    }}
-                  >
-                    {live.status === "PAUSED" ? tx("Продолжить") : tx("Пауза")}
-                  </button>
-                  <button
-                    className={button}
-                    disabled={busy}
-                    onClick={() => {
-                      if (
-                        confirm(
-                          tx(
-                            "Завершить матч с текущим счётом и выполнить ротацию?",
+          </div>
+          {s.game.status === "OPEN" &&
+            s.participants.some((p) => p.player_id === s.my_player_id) &&
+            !home?.games.find((g) => g.id === gameId)?.request_status && (
+              <div className="neon-panel mb-4">
+                <h2>{tx("Будешь играть?")}</h2>
+                <div className="attendance-options">
+                  {[
+                    ["GOING", "✓ Иду"],
+                    ["MAYBE", "Возможно"],
+                    ["DECLINED", "Не иду"],
+                  ].map(([status, label]) => (
+                    <button
+                      key={status}
+                      aria-pressed={s.participants.some(
+                        (p) =>
+                          p.player_id === s.my_player_id &&
+                          p.attendance_status === status,
+                      )}
+                      disabled={busy}
+                      onClick={() =>
+                        void run(() =>
+                          setAttendance(
+                            gameId,
+                            s.my_player_id,
+                            status as "GOING" | "MAYBE" | "DECLINED",
                           ),
                         )
-                      )
-                        void matchAction(live, "FINISH");
-                    }}
-                  >
-                    {tx("Завершить матч")}
-                  </button>
-                </div>
-                <form
-                  className="space-y-3"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget);
-                    const kind = String(fd.get("kind"));
-                    void matchAction(live, "EVENT", {
-                      id: crypto.randomUUID(),
-                      kind,
-                      player_id: fd.get("player"),
-                      assist_id:
-                        kind === "GOAL" ? fd.get("assist") || null : null,
-                    });
-                  }}
-                >
-                  <label className="block text-sm">
-                    {tx("Событие")}
-                    <select className={field} name="kind">
-                      <option value="GOAL">{tx("Гол")}</option>
-                      <option value="OWN_GOAL">{tx("Автогол")}</option>
-                      <option value="SAVE">{tx("Сейв")}</option>
-                      <option value="YELLOW">{tx("Жёлтая карточка")}</option>
-                      <option value="RED">{tx("Красная карточка")}</option>
-                    </select>
-                  </label>
-                  <label className="block text-sm">
-                    {tx("Игрок")}
-                    <select name="player" className={field}>
-                      {rosterIds.map((id) => (
-                        <option key={id} value={id}>
-                          {playerName(id)} ·{" "}
-                          {teamName(
-                            s.rosters.find(
-                              (r) =>
-                                r.match_id === live.id && r.player_id === id,
-                            )?.team_id || "",
-                          )}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block text-sm">
-                    {tx("Ассистент (только для гола)")}
-                    <select name="assist" className={field}>
-                      <option value="">{tx("Без ассиста")}</option>
-                      {rosterIds.map((id) => (
-                        <option key={id} value={id}>
-                          {playerName(id)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    className={`${button} w-full`}
-                    disabled={busy || live.status !== "LIVE"}
-                  >
-                    {tx("Записать событие")}
-                  </button>
-                </form>
-              </>
-            )}
-            {s.manager && (
-              <label className="block text-sm mt-4">
-                {tx("Кто ведёт счёт матча")}
-                <select
-                  className={field}
-                  value={live.operator_id}
-                  disabled={busy}
-                  onChange={(e) => {
-                    void matchAction(live, "OPERATOR", {
-                      player_id: e.target.value,
-                    });
-                  }}
-                >
-                  {s.participants
-                    .filter((p) => p.attendance_status === "GOING")
-                    .map((p) => (
-                      <option key={p.player_id} value={p.player_id}>
-                        {playerName(p.player_id)}
-                      </option>
-                    ))}
-                </select>
-              </label>
-            )}
-          </section>
-        )}
-        {s.game.status === "OPEN" && (
-          <section className={section}>
-            <h2 className="text-xl font-bold mb-3">{tx("Пара и очередь")}</h2>
-            {s.session ? (
-              <>
-                <p className="text-lg font-bold">
-                  {teamName(s.session.team_a)} {tx("против")}{" "}
-                  {teamName(s.session.team_b)}
-                </p>
-                <p className="text-sm text-gray-400 mt-2">
-                  {tx("Дольше на поле:")}
-                  {teamName(s.session.older_team)} {tx("· Ждут:")}{" "}
-                  {s.session.queue.map(teamName).join(" → ") || tx("никто")}
-                </p>
-              </>
-            ) : (
-              <p className="text-gray-400">
-                {tx(
-                  "По умолчанию начнут первые две команды; при первой ничьей отдыхает первая. Можно изменить ниже.",
-                )}
-              </p>
-            )}
-            {s.manager && !s.matches.length && (
-              <details className="mt-3">
-                <summary className="min-h-11 py-2 text-sm text-[#7bd9ff]">
-                  {tx("Изменить стартовую пару ↓")}
-                </summary>
-                <form
-                  className="mt-4 space-y-3"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget);
-                    void gameAction("LINEUP", {
-                      team_a: fd.get("a"),
-                      team_b: fd.get("b"),
-                      first_draw_out: fd.get("draw"),
-                    });
-                  }}
-                >
-                  <label className="block text-sm">
-                    {tx("Первая команда")}
-                    <select name="a" className={field}>
-                      {s.teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block text-sm">
-                    {tx("Вторая команда")}
-                    <select
-                      name="b"
-                      className={field}
-                      defaultValue={s.teams[1]?.id}
+                      }
                     >
-                      {s.teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block text-sm">
-                    {tx("Кто отдыхает при первой ничьей")}
-                    <select name="draw" className={field}>
-                      {s.teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    className={secondary}
-                    disabled={busy || s.teams.length < 2}
-                  >
-                    {tx("Сохранить стартовую пару")}
-                  </button>
-                </form>
-              </details>
+                      {tx(label)}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
-            {s.manager && !live && (
+          <DayRequests gameId={gameId} open={s.game.status === "OPEN"} />
+          {live && (
+            <div className="neon-panel mb-4">
+              <h2>
+                {teamName(live.team_a)} {live.score_a}:{live.score_b}{" "}
+                {teamName(live.team_b)}
+              </h2>
+              <p>
+                {tx("Матч ведёт:")} {playerName(live.operator_id)}
+              </p>
+              <Link href={path + "?tab=matches"} className="neon-button mt-3">
+                {tx(canOperate ? "Открыть управление матчем" : "Смотреть матч")}
+              </Link>
+            </div>
+          )}
+          {!live &&
+            s.game.status === "OPEN" &&
+            s.control?.is_leader &&
+            !pendingStart && (
               <button
-                className={`${button} mt-4`}
-                disabled={
-                  busy || s.teams.length < 2 || s.game.status !== "OPEN"
-                }
-                onClick={() => {
-                  void gameAction("START");
-                }}
+                className="neon-button mb-4"
+                disabled={busy || s.teams.length < 2}
+                onClick={() => void startMatch()}
               >
-                {s.matches.length
-                  ? tx("Начать следующий матч")
-                  : tx("Начать первый матч")}
+                {tx(
+                  s.matches.length
+                    ? "Начать следующий матч"
+                    : "Начать первый матч",
+                )}
               </button>
             )}
-          </section>
+        </section>
+        {tab === "participants" && (
+          <GameParticipants
+            key={gameId}
+            gameId={gameId}
+            communityId={s.game.community_id}
+          />
         )}
-        <section
-          id="results"
-          style={{ scrollMarginTop: 20 }}
-          className={section}
-        >
-          <h2 className="text-xl font-bold mb-4">
-            {tx("Результаты и исправления")}{" "}
-            {pending.length > 0 && `· ${pending.length} ${tx("Ожидание")}`}
-          </h2>
-          {!s.matches.length && (
-            <p className="text-gray-400">{tx("Первый матч ещё не начат.")}</p>
-          )}
-          {s.matches.map((m) => (
-            <article
-              id={`match-${m.id}`}
-              style={{ scrollMarginTop: 20 }}
-              key={m.id}
-              className="border border-white/10 rounded-2xl p-4 mb-3"
-            >
-              <div className="flex flex-wrap justify-between gap-2">
-                <b>
-                  #{m.sequence} {teamName(m.team_a)} {m.score_a}:{m.score_b}{" "}
-                  {teamName(m.team_b)}
-                </b>
-                <span className="text-sm text-violet-300">
-                  {tx(
-                    m.status === "VERIFIED" && m.result_mode === "TRUSTED"
-                      ? "Учтён ведущим"
-                      : statuses[m.status] || "Ожидает подтверждения",
-                  )}
-                  {m.is_test ? tx(" · тест") : ""}
+        <section hidden={tab !== "matches"} aria-labelledby="tab-matches">
+          {live && (
+            <section className="rounded-3xl border border-violet-500 bg-gradient-to-br from-violet-950 to-[#09131d] p-5 mb-5">
+              <div className="flex justify-between gap-2 text-sm text-gray-300">
+                <span>
+                  {live.status === "LIVE" && (
+                    <span
+                      className="live-ball"
+                      role="img"
+                      aria-label={tx("Матч идёт")}
+                    >
+                      ⚽
+                    </span>
+                  )}{" "}
+                  {tx("Матч #")}
+                  {live.sequence} · {tx(statuses[live.status])}
                 </span>
+                <span>{live.is_test ? tx("ТЕСТОВЫЙ") : ""}</span>
               </div>
-              <p className="text-sm text-gray-400 mt-2">
-                {tx("Капитаны:")}
-                {m.result_mode === "TRUSTED"
-                  ? ""
-                  : m.confirmed_a
-                    ? "✓"
-                    : "…"}{" "}
-                {playerName(m.captain_a)} /{" "}
-                {m.result_mode === "TRUSTED" ? "" : m.confirmed_b ? "✓" : "…"}{" "}
-                {playerName(m.captain_b)}
+              <div className="grid grid-cols-3 items-center text-center my-6">
+                <b>{teamName(live.team_a)}</b>
+                <strong className="text-5xl">
+                  {live.score_a}:{live.score_b}
+                </strong>
+                <b>{teamName(live.team_b)}</b>
+              </div>
+              <p className="text-center text-4xl font-mono mb-2">
+                {String(Math.floor(elapsed / 60)).padStart(2, "0")}:
+                {String(elapsed % 60).padStart(2, "0")}
               </p>
-              {m.resolution_note && (
-                <p className="text-sm text-amber-200 mt-2">
-                  {tx("Решение/спор:")}
-                  {m.resolution_note}
-                </p>
-              )}
-              <div className="flex flex-wrap gap-2 mt-3">
-                {m.status === "PENDING" &&
-                  ((m.captain_a === s.my_player_id && !m.confirmed_a) ||
-                    (m.captain_b === s.my_player_id && !m.confirmed_b)) && (
+              <p className="text-center text-sm text-gray-400 mb-5">
+                {live.duration_seconds / 60} {tx("мин · до")} {live.goal_limit}
+                {tx("голов · ведущий:")}
+                {playerName(live.operator_id)}
+              </p>
+              {canOperate && (
+                <>
+                  <div className="flex gap-2 justify-center mb-5">
+                    <button
+                      className={secondary}
+                      disabled={busy}
+                      onClick={() => {
+                        void matchAction(
+                          live,
+                          live.status === "PAUSED" ? "RESUME" : "PAUSE",
+                        );
+                      }}
+                    >
+                      {live.status === "PAUSED"
+                        ? tx("Продолжить")
+                        : tx("Пауза")}
+                    </button>
                     <button
                       className={button}
                       disabled={busy}
                       onClick={() => {
-                        void matchAction(m, "CONFIRM");
+                        if (
+                          confirm(
+                            tx(
+                              "Завершить матч с текущим счётом и выполнить ротацию?",
+                            ),
+                          )
+                        )
+                          void matchAction(live, "FINISH");
                       }}
                     >
-                      {tx("Подтвердить результат")}
+                      {tx("Завершить матч")}
                     </button>
-                  )}
-                {m.status === "PENDING" &&
-                  (s.manager ||
-                    [m.captain_a, m.captain_b].includes(s.my_player_id)) && (
-                    <button
-                      className={secondary}
-                      disabled={busy}
-                      onClick={() => {
-                        const reason = prompt(tx("В чём спор?"));
-                        if (reason) void matchAction(m, "DISPUTE", { reason });
-                      }}
-                    >
-                      {tx("Оспорить")}
-                    </button>
-                  )}
-                {s.manager &&
-                  (m.status === "DISPUTED" ||
-                    (m.is_test && m.status === "PENDING")) && (
-                    <button
-                      className={secondary}
-                      disabled={busy}
-                      onClick={() => {
-                        const reason = prompt(
-                          tx(
-                            "Укажи причину решения (минимум 5 символов). Тестовые матчи не входят в реальную карьерную статистику.",
-                          ),
-                        );
-                        if (reason) void matchAction(m, "RESOLVE", { reason });
-                      }}
-                    >
-                      {m.is_test
-                        ? tx("Подтвердить тест с причиной")
-                        : tx("Решить спор")}
-                    </button>
-                  )}
-              </div>
-              <details className="mt-3">
-                <summary className="min-h-11 py-2 text-sm text-[#76d6ff]">
-                  {tx("События матча ↓")}
-                </summary>
-                <div className="space-y-1">
-                  {s.events
-                    .filter((e) => e.match_id === m.id)
-                    .map((e) => (
-                      <div
-                        key={e.id}
-                        className={`flex justify-between gap-2 text-sm py-2 ${e.voided ? "line-through text-gray-600" : "text-gray-300"}`}
-                      >
-                        <span>
-                          {eventLabel(e.kind)} · {playerName(e.player_id)}
-                          {e.assist_id
-                            ? ` · ${tx("ассист")} ${playerName(e.assist_id)}`
-                            : ""}
-                        </span>
-                        {!e.voided &&
-                          (s.manager ||
-                            (m.operator_id === s.my_player_id &&
-                              !(
-                                m.result_mode === "TRUSTED" &&
-                                m.status === "VERIFIED"
-                              ))) && (
-                            <button
-                              disabled={busy}
-                              className="text-violet-300"
-                              onClick={() => {
-                                if (
-                                  m.result_mode === "TRUSTED" &&
-                                  m.status === "VERIFIED"
-                                ) {
-                                  const reason = prompt(
-                                    tx(
-                                      "Причина исправления (минимум 5 символов)",
-                                    ),
-                                  );
-                                  if (reason && reason.trim().length >= 5)
-                                    void matchAction(m, "UNDO", {
-                                      id: e.id,
-                                      reason: reason.trim(),
-                                    });
-                                } else if (
-                                  confirm(
-                                    tx(
-                                      "Отменить событие? Подтверждения завершённого матча будут сброшены.",
-                                    ),
-                                  )
-                                )
-                                  void matchAction(m, "UNDO", { id: e.id });
-                              }}
-                            >
-                              {tx("Отменить")}
-                            </button>
-                          )}
-                      </div>
-                    ))}
-                </div>
-              </details>
-              {["VERIFIED", "PENDING", "DISPUTED"].includes(m.status) && (
-                <MatchCorrections
-                  matchId={m.id}
-                  version={m.version}
-                  manager={s.manager}
-                  trusted={
-                    m.result_mode === "TRUSTED" && m.status === "VERIFIED"
-                  }
-                  pending={m.status === "PENDING"}
-                  busy={busy}
-                  players={s.rosters
-                    .filter((r) => r.match_id === m.id)
-                    .map((r) => ({
-                      id: r.player_id,
-                      name: playerName(r.player_id),
-                    }))}
-                  onAction={(a, p) => void matchAction(m, a, p)}
-                />
-              )}
-            </article>
-          ))}
-        </section>
-        <details className={section}>
-          <summary className="min-h-11 py-2 text-lg font-bold">
-            {tx("Участники и резерв")}
-            <span className="text-[#73d4ff]">↓</span>
-          </summary>
-          <p className="text-sm text-gray-400 mb-4">
-            {tx("Иду:")}{" "}
-            {
-              s.participants.filter((p) => p.attendance_status === "GOING")
-                .length
-            }
-            /{s.game.capacity || "∞"} {tx("· Ожидают:")} {s.waitlist.length}
-          </p>
-          {s.manager && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              <button
-                className={button}
-                disabled={busy || !!live}
-                onClick={() => doBulk("GOING")}
-              >
-                {tx("Все участники → Иду")}
-              </button>
-              <button
-                className={secondary}
-                disabled={busy || !!live}
-                onClick={() => doBulk("DECLINED")}
-              >
-                {tx("Все → Не иду")}
-              </button>
-              {isOwner && (
-                <button
-                  className={secondary}
-                  disabled={busy}
-                  onClick={() => {
-                    if (
-                      confirm(
-                        tx(
-                          "Добавить до 14 синтетических игроков сообщества без Google-аккаунтов? Они не записываются на игру автоматически.",
-                        ),
-                      )
-                    )
-                      void run(
-                        () =>
-                          supabase.rpc("ballers_add_test_players", {
-                            p_community: s.game.community_id,
-                            p_count: 14,
-                          }),
-                        tx(
-                          "Тестовые профили добавлены. Пригласи их через Invite Members.",
-                        ),
-                      );
-                  }}
-                >
-                  {tx("Тестовые игроки +14")}
-                </button>
-              )}
-            </div>
-          )}
-          <div className="space-y-2 max-h-72 overflow-y-auto">
-            {s.participants.map((p) => {
-              const w = s.waitlist.find((w) => w.player_id === p.player_id);
-              return (
-                <div
-                  key={p.player_id}
-                  className="flex justify-between items-center gap-3 rounded-xl bg-white/5 p-3"
-                >
-                  <div>
-                    <b className="text-sm">{playerName(p.player_id)}</b>
-                    <p className="text-sm text-gray-400">
-                      {w
-                        ? w.offered
-                          ? tx("Место предложено — ждём ответа")
-                          : tx("Очередь ожидания")
-                        : {
-                            GOING: tx("Иду"),
-                            MAYBE: tx("Возможно"),
-                            INVITED: tx("Приглашён"),
-                            DECLINED: tx("Не иду"),
-                          }[p.attendance_status]}
-                    </p>
                   </div>
-                  {(s.manager || p.player_id === s.my_player_id) && (
-                    <select
-                      aria-label={`${tx("Ответ")} ${playerName(p.player_id)}`}
-                      className="bg-[#161b2c] text-sm rounded-lg p-2 max-w-32"
-                      disabled={busy}
-                      value={w ? "WAITING" : p.attendance_status}
-                      onChange={(e) => {
-                        void run(() =>
-                          setAttendance(
-                            gameId,
-                            p.player_id,
-                            e.target.value as "GOING" | "MAYBE" | "DECLINED",
-                          ),
-                        );
-                      }}
-                    >
-                      {w && (
-                        <option value="WAITING" disabled>
-                          {tx("Ожидание")}
-                        </option>
-                      )}
-                      <option value="INVITED" disabled>
-                        {tx("Приглашён")}
-                      </option>
-                      <option value="GOING">{tx("Иду")}</option>
-                      <option value="MAYBE">{tx("Возможно")}</option>
-                      <option value="DECLINED">{tx("Не иду")}</option>
-                    </select>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          {!!s.waitlist.length && (
-            <p className="mt-3 text-sm text-amber-300">
-              {tx("Очередь:")}{" "}
-              {s.waitlist
-                .map(
-                  (w) =>
-                    playerName(w.player_id) +
-                    (w.offered ? tx(" — место предложено") : ""),
-                )
-                .join(" → ")}
-              {tx(". Предложение не переводит игрока в «Иду» автоматически.")}
-            </p>
-          )}
-        </details>
-        {s.manager && s.game.status === "OPEN" && (
-          <details className={section}>
-            <summary className="min-h-11 py-2 text-lg font-bold">
-              {tx("Параметры игрового дня")}
-              <span className="text-[#73d4ff]">↓</span>
-            </summary>
-            <form
-              key={`${s.game.format}:${s.game.capacity}`}
-              className="space-y-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const fd = new FormData(e.currentTarget);
-                void gameAction("SETUP", {
-                  format: Number(fd.get("format")),
-                  capacity: Number(fd.get("capacity")),
-                });
-              }}
-            >
-              <div className="grid grid-cols-2 gap-3">
-                <label className="text-sm">
-                  {tx("Игроков на поле")}
-                  <select
-                    name="format"
-                    className={field}
-                    defaultValue={s.game.format}
-                  >
-                    {Array.from({ length: 11 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        {i + 1}×{i + 1}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm">
-                  {tx("Мест в Game Day")}
-                  <input
-                    name="capacity"
-                    className={field}
-                    type="number"
-                    min="1"
-                    defaultValue={s.game.capacity ?? 15}
-                  />
-                </label>
-              </div>
-              <button
-                className={secondary}
-                disabled={busy || s.matches.length > 0}
-              >
-                {tx("Сохранить формат и места")}
-              </button>
-            </form>
-          </details>
-        )}
-        <section className={section} aria-label={tx("Учёт результатов")}>
-          <h2 className="text-lg font-bold">{tx("Учёт результатов")}</h2>
-          {s.manager && s.game.status === "OPEN" ? (
-            <label className="block mt-3">
-              {tx("Режим для новых матчей")}
-              <select
-                className={field}
-                aria-label={tx("Режим для новых матчей")}
-                value={s.settings.result_mode || "TRUSTED"}
-                disabled={busy}
-                onChange={(e) =>
-                  void run(() =>
-                    supabase.rpc("ballers_result_mode", {
-                      p_game: gameId,
-                      p_mode: e.target.value,
-                    }),
-                  )
-                }
-              >
-                <option value="TRUSTED">
-                  {tx("Доверяем ведущему — сразу в статистику")}
-                </option>
-                <option value="CAPTAINS">
-                  {tx("Строгий — подтверждения капитанов")}
-                </option>
-              </select>
-            </label>
-          ) : (
-            <p>
-              {tx(
-                s.settings.result_mode === "CAPTAINS"
-                  ? "Строгий — подтверждения капитанов"
-                  : "Доверяем ведущему — сразу в статистику",
-              )}
-            </p>
-          )}
-          <p className="ballers-muted mt-3">
-            {tx(
-              "Режим сохраняется при старте матча. Уже начатые и старые матчи не меняются автоматически.",
-            )}
-          </p>
-        </section>
-        {s.manager && s.game.status === "OPEN" && (
-          <details className={section}>
-            <summary className="min-h-11 py-2 text-lg font-bold">
-              {tx("Правила новых матчей")}
-              <span className="text-[#73d4ff]">↓</span>
-            </summary>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="text-sm">
-                {tx("Минуты")}
-                <input
-                  className={field}
-                  type="number"
-                  min="0.5"
-                  max="120"
-                  step="0.5"
-                  value={settings.duration_seconds / 60}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      duration_seconds: Math.round(Number(e.target.value) * 60),
-                    })
-                  }
-                />
-              </label>
-              <label className="text-sm">
-                {tx("До голов")}
-                <input
-                  className={field}
-                  type="number"
-                  min="1"
-                  max="99"
-                  value={settings.goal_limit}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      goal_limit: Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
-            </div>
-            <label className="block text-sm mt-3">
-              {tx("Окончание")}
-              <select
-                className={field}
-                value={settings.end_mode}
-                onChange={(e) =>
-                  setSettings({ ...settings, end_mode: e.target.value })
-                }
-              >
-                <option value="FIRST_REACHED">
-                  {tx("Время или голы — что раньше")}
-                </option>
-                <option value="TIME_ONLY">{tx("Только время")}</option>
-                <option value="GOALS_ONLY">{tx("Только голы")}</option>
-              </select>
-            </label>
-            <label className="block text-sm mt-3">
-              {tx("Предел побед подряд (пусто = нет)")}
-              <input
-                className={field}
-                type="number"
-                min="1"
-                value={settings.max_streak ?? ""}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    max_streak: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-              />
-            </label>
-            {settings.max_streak && (
-              <p className="text-sm text-amber-200 mt-2">
-                {tx(
-                  "Выбранное правило: при достижении предела победитель отдыхает, проигравшая остаётся. Объявите его командам заранее.",
-                )}
-              </p>
-            )}
-            <label className="flex gap-3 my-4 text-sm">
-              <input
-                type="checkbox"
-                checked={settings.is_open}
-                onChange={(e) =>
-                  setSettings({ ...settings, is_open: e.target.checked })
-                }
-              />
-              {tx("Открыть добор в списке публичных игр")}
-            </label>
-            <p className="text-sm text-gray-400 mb-3">
-              {tx(
-                "Победитель остаётся. При ничьей уходит дольше играющая команда. Начатый матч сохраняет свои правила.",
-              )}
-            </p>
-            <button
-              className={button}
-              disabled={busy}
-              onClick={() => {
-                void gameAction("SETTINGS", { ...settings });
-              }}
-            >
-              {tx("Сохранить правила")}
-            </button>
-          </details>
-        )}
-        {s.manager && s.game.status === "OPEN" && (
-          <details className={section}>
-            <summary className="min-h-11 py-2 text-lg font-bold">
-              {tx("Базовые команды сообщества")}{" "}
-              <span className="text-[#73d4ff]">↓</span>
-            </summary>
-            <p className="text-sm text-gray-400 mb-4">
-              {tx(
-                "Сохрани нынешние команды и режимы как базу. Отсутствующие постоянные игроки сохраняются. В новом Game Day загружаются только ответившие «Иду», остальные места заполняются через Random / Core + Fill.",
-              )}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                className={secondary}
-                disabled={busy || !!live}
-                onClick={() => {
-                  if (
-                    confirm(
-                      tx(
-                        "Сохранить команды как базовые? Названия и режимы обновятся; отсутствующие участники сохранятся.",
-                      ),
-                    )
-                  )
-                    void run(() =>
-                      supabase.rpc("ballers_squad_action", {
-                        p_game: gameId,
-                        p_action: "SAVE",
-                      }),
-                    );
-                }}
-              >
-                {tx("Запомнить команды как постоянные")}
-              </button>
-              <button
-                className={secondary}
-                disabled={busy || s.matches.length > 0}
-                onClick={() => {
-                  if (
-                    confirm(
-                      tx(
-                        "Заменить сегодняшние команды базовыми? Загрузятся только Going; текущие назначения сбросятся.",
-                      ),
-                    )
-                  )
-                    void run(() =>
-                      supabase.rpc("ballers_squad_action", {
-                        p_game: gameId,
-                        p_action: "APPLY",
-                      }),
-                    );
-                }}
-              >
-                {tx("Применить постоянные команды к этому дню")}
-              </button>
-            </div>
-          </details>
-        )}
-        {!s.manager ? (
-          <section className={section}>
-            <h2 className="font-bold">{tx("Капитаны и ответственные")}</h2>
-            {s.teams.map((t) => {
-              const role = s.roles.find((r) => r.team_id === t.id);
-              return (
-                <p className="mt-3" key={t.id}>
-                  {t.name} · {tx("Капитан")}:{" "}
-                  {role?.captain_id ? playerName(role.captain_id) : "—"}
-                </p>
-              );
-            })}
-          </section>
-        ) : (
-          <details className={section}>
-            <summary className="min-h-11 py-2 text-lg font-bold">
-              {tx("Капитаны и ответственные")}
-              <span className="text-[#73d4ff]">↓</span>
-            </summary>
-            <div className="space-y-4">
-              {s.teams.map((t) => {
-                const role = s.roles.find((r) => r.team_id === t.id);
-                return (
                   <form
-                    key={`${t.id}:${role?.captain_id}:${role?.responsible_id}:${t.player_ids.join()}`}
+                    className="space-y-3"
                     onSubmit={(e) => {
                       e.preventDefault();
                       const fd = new FormData(e.currentTarget);
-                      void gameAction("ROLES", {
-                        team_id: t.id,
-                        captain_id: fd.get("captain"),
-                        responsible_id: fd.get("responsible"),
-                        can_manage_attendance: fd.get("delegate") === "on",
+                      const kind = String(fd.get("kind"));
+                      void matchAction(live, "EVENT", {
+                        id: crypto.randomUUID(),
+                        kind,
+                        player_id: fd.get("player"),
+                        assist_id:
+                          kind === "GOAL" ? fd.get("assist") || null : null,
                       });
                     }}
-                    className="border border-white/10 rounded-2xl p-4"
                   >
-                    <h3 className="font-bold mb-3">
-                      {t.name} · {t.player_ids.length}
-                      {tx("игроков")}
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <label className="text-sm">
-                        {tx("Капитан")}
-                        <select
-                          name="captain"
-                          className={field}
-                          defaultValue={
-                            role?.captain_id || t.player_ids[0] || ""
-                          }
-                          disabled={!s.manager || busy || !!live}
-                        >
-                          {t.player_ids.map((id) => (
-                            <option key={id} value={id}>
-                              {playerName(id)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="text-sm">
-                        {tx("Ответственный")}
-                        <select
-                          name="responsible"
-                          className={field}
-                          defaultValue={
-                            role?.responsible_id || t.player_ids[0] || ""
-                          }
-                          disabled={!s.manager || busy || !!live}
-                        >
-                          {t.player_ids.map((id) => (
-                            <option key={id} value={id}>
-                              {playerName(id)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    {s.manager && (
-                      <>
-                        <label className="flex items-center gap-2 text-sm my-3">
-                          <input
-                            name="delegate"
-                            type="checkbox"
-                            defaultChecked={role?.can_manage_attendance}
-                          />
-                          {tx("Капитан может менять ответы своей команды")}
-                        </label>
-                        <button
-                          className={secondary}
-                          disabled={busy || !t.player_ids.length || !!live}
-                        >
-                          {tx("Сохранить роли")} {t.name}
-                        </button>
-                      </>
-                    )}
+                    <label className="block text-sm">
+                      {tx("Событие")}
+                      <select
+                        className={field}
+                        name="kind"
+                        aria-label={tx("Событие")}
+                      >
+                        <option value="GOAL">{tx("Гол")}</option>
+                        <option value="OWN_GOAL">{tx("Автогол")}</option>
+                        <option value="SAVE">{tx("Сейв")}</option>
+                        <option value="YELLOW">{tx("Жёлтая карточка")}</option>
+                        <option value="RED">{tx("Красная карточка")}</option>
+                      </select>
+                    </label>
+                    <label className="block text-sm">
+                      {tx("Игрок")}
+                      <select
+                        name="player"
+                        className={field}
+                        aria-label={tx("Игрок")}
+                      >
+                        {rosterIds.map((id) => (
+                          <option key={id} value={id}>
+                            {playerName(id)} ·{" "}
+                            {teamName(
+                              s.rosters.find(
+                                (r) =>
+                                  r.match_id === live.id && r.player_id === id,
+                              )?.team_id || "",
+                            )}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block text-sm">
+                      {tx("Ассистент (только для гола)")}
+                      <select name="assist" className={field}>
+                        <option value="">{tx("Без ассиста")}</option>
+                        {rosterIds.map((id) => (
+                          <option key={id} value={id}>
+                            {playerName(id)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      className={`${button} w-full`}
+                      disabled={busy || live.status !== "LIVE"}
+                    >
+                      {tx("Записать событие")}
+                    </button>
                   </form>
-                );
-              })}
-            </div>
-          </details>
-        )}
-        <p className="text-sm text-gray-500">
-          {tx(
-            "Таймер восстанавливается с сервера. При потере связи действие не считается сохранённым. Точные минуты игроков не рассчитываются: состав матча — заявка, а не журнал замен.",
+                </>
+              )}
+            </section>
           )}
-        </p>
+          {s.game.status === "OPEN" && (
+            <section className={section}>
+              <h2 className="text-xl font-bold mb-3">{tx("Пара и очередь")}</h2>
+              {s.session ? (
+                <>
+                  <p className="text-lg font-bold">
+                    {teamName(s.session.team_a)} {tx("против")}{" "}
+                    {teamName(s.session.team_b)}
+                  </p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    {tx("Дольше на поле:")}
+                    {teamName(s.session.older_team)} {tx("· Ждут:")}{" "}
+                    {s.session.queue.map(teamName).join(" → ") || tx("никто")}
+                  </p>
+                </>
+              ) : (
+                <p className="text-gray-400">
+                  {tx(
+                    "По умолчанию начнут первые две команды; при первой ничьей отдыхает первая. Можно изменить ниже.",
+                  )}
+                </p>
+              )}
+              {s.manager && !s.matches.length && (
+                <details className="mt-3">
+                  <summary className="min-h-11 py-2 text-sm text-[#7bd9ff]">
+                    {tx("Изменить стартовую пару ↓")}
+                  </summary>
+                  <form
+                    className="mt-4 space-y-3"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const fd = new FormData(e.currentTarget);
+                      void gameAction("LINEUP", {
+                        team_a: fd.get("a"),
+                        team_b: fd.get("b"),
+                        first_draw_out: fd.get("draw"),
+                      });
+                    }}
+                  >
+                    <label className="block text-sm">
+                      {tx("Первая команда")}
+                      <select name="a" className={field}>
+                        {s.teams.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block text-sm">
+                      {tx("Вторая команда")}
+                      <select
+                        name="b"
+                        className={field}
+                        defaultValue={s.teams[1]?.id}
+                      >
+                        {s.teams.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block text-sm">
+                      {tx("Кто отдыхает при первой ничьей")}
+                      <select name="draw" className={field}>
+                        {s.teams.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      className={secondary}
+                      disabled={busy || s.teams.length < 2}
+                    >
+                      {tx("Сохранить стартовую пару")}
+                    </button>
+                  </form>
+                </details>
+              )}
+              {s.control?.is_leader && !live && !pendingStart && (
+                <button
+                  className={`${button} mt-4`}
+                  disabled={
+                    busy || s.teams.length < 2 || s.game.status !== "OPEN"
+                  }
+                  onClick={() => {
+                    void startMatch();
+                  }}
+                >
+                  {s.matches.length
+                    ? tx("Начать следующий матч")
+                    : tx("Начать первый матч")}
+                </button>
+              )}
+            </section>
+          )}
+          <DayResults
+            matches={s.matches}
+            events={s.events}
+            teams={s.teams}
+            rosters={s.rosters}
+            players={s.players}
+          />
+          <MatchSound
+            gameId={gameId}
+            matches={s.matches}
+            events={s.events}
+            ready={true}
+          />
+          <section
+            id="results"
+            style={{ scrollMarginTop: 20 }}
+            className={section}
+          >
+            <h2 className="text-xl font-bold mb-4">
+              {tx("Результаты и исправления")}{" "}
+              {pending.length > 0 && `· ${pending.length} ${tx("Ожидание")}`}
+            </h2>
+            {!s.matches.length && (
+              <p className="text-gray-400">{tx("Первый матч ещё не начат.")}</p>
+            )}
+            {s.matches.map((m) => (
+              <article
+                id={`match-${m.id}`}
+                style={{ scrollMarginTop: 20 }}
+                key={m.id}
+                className="border border-white/10 rounded-2xl p-4 mb-3"
+              >
+                <div className="flex flex-wrap justify-between gap-2">
+                  <b>
+                    #{m.sequence} {teamName(m.team_a)} {m.score_a}:{m.score_b}{" "}
+                    {teamName(m.team_b)}
+                  </b>
+                  <span className="text-sm text-violet-300">
+                    {tx(
+                      m.status === "VERIFIED" && m.result_mode === "TRUSTED"
+                        ? "Учтён ведущим"
+                        : statuses[m.status] || "Ожидает подтверждения",
+                    )}
+                    {m.is_test ? tx(" · тест") : ""}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-400 mt-2">
+                  {tx("Капитаны:")}
+                  {m.result_mode === "TRUSTED"
+                    ? ""
+                    : m.confirmed_a
+                      ? "✓"
+                      : "…"}{" "}
+                  {playerName(m.captain_a)} /{" "}
+                  {m.result_mode === "TRUSTED" ? "" : m.confirmed_b ? "✓" : "…"}{" "}
+                  {playerName(m.captain_b)}
+                </p>
+                {m.resolution_note && (
+                  <p className="text-sm text-amber-200 mt-2">
+                    {tx("Решение/спор:")}
+                    {m.resolution_note}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {m.status === "PENDING" &&
+                    ((m.captain_a === s.my_player_id && !m.confirmed_a) ||
+                      (m.captain_b === s.my_player_id && !m.confirmed_b)) && (
+                      <button
+                        className={button}
+                        disabled={busy}
+                        onClick={() => {
+                          void matchAction(m, "CONFIRM");
+                        }}
+                      >
+                        {tx("Подтвердить результат")}
+                      </button>
+                    )}
+                  {m.status === "PENDING" &&
+                    (s.manager ||
+                      [m.captain_a, m.captain_b].includes(s.my_player_id)) && (
+                      <button
+                        className={secondary}
+                        disabled={busy}
+                        onClick={() => {
+                          const reason = prompt(tx("В чём спор?"));
+                          if (reason)
+                            void matchAction(m, "DISPUTE", { reason });
+                        }}
+                      >
+                        {tx("Оспорить")}
+                      </button>
+                    )}
+                  {s.manager &&
+                    (m.status === "DISPUTED" ||
+                      (m.is_test && m.status === "PENDING")) && (
+                      <button
+                        className={secondary}
+                        disabled={busy}
+                        onClick={() => {
+                          const reason = prompt(
+                            tx(
+                              "Укажи причину решения (минимум 5 символов). Тестовые матчи не входят в реальную карьерную статистику.",
+                            ),
+                          );
+                          if (reason)
+                            void matchAction(m, "RESOLVE", { reason });
+                        }}
+                      >
+                        {m.is_test
+                          ? tx("Подтвердить тест с причиной")
+                          : tx("Решить спор")}
+                      </button>
+                    )}
+                </div>
+                <details className="mt-3">
+                  <summary className="min-h-11 py-2 text-sm text-[#76d6ff]">
+                    {tx("События матча ↓")}
+                  </summary>
+                  <div className="space-y-1">
+                    {s.events
+                      .filter((e) => e.match_id === m.id)
+                      .map((e) => (
+                        <div
+                          key={e.id}
+                          className={`flex justify-between gap-2 text-sm py-2 ${e.voided ? "line-through text-gray-600" : "text-gray-300"}`}
+                        >
+                          <span>
+                            {eventLabel(e.kind)} · {playerName(e.player_id)}
+                            {e.assist_id
+                              ? ` · ${tx("ассист")} ${playerName(e.assist_id)}`
+                              : ""}
+                          </span>
+                          {!e.voided &&
+                            ((s.manager &&
+                              !["LIVE", "PAUSED"].includes(m.status)) ||
+                              (m.operator_id === s.my_player_id &&
+                                !(
+                                  m.result_mode === "TRUSTED" &&
+                                  m.status === "VERIFIED"
+                                ))) && (
+                              <button
+                                disabled={busy}
+                                className="text-violet-300"
+                                onClick={() => {
+                                  if (
+                                    m.result_mode === "TRUSTED" &&
+                                    m.status === "VERIFIED"
+                                  ) {
+                                    const reason = prompt(
+                                      tx(
+                                        "Причина исправления (минимум 5 символов)",
+                                      ),
+                                    );
+                                    if (reason && reason.trim().length >= 5)
+                                      void matchAction(m, "UNDO", {
+                                        id: e.id,
+                                        reason: reason.trim(),
+                                      });
+                                  } else if (
+                                    confirm(
+                                      tx(
+                                        "Отменить событие? Подтверждения завершённого матча будут сброшены.",
+                                      ),
+                                    )
+                                  )
+                                    void matchAction(m, "UNDO", { id: e.id });
+                                }}
+                              >
+                                {tx("Отменить")}
+                              </button>
+                            )}
+                        </div>
+                      ))}
+                  </div>
+                </details>
+                {["VERIFIED", "PENDING", "DISPUTED"].includes(m.status) && (
+                  <MatchCorrections
+                    matchId={m.id}
+                    version={m.version}
+                    manager={s.manager}
+                    trusted={
+                      m.result_mode === "TRUSTED" && m.status === "VERIFIED"
+                    }
+                    pending={m.status === "PENDING"}
+                    busy={busy}
+                    players={s.rosters
+                      .filter((r) => r.match_id === m.id)
+                      .map((r) => ({
+                        id: r.player_id,
+                        name: playerName(r.player_id),
+                      }))}
+                    onAction={(a, p) => void matchAction(m, a, p)}
+                  />
+                )}
+              </article>
+            ))}
+          </section>
+          <details className="organizer-settings" hidden={!s.manager}>
+            <summary className="min-h-11 py-3">
+              {tx("Настройки организатора")}
+            </summary>
+            {isOwner && s.game.status === "OPEN" && (
+              <button
+                className="network-secondary my-3"
+                disabled={busy}
+                onClick={() => {
+                  if (
+                    confirm(
+                      tx(
+                        "Добавить до 14 синтетических игроков сообщества без Google-аккаунтов? Они не записываются на игру автоматически.",
+                      ),
+                    )
+                  )
+                    void run(() =>
+                      supabase.rpc("ballers_add_test_players", {
+                        p_community: s.game.community_id,
+                        p_count: 14,
+                      }),
+                    );
+                }}
+              >
+                {tx("Тестовые игроки +14")}
+              </button>
+            )}
+            {s.manager && s.game.status === "OPEN" && (
+              <button
+                className="network-secondary my-3"
+                disabled={busy || !!live}
+                onClick={() => {
+                  if (confirm(tx("Завершить игровой день?")))
+                    void gameAction("CLOSE");
+                }}
+              >
+                {tx("Завершить игровой день")}
+              </button>
+            )}
+            {s.manager && s.game.status === "OPEN" && (
+              <details className={section}>
+                <summary className="min-h-11 py-2 text-lg font-bold">
+                  {tx("Параметры игрового дня")}
+                  <span className="text-[#73d4ff]">↓</span>
+                </summary>
+                <form
+                  key={`${s.game.format}:${s.game.capacity}`}
+                  className="space-y-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget);
+                    void gameAction("SETUP", {
+                      format: Number(fd.get("format")),
+                      capacity: Number(fd.get("capacity")),
+                    });
+                  }}
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm">
+                      {tx("Игроков на поле")}
+                      <select
+                        name="format"
+                        className={field}
+                        defaultValue={s.game.format}
+                      >
+                        {Array.from({ length: 11 }, (_, i) => (
+                          <option key={i + 1} value={i + 1}>
+                            {i + 1}×{i + 1}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-sm">
+                      {tx("Мест в Game Day")}
+                      <input
+                        name="capacity"
+                        className={field}
+                        type="number"
+                        min="1"
+                        defaultValue={s.game.capacity ?? 15}
+                      />
+                    </label>
+                  </div>
+                  <button
+                    className={secondary}
+                    disabled={busy || s.matches.length > 0}
+                  >
+                    {tx("Сохранить формат и места")}
+                  </button>
+                </form>
+              </details>
+            )}
+            <section className={section} aria-label={tx("Учёт результатов")}>
+              <h2 className="text-lg font-bold">{tx("Учёт результатов")}</h2>
+              {s.manager && s.game.status === "OPEN" ? (
+                <label className="block mt-3">
+                  {tx("Режим для новых матчей")}
+                  <select
+                    className={field}
+                    aria-label={tx("Режим для новых матчей")}
+                    value={s.settings.result_mode || "TRUSTED"}
+                    disabled={busy}
+                    onChange={(e) =>
+                      void run(() =>
+                        supabase.rpc("ballers_result_mode", {
+                          p_game: gameId,
+                          p_mode: e.target.value,
+                        }),
+                      )
+                    }
+                  >
+                    <option value="TRUSTED">
+                      {tx("Доверяем ведущему — сразу в статистику")}
+                    </option>
+                    <option value="CAPTAINS">
+                      {tx("Строгий — подтверждения капитанов")}
+                    </option>
+                  </select>
+                </label>
+              ) : (
+                <p>
+                  {tx(
+                    s.settings.result_mode === "CAPTAINS"
+                      ? "Строгий — подтверждения капитанов"
+                      : "Доверяем ведущему — сразу в статистику",
+                  )}
+                </p>
+              )}
+              <p className="ballers-muted mt-3">
+                {tx(
+                  "Режим сохраняется при старте матча. Уже начатые и старые матчи не меняются автоматически.",
+                )}
+              </p>
+            </section>
+            {s.manager && s.game.status === "OPEN" && (
+              <details className={section}>
+                <summary className="min-h-11 py-2 text-lg font-bold">
+                  {tx("Правила новых матчей")}
+                  <span className="text-[#73d4ff]">↓</span>
+                </summary>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="text-sm">
+                    {tx("Минуты")}
+                    <input
+                      className={field}
+                      type="number"
+                      min="0.5"
+                      max="120"
+                      step="0.5"
+                      value={settings.duration_seconds / 60}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          duration_seconds: Math.round(
+                            Number(e.target.value) * 60,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="text-sm">
+                    {tx("До голов")}
+                    <input
+                      className={field}
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={settings.goal_limit}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          goal_limit: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+                <label className="block text-sm mt-3">
+                  {tx("Окончание")}
+                  <select
+                    className={field}
+                    value={settings.end_mode}
+                    onChange={(e) =>
+                      setSettings({ ...settings, end_mode: e.target.value })
+                    }
+                  >
+                    <option value="FIRST_REACHED">
+                      {tx("Время или голы — что раньше")}
+                    </option>
+                    <option value="TIME_ONLY">{tx("Только время")}</option>
+                    <option value="GOALS_ONLY">{tx("Только голы")}</option>
+                  </select>
+                </label>
+                <label className="block text-sm mt-3">
+                  {tx("Предел побед подряд (пусто = нет)")}
+                  <input
+                    className={field}
+                    type="number"
+                    min="1"
+                    value={settings.max_streak ?? ""}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        max_streak: e.target.value
+                          ? Number(e.target.value)
+                          : null,
+                      })
+                    }
+                  />
+                </label>
+                {settings.max_streak && (
+                  <p className="text-sm text-amber-200 mt-2">
+                    {tx(
+                      "Выбранное правило: при достижении предела победитель отдыхает, проигравшая остаётся. Объявите его командам заранее.",
+                    )}
+                  </p>
+                )}
+                <label className="flex gap-3 my-4 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={settings.is_open}
+                    onChange={(e) =>
+                      setSettings({ ...settings, is_open: e.target.checked })
+                    }
+                  />
+                  {tx("Открыть добор в списке публичных игр")}
+                </label>
+                <p className="text-sm text-gray-400 mb-3">
+                  {tx(
+                    "Победитель остаётся. При ничьей уходит дольше играющая команда. Начатый матч сохраняет свои правила.",
+                  )}
+                </p>
+                <button
+                  className={button}
+                  disabled={busy}
+                  onClick={() => {
+                    void gameAction("SETTINGS", { ...settings });
+                  }}
+                >
+                  {tx("Сохранить правила")}
+                </button>
+              </details>
+            )}
+            {s.manager && s.game.status === "OPEN" && (
+              <details className={section}>
+                <summary className="min-h-11 py-2 text-lg font-bold">
+                  {tx("Базовые команды сообщества")}{" "}
+                  <span className="text-[#73d4ff]">↓</span>
+                </summary>
+                <p className="text-sm text-gray-400 mb-4">
+                  {tx(
+                    "Сохрани нынешние команды и режимы как базу. Отсутствующие постоянные игроки сохраняются. В новом Game Day загружаются только ответившие «Иду», остальные места заполняются через Random / Core + Fill.",
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className={secondary}
+                    disabled={busy || !!live}
+                    onClick={() => {
+                      if (
+                        confirm(
+                          tx(
+                            "Сохранить команды как базовые? Названия и режимы обновятся; отсутствующие участники сохранятся.",
+                          ),
+                        )
+                      )
+                        void run(() =>
+                          supabase.rpc("ballers_squad_action", {
+                            p_game: gameId,
+                            p_action: "SAVE",
+                          }),
+                        );
+                    }}
+                  >
+                    {tx("Запомнить команды как постоянные")}
+                  </button>
+                  <button
+                    className={secondary}
+                    disabled={busy || s.matches.length > 0}
+                    onClick={() => {
+                      if (
+                        confirm(
+                          tx(
+                            "Заменить сегодняшние команды базовыми? Загрузятся только Going; текущие назначения сбросятся.",
+                          ),
+                        )
+                      )
+                        void run(() =>
+                          supabase.rpc("ballers_squad_action", {
+                            p_game: gameId,
+                            p_action: "APPLY",
+                          }),
+                        );
+                    }}
+                  >
+                    {tx("Применить постоянные команды к этому дню")}
+                  </button>
+                </div>
+              </details>
+            )}
+            {!s.manager ? (
+              <section className={section}>
+                <h2 className="font-bold">{tx("Капитаны и ответственные")}</h2>
+                {s.teams.map((t) => {
+                  const role = s.roles.find((r) => r.team_id === t.id);
+                  return (
+                    <p className="mt-3" key={t.id}>
+                      {t.name} · {tx("Капитан")}:{" "}
+                      {role?.captain_id ? playerName(role.captain_id) : "—"}
+                    </p>
+                  );
+                })}
+              </section>
+            ) : (
+              <details className={section}>
+                <summary className="min-h-11 py-2 text-lg font-bold">
+                  {tx("Капитаны и ответственные")}
+                  <span className="text-[#73d4ff]">↓</span>
+                </summary>
+                <div className="space-y-4">
+                  {s.teams.map((t) => {
+                    const role = s.roles.find((r) => r.team_id === t.id);
+                    return (
+                      <form
+                        key={`${t.id}:${role?.captain_id}:${role?.responsible_id}:${t.player_ids.join()}`}
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const fd = new FormData(e.currentTarget);
+                          void gameAction("ROLES", {
+                            team_id: t.id,
+                            captain_id: fd.get("captain"),
+                            responsible_id: fd.get("responsible"),
+                            can_manage_attendance: fd.get("delegate") === "on",
+                          });
+                        }}
+                        className="border border-white/10 rounded-2xl p-4"
+                      >
+                        <h3 className="font-bold mb-3">
+                          {t.name} · {t.player_ids.length}
+                          {tx("игроков")}
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <label className="text-sm">
+                            {tx("Капитан")}
+                            <select
+                              name="captain"
+                              className={field}
+                              defaultValue={
+                                role?.captain_id || t.player_ids[0] || ""
+                              }
+                              disabled={!s.manager || busy || !!live}
+                            >
+                              {t.player_ids.map((id) => (
+                                <option key={id} value={id}>
+                                  {playerName(id)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="text-sm">
+                            {tx("Ответственный")}
+                            <select
+                              name="responsible"
+                              className={field}
+                              defaultValue={
+                                role?.responsible_id || t.player_ids[0] || ""
+                              }
+                              disabled={!s.manager || busy || !!live}
+                            >
+                              {t.player_ids.map((id) => (
+                                <option key={id} value={id}>
+                                  {playerName(id)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                        {s.manager && (
+                          <>
+                            <label className="flex items-center gap-2 text-sm my-3">
+                              <input
+                                name="delegate"
+                                type="checkbox"
+                                defaultChecked={role?.can_manage_attendance}
+                              />
+                              {tx("Капитан может менять ответы своей команды")}
+                            </label>
+                            <button
+                              className={secondary}
+                              disabled={busy || !t.player_ids.length || !!live}
+                            >
+                              {tx("Сохранить роли")} {t.name}
+                            </button>
+                          </>
+                        )}
+                      </form>
+                    );
+                  })}
+                </div>
+              </details>
+            )}
+          </details>
+          <p className="text-sm text-gray-500">
+            {tx(
+              "Таймер восстанавливается с сервера. При потере связи действие не считается сохранённым. Точные минуты игроков не рассчитываются: состав матча — заявка, а не журнал замен.",
+            )}
+          </p>
+        </section>
       </div>
     </main>
   );
