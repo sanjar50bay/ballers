@@ -5,10 +5,6 @@ import { t, positionLabel } from "@/lib/i18n";
 import { useLocale } from "./Language";
 import type { Profile, Stats } from "./AppState";
 import Avatar from "./Avatar";
-export const WELCOME_COOLDOWN = 30 * 60 * 1000;
-const attemptedEntries = new Set<string>();
-const enteredHome =
-  typeof window !== "undefined" && window.location.pathname === "/";
 export function PlayerCard({
   profile,
   stats,
@@ -21,26 +17,17 @@ export function PlayerCard({
   manual?: boolean;
 }) {
   useLocale();
-  const [remaining, setRemaining] = useState(5);
   const previousFocus = useRef(
     typeof document !== "undefined"
       ? (document.activeElement as HTMLElement | null)
       : null,
   );
-  const closeRef = useRef(onClose);
-  useEffect(() => {
-    closeRef.current = onClose;
-  }, [onClose]);
   useEffect(() => {
     const previous = previousFocus.current;
-    const tick = setInterval(
-      () => setRemaining((n) => Math.max(0, n - 1)),
-      1000,
-    );
-    const done = setTimeout(() => closeRef.current(), 5000);
+    const old = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
-      clearInterval(tick);
-      clearTimeout(done);
+      document.body.style.overflow = old;
       previous?.focus();
     };
   }, []);
@@ -83,7 +70,7 @@ export function PlayerCard({
         </p>
         <div className="stats-grid">
           {[
-            [t("В заявках"), stats?.matches],
+            [t("Матчи в составе"), stats?.matches],
             [t("Голы"), stats?.goals],
             [t("Ассисты"), stats?.assists],
           ].map(([label, value]) => (
@@ -101,8 +88,7 @@ export function PlayerCard({
           className="neon-button green w-full"
           onClick={onClose}
         >
-          {manual ? t("Скрыть карточку") + " ·" : t("На главную ·")} {remaining}{" "}
-          {t("с")}
+          {manual ? t("Скрыть карточку") : t("Продолжить")}
         </button>
         <p className="ballers-muted card-skip">
           {t("Нажми в любом месте, чтобы пропустить")}
@@ -122,42 +108,30 @@ export default function WelcomeCard({
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (path !== "/") return;
-    let first: ReturnType<typeof setTimeout> | undefined;
-    const showIfDue = () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      if (sessionStorage.getItem("ballers:welcome:new-profile") !== profile.id)
+        return;
+      // Consume before rendering: focus, refresh, another login cannot replay it.
+      sessionStorage.removeItem("ballers:welcome:new-profile");
+      const key = `ballers:welcome:shown:${profile.id}`;
       if (
-        document.visibilityState !== "visible" ||
-        document.documentElement.dataset.coachActive === "true"
+        localStorage.getItem(key) ||
+        localStorage.getItem("ballers:welcome:disabled") === "true" ||
+        localStorage.getItem("ballers:network-return")
       )
         return;
-      try {
-        const key = `ballers:welcome:${profile.id}`;
-        const last = Number(localStorage.getItem(key));
-        if (
-          localStorage.getItem("ballers:welcome:disabled") === "true" ||
-          (Number.isFinite(last) && Date.now() - last < WELCOME_COOLDOWN) ||
-          window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        )
-          return;
-        localStorage.setItem(key, String(Date.now()));
-        first = setTimeout(() => setOpen(true), 0);
-      } catch {
-        /* Storage failure must never block entry. */
-      }
-    };
-    if (enteredHome && !attemptedEntries.has(profile.id)) {
-      attemptedEntries.add(profile.id);
-      showIfDue();
+      localStorage.setItem(key, "true");
+      if (document.documentElement.dataset.coachActive !== "true")
+        timer = setTimeout(() => setOpen(true), 0);
+    } catch {
+      /* Entry must work even when browser storage is unavailable. */
     }
-    const hideForGuide = () => setOpen(false);
-    window.addEventListener("ballers:guide-start", hideForGuide);
-    // Returning from a background tab also counts as a return, after the cooldown.
-    window.addEventListener("focus", showIfDue);
-    document.addEventListener("visibilitychange", showIfDue);
+    const hide = () => setOpen(false);
+    window.addEventListener("ballers:guide-start", hide);
     return () => {
-      clearTimeout(first);
-      window.removeEventListener("ballers:guide-start", hideForGuide);
-      window.removeEventListener("focus", showIfDue);
-      document.removeEventListener("visibilitychange", showIfDue);
+      clearTimeout(timer);
+      window.removeEventListener("ballers:guide-start", hide);
     };
   }, [profile.id, path]);
   return open ? (

@@ -1,4 +1,5 @@
 "use client";
+import IntroVideo from "./IntroVideo";
 import {
   createContext,
   useCallback,
@@ -82,9 +83,6 @@ export function GuideInvite() {
     <section className="guide-invite" aria-label={t("Первые шаги")}>
       <div>
         <b>{t("Впервые в BALLERS?")}</b>
-        <p className="ballers-muted">
-          {t("Покажем за 4 шага, как найти своих и записаться на игру.")}
-        </p>
       </div>
       <div className="guide-actions">
         <button className="network-secondary" onClick={guide.start}>
@@ -267,7 +265,7 @@ function HelpDialog({
           if (e.key === "Tab") {
             const els = Array.from(
               ref.current?.querySelectorAll<HTMLElement>(
-                "button:not(:disabled),a[href]",
+                "button:not(:disabled),a[href],video[controls]",
               ) || [],
             );
             if (e.shiftKey && document.activeElement === els[0]) {
@@ -314,6 +312,7 @@ function HelpDialog({
             {t("Войти через Google")}
           </Link>
         )}
+        <IntroVideo />
         <div className="help-links">
           <Link href="/discover?kind=communities" onClick={onClose}>
             <b>{t("Все сообщества")}</b>

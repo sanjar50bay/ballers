@@ -1,3 +1,12 @@
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+const screenshotPath = (url) =>
+  process.env.TEST_ARTIFACT_DIR
+    ? path.join(
+        process.env.TEST_ARTIFACT_DIR,
+        path.basename(fileURLToPath(url)),
+      )
+    : fileURLToPath(url);
 import catalog from "../lib/i18n/catalog.json" with { type: "json" };
 const testLocale = process.env.TEST_LOCALE === "kk" ? "kk" : "ru";
 const text = (s) => catalog[s.trim()]?.[testLocale] ?? s;
@@ -103,7 +112,8 @@ async function scenario(options = {}) {
             user,
           }),
         );
-        localStorage.setItem("ballers:welcome:disabled", "true");
+        if (localStorage.getItem("ballers:welcome:disabled") === null)
+          localStorage.setItem("ballers:welcome:disabled", "true");
       },
       { user, token },
     );
@@ -324,6 +334,7 @@ async function scenario(options = {}) {
     page
       .getByRole("heading", {
         name: options.existing ? "Original" : /New Player|Other tab/,
+        level: 1,
       })
       .waitFor();
   return {
@@ -369,6 +380,10 @@ try {
       const s = await scenario({ mode });
       await s.page.goto(base);
       await s.page.waitForURL("**/onboarding");
+      if (mode === "normal")
+        await s.page.evaluate(() =>
+          localStorage.setItem("ballers:welcome:disabled", "false"),
+        );
       await s.fill();
       // Two synchronous submit events also exercise the ref lock, not just disabled rendering.
       await s.page.locator("form").evaluate((form) => {
@@ -385,11 +400,25 @@ try {
       await s.page.waitForTimeout(800);
       assert.equal(new URL(s.page.url()).pathname, "/");
       if (mode === "normal") {
+        await s.page
+          .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
+          .waitFor();
+        await s.page
+          .getByRole("button", { name: text("Продолжить"), exact: true })
+          .click();
+        await s.page.reload();
+        await s.home();
+        assert.equal(await s.page.locator(".welcome-backdrop").count(), 0);
+        pass(
+          "fresh registration offers card exactly once; reload does not reopen it",
+        );
         await s.page.screenshot({
-          path: new URL(
-            `../docs/${testLocale}-registration-home.png`,
-            import.meta.url,
-          ).pathname,
+          path: screenshotPath(
+            new URL(
+              `../docs/${testLocale}-registration-home.png`,
+              import.meta.url,
+            ),
+          ),
         });
         await s.page.reload();
         await s.home();
@@ -417,10 +446,12 @@ try {
         .waitFor();
       assert.equal(s.state.posts, 0);
       await s.page.screenshot({
-        path: new URL(
-          `../docs/${testLocale}-registration-error.png`,
-          import.meta.url,
-        ).pathname,
+        path: screenshotPath(
+          new URL(
+            `../docs/${testLocale}-registration-error.png`,
+            import.meta.url,
+          ),
+        ),
       });
       s.state.failReads = false;
       await s.page
@@ -449,10 +480,12 @@ try {
         .isEnabled()
         .then((x) => assert.equal(x, true));
       await s.page.screenshot({
-        path: new URL(
-          `../docs/${testLocale}-registration-submit-error.png`,
-          import.meta.url,
-        ).pathname,
+        path: screenshotPath(
+          new URL(
+            `../docs/${testLocale}-registration-submit-error.png`,
+            import.meta.url,
+          ),
+        ),
       });
       s.state.mode = "normal";
       await s.submit().click();
@@ -463,9 +496,7 @@ try {
     {
       const s = await scenario({ anonymous: true });
       await s.open();
-      await s.page
-        .getByRole("link", { name: text("Войти через Google") })
-        .waitFor();
+      await s.page.getByRole("link", { name: text("Войти") }).waitFor();
       assert.equal(s.state.posts, 0);
       pass("unauthenticated onboarding cannot create a profile");
       await s.ctx.close();
@@ -474,6 +505,9 @@ try {
       const s = await scenario();
       await s.open();
       await s.fill();
+      await s.page
+        .getByText(text("Дополнить профиль"), { exact: true })
+        .click();
       await s.page.getByLabel(text("Год рождения")).fill("1");
       await s.submit().click();
       assert.equal(s.state.posts, 0);
@@ -493,10 +527,12 @@ try {
       await s.page.getByLabel(text("Дополнительная позиция")).selectOption("");
       await s.page.getByLabel(text("Год рождения")).fill("");
       await s.page.screenshot({
-        path: new URL(
-          `../docs/${testLocale}-registration-form.png`,
-          import.meta.url,
-        ).pathname,
+        path: screenshotPath(
+          new URL(
+            `../docs/${testLocale}-registration-form.png`,
+            import.meta.url,
+          ),
+        ),
         fullPage: true,
       });
       assert.ok(
@@ -557,10 +593,12 @@ try {
         0,
       );
       await s.page.screenshot({
-        path: new URL(
-          `../docs/${testLocale}-registration-form.png`,
-          import.meta.url,
-        ).pathname,
+        path: screenshotPath(
+          new URL(
+            `../docs/${testLocale}-registration-form.png`,
+            import.meta.url,
+          ),
+        ),
         fullPage: true,
       });
       await s.page.setViewportSize({ width: 320, height: 740 });

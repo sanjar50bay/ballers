@@ -3,7 +3,7 @@ import { t as tx, uiError, positionLabel } from "@/lib/i18n";
 
 import { useLocale } from "@/app/components/Language";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -17,19 +17,10 @@ export default function ProfilePage() {
   useLocale();
 
   const { data, session, loading, refresh, error } = useApp();
-  const [welcome, setWelcome] = useState(true),
-    [busy, setBusy] = useState(false),
+  const [busy, setBusy] = useState(false),
     [signError, setSignError] = useState("");
   const [preview, setPreview] = useState(false);
   const router = useRouter();
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        setWelcome(localStorage.getItem("ballers:welcome:disabled") !== "true");
-      } catch {}
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
   async function logout() {
     setBusy(true);
     const { error } = await supabase.auth.signOut();
@@ -93,29 +84,11 @@ export default function ProfilePage() {
           <Link className="community-row text-[#cbaaff]" href="/profile/edit">
             {tx("Настройки профиля →")}
           </Link>
-          <section className="neon-panel mt-3">
-            <label className="flex items-center gap-3 min-h-11">
-              <input
-                type="checkbox"
-                checked={welcome}
-                onChange={(e) => {
-                  setWelcome(e.target.checked);
-                  try {
-                    localStorage.setItem(
-                      "ballers:welcome:disabled",
-                      String(!e.target.checked),
-                    );
-                  } catch {}
-                }}
-              />
-              {tx("Карточка игрока при входе")}
-            </label>
-            <p className="ballers-muted mt-2">
-              {tx(
-                "При возвращении после 30 минут. Показ — до 5 секунд, можно сразу пропустить.",
-              )}
-            </p>
-          </section>
+          <p className="ballers-muted mt-3">
+            {tx(
+              "Карточка доступна здесь в любое время. При повторном входе она не открывается автоматически.",
+            )}
+          </p>
           <button
             className="text-link mt-5"
             disabled={busy}

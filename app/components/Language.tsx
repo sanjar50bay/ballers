@@ -20,6 +20,14 @@ export default function LanguageBar() {
     try {
       const saved = localStorage.getItem(languageKey);
       if (saved === "kk" || saved === "ru") setLocale(saved);
+      else
+        setLocale(
+          (navigator.languages?.[0] || navigator.language || "ru")
+            .toLowerCase()
+            .startsWith("kk")
+            ? "kk"
+            : "ru",
+        );
     } catch {}
   }, []);
   return (

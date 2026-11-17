@@ -1,0 +1,12 @@
+PASS RU landing includes existing teams, two real login CTAs, no horizontal overflow or unsolicited video downloads
+PASS KK language switches text/poster/video without autoplay, persists on reload; page fits 320–1280px
+PASS video actually starts only after click; changing language stops playback and restores the cover
+PASS first visit follows browser language; explicit saved choice takes priority
+PASS Google CTA uses original OAuth provider and origin redirect (Google interaction simulated)
+PASS existing profile login/reload/focus never opens automatic Baller ID; old cooldown is ignored
+PASS confirmed new-profile marker shows Baller ID once, no countdown, immediate dismissal, no repeat on reload
+PASS manual profile card remains accessible, Escape closes it; old 30-minute setting removed
+PASS video can be reopened in Help and switches with interface language after registration
+PASS saved team-invite destination still wins over first-profile card
+PASS both bundled videos are served with MP4 type and byte-range support
+RESULT: 11 landing browser checks passed. Auth/RPC simulated, not live Google/Supabase.

@@ -61,11 +61,11 @@ const serial = (fn) => {
   return next;
 };
 const rpcArgs = {
-  ballers_directory: ["p_kind","p_city","p_query","p_offset","p_free"],
+  ballers_directory: ["p_kind", "p_city", "p_query", "p_offset", "p_free"],
   ballers_network: [],
   ballers_day_requests_feed: ["p_game"],
-  ballers_answer_day: ["p_request","p_accept"],
-  ballers_day_join_mode: ["p_game","p_mode"],
+  ballers_answer_day: ["p_request", "p_accept"],
+  ballers_day_join_mode: ["p_game", "p_mode"],
   ballers_public_player: ["p_player"],
   ballers_home: [],
   ballers_notification_feed: [],
@@ -527,13 +527,28 @@ try {
     .getByRole("navigation")
     .getByRole("link", { name: text("Найти"), exact: true })
     .click();
-  await page.getByRole("heading", {name:text("Найти"),exact:true}).waitFor();
-  await page.getByRole("button",{name:text("Сообщества"),exact:true}).click();
-  await page.getByText("Browser Pilot",{exact:true}).waitFor();
+  await page
+    .getByRole("heading", { name: text("Найти"), exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: text("Сообщества"), exact: true })
+    .click();
+  await page.getByText("Browser Pilot", { exact: true }).waitFor();
   await shot("release-communities-mobile.png");
   pass("discovery navigation preserves access to city communities");
-  await page.getByRole("button", { name: text("Создать"), exact: true }).click();
-  await page.getByRole("dialog").getByRole("link",{name:text("Игровой день")+" → "+text("Собрать игроков на конкретную дату"),exact:true}).click();
+  await page
+    .getByRole("button", { name: text("Создать"), exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("link", {
+      name:
+        text("Игровой день") +
+        " → " +
+        text("Собрать игроков на конкретную дату"),
+      exact: true,
+    })
+    .click();
   await page
     .getByRole("heading", { name: text("Игровой день"), exact: true })
     .waitFor();
@@ -615,10 +630,15 @@ try {
   await page
     .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
     .waitFor();
-  await page
-    .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
-    .waitFor({ state: "hidden", timeout: 6500 });
-  pass("welcome automatically exits after five seconds");
+  await page.waitForTimeout(5500);
+  assert.equal(
+    await page
+      .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
+      .count(),
+    1,
+  );
+  await page.keyboard.press("Escape");
+  pass("manual player card stays until dismissed, without countdown");
   // Empty inbox state is still usable and does not disable the bell.
   await db.exec("RESET ROLE");
   await db.query("DELETE FROM ballers_notifications WHERE player_id=$1", [
@@ -786,110 +806,7 @@ try {
     .getByRole("heading", { name: text("Твой Baller ID"), exact: true })
     .waitFor();
   pass("switching back restores Russian without changing user names");
-  // A fresh document can show the card after a 30-minute absence, not on every route.
-  const state = await ctx.storageState();
-  const stored = state.origins.find((o) => o.origin === base).localStorage;
-  for (const key of ["ballers:welcome:disabled", `ballers:welcome:${player}`]) {
-    const i = stored.findIndex((x) => x.name === key);
-    if (i >= 0) stored.splice(i, 1);
-  }
-  stored.push(
-    { name: "ballers:welcome:disabled", value: "false" },
-    {
-      name: `ballers:welcome:${player}`,
-      value: String(Date.now() - 31 * 60 * 1000),
-    },
-  );
-  const returnCtx = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    storageState: state,
-  });
-  await returnCtx.route("https://example.supabase.co/**", async (route) => {
-    if (route.request().method() === "OPTIONS")
-      return route.fulfill({
-        status: 200,
-        headers: {
-          "access-control-allow-origin": "*",
-          "access-control-allow-headers": "*",
-        },
-      });
-    try {
-      const data = await serial(() => request(route.request()));
-      await route.fulfill({
-        status: 200,
-        headers: { "access-control-allow-origin": "*" },
-        json: data,
-      });
-    } catch (e) {
-      await route.fulfill({ status: 400, json: { message: e.message } });
-    }
-  });
-  const returned = await returnCtx.newPage();
-  await returned.goto(base + "/");
-  await returned
-    .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
-    .waitFor();
-  await returned.keyboard.press("Escape");
-  await returned.reload();
-  await returned
-    .getByRole("heading", { name: text("Ближайший игровой день"), exact: true })
-    .waitFor();
-  assert.equal(
-    await returned
-      .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
-      .count(),
-    0,
-  );
-  await returned.evaluate(
-    (id) =>
-      localStorage.setItem(
-        `ballers:welcome:${id}`,
-        String(Date.now() - 31 * 60 * 1000),
-      ),
-    player,
-  );
-  await returned.reload();
-  await returned
-    .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
-    .waitFor();
-  await returned
-    .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
-    .waitFor({ state: "hidden", timeout: 6500 });
-  pass(
-    "automatic card returns after 30-minute cooldown, suppresses immediate reload and exits after 5 seconds",
-  );
-  await returned.emulateMedia({ reducedMotion: "reduce" });
-  await returned.evaluate(
-    (id) =>
-      localStorage.setItem(
-        `ballers:welcome:${id}`,
-        String(Date.now() - 31 * 60 * 1000),
-      ),
-    player,
-  );
-  await returned.reload();
-  await returned
-    .getByRole("heading", { name: text("Ближайший игровой день"), exact: true })
-    .waitFor();
-  assert.equal(
-    await returned
-      .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
-      .count(),
-    0,
-  );
-  await returned.goto(base + "/profile");
-  await returned
-    .getByRole("button", { name: text("Показать мою карточку") })
-    .click();
-  assert.equal(
-    await returned
-      .locator(".collectible-card")
-      .evaluate((e) => getComputedStyle(e).animationName),
-    "none",
-  );
-  await returned.keyboard.press("Escape");
-  pass("reduced motion disables auto card and keeps manual preview static");
-  await returnCtx.close();
+  // Repeat-login behavior is covered by landing.browser.test.mjs.
 
   assert.deepEqual(errors, []);
   await ctx.close();

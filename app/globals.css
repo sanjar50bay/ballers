@@ -1,4 +1,19 @@
 @import "tailwindcss";
+
+.signin-options { display: grid; gap: 12px; width: 100%; }
+.signin-options form { display: grid; gap: 16px; min-width: 0; }
+.signin-options input { width: 100%; min-height: 48px; font-size: 16px; }
+.signin-options button { min-height: 48px; white-space: normal; }
+.signin-options input[readonly] { opacity: .7; }
+.signin-options p { overflow-wrap: anywhere; }
+.signin-code { letter-spacing: .16em; font-variant-numeric: tabular-nums; }
+.signin-secondary { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.profile-optional summary, .home-more summary {
+  min-height: 48px; padding: 12px 0; cursor: pointer; font-weight: 600;
+}
+.home-more { margin: 20px 0; border-top: 1px solid #39465d; }
+.profile-optional { border-top: 1px solid #39465d; }
+
 :root {
   --background: #03050b;
   --foreground: #f5f7ff;
