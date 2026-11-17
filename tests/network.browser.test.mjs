@@ -359,7 +359,7 @@ try {
     .getByText("Твой футбол начинается здесь", { exact: true })
     .waitFor();
   await anon
-    .getByRole("link", { name: "Войти через Google", exact: true })
+    .getByRole("link", { name: "Войти", exact: true })
     .click();
   await anon.waitForURL(base + "/");
   assert.equal(

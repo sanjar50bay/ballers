@@ -45,7 +45,7 @@ export function NetworkShell({ children }: { children: React.ReactNode }) {
           className="neon-button green mt-6"
           onClick={() => rememberDestination(path)}
         >
-          {t("Войти через Google")}
+          {t("Войти")}
         </Link>
       </main>
     );
@@ -249,11 +249,6 @@ export function FootballWelcome() {
     <Link href="/profile/football" className="network-card">
       <p className="eyebrow">{t("Твой старт в BALLERS")}</p>
       <h2 className="mt-2">{t("Ищешь команду или просто хочешь играть?")}</h2>
-      <p className="ballers-muted mt-2">
-        {t(
-          "Укажи город и свой статус. Команда для первой игры не обязательна.",
-        )}
-      </p>
       <span className="text-link">{t("Настроить мой футбол →")}</span>
     </Link>
   );

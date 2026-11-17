@@ -1,6 +1,6 @@
 {
   "name": "ballers",
-  "version": "0.2.10-alpha",
+  "version": "0.2.11-alpha",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test:db": "node tests/database.test.mjs",
     "test:alpha": "node tests/alpha.test.mjs",
-    "test": "npm run test:db && npm run test:alpha && npm run test:nav && node tests/relationship.test.mjs && npm run test:mobile && node tests/mobile-legacy.test.mjs",
+    "test": "npm run test:db && npm run test:alpha && npm run test:nav && node tests/relationship.test.mjs && npm run test:mobile && node tests/mobile-legacy.test.mjs && npm run test:i18n && npm run test:network && npm run test:release027 && npm run test:reliability && npm run test:trusted",
     "test:nav": "node tests/navigation.test.mjs",
     "test:mobile": "node tests/mobile.test.mjs",
     "test:registration:browser": "node tests/registration.browser.test.mjs",
@@ -22,11 +22,13 @@
     "test:reliability:browser": "node tests/reliability.browser.test.mjs",
     "test:ux:browser": "node tests/ux.browser.test.mjs",
     "test:trusted": "node tests/trusted.test.mjs",
-    "test:trusted:browser": "node tests/trusted.browser.test.mjs"
+    "test:trusted:browser": "node tests/trusted.browser.test.mjs",
+    "test:landing:browser": "node tests/landing.browser.test.mjs",
+    "test:signin:browser": "node tests/signin.browser.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -38,7 +40,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.4.3",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

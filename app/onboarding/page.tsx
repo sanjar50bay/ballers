@@ -46,7 +46,7 @@ export default function OnboardingPage() {
       const profile = await ownRegistrationProfile(supabase, user.id);
       if (seq !== generation.current) return;
       if (profile) {
-        // Fresh document resets AppState, including a cached `profile: null`.
+        // Existing users never see the automatic first-profile card.
         window.location.replace("/");
         return;
       }
@@ -102,11 +102,24 @@ export default function OnboardingPage() {
         setPhase("login");
         return;
       }
-      await ensureRegistrationProfile(supabase, user, input);
+      const savedProfile = await ensureRegistrationProfile(
+        supabase,
+        user,
+        input,
+      );
       const current = await registrationUser(supabase);
       if (current?.id !== user.id) {
         setPhase("login");
         return;
+      }
+      // Only a confirmed fresh INSERT offers the card. A normal login never does.
+      if (savedProfile.createdNow) {
+        try {
+          sessionStorage.setItem(
+            "ballers:welcome:new-profile",
+            savedProfile.id,
+          );
+        } catch {}
       }
       window.location.replace("/");
     } catch (e) {
@@ -127,9 +140,7 @@ export default function OnboardingPage() {
       </header>
       <h1 className="text-3xl font-bold mt-5">{tx("Твой Baller ID")}</h1>
       <p className="ballers-muted mt-3 mb-6">
-        {tx(
-          "Расскажи немного о себе. Один профиль — для всех твоих команд и игр.",
-        )}
+        {tx("Имя, город и позиция — и можно играть.")}
       </p>
       {phase === "checking" && (
         <p role="status" className="inline-loading">
@@ -142,7 +153,7 @@ export default function OnboardingPage() {
             {tx("Чтобы создать или открыть профиль, сначала войди в аккаунт.")}
           </p>
           <Link className="text-link block mt-4" href="/">
-            {tx("Войти через Google")}
+            {tx("Войти")}
           </Link>
         </section>
       )}
@@ -175,32 +186,7 @@ export default function OnboardingPage() {
                 autoComplete="given-name"
               />
             </label>
-            <label className="block">
-              {tx("Фамилия")}
-              <span className="ballers-muted">{tx("· необязательно")}</span>
-              <input
-                className={field}
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                maxLength={100}
-                autoComplete="family-name"
-              />
-            </label>
             <CitySelect value={city} onChange={setCity} id="onboarding-city" />
-            <label className="block">
-              {tx("Год рождения")}{" "}
-              <span className="ballers-muted">{tx("· необязательно")}</span>
-              <input
-                className={field}
-                type="number"
-                min={1900}
-                max={new Date().getFullYear()}
-                step={1}
-                inputMode="numeric"
-                value={birthYear}
-                onChange={(e) => setBirthYear(e.target.value)}
-              />
-            </label>
             <label className="block">
               {tx("Основная позиция")}
               <select
@@ -214,32 +200,62 @@ export default function OnboardingPage() {
                 <option value="ATT">{tx("Нападающий")}</option>
               </select>
             </label>
-            <label className="block">
-              {tx("Дополнительная позиция")}
-              <select
-                className={field}
-                value={secondaryPosition}
-                onChange={(e) => setSecondaryPosition(e.target.value)}
-              >
-                <option value="">{tx("Нет")}</option>
-                <option value="GK">{tx("Вратарь")}</option>
-                <option value="DEF">{tx("Защитник")}</option>
-                <option value="MID">{tx("Полузащитник")}</option>
-                <option value="ATT">{tx("Нападающий")}</option>
-              </select>
-            </label>
-            <label className="block">
-              {tx("Ведущая нога")}
-              <select
-                className={field}
-                value={dominantFoot}
-                onChange={(e) => setDominantFoot(e.target.value)}
-              >
-                <option value="RIGHT">{tx("Правая")}</option>
-                <option value="LEFT">{tx("Левая")}</option>
-                <option value="BOTH">{tx("Обе")}</option>
-              </select>
-            </label>
+            <details className="profile-optional">
+              <summary>{tx("Дополнить профиль")}</summary>
+              <div className="space-y-4 mt-4">
+                <label className="block">
+                  {tx("Фамилия")}
+                  <span className="ballers-muted">{tx("· необязательно")}</span>
+                  <input
+                    className={field}
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    maxLength={100}
+                    autoComplete="family-name"
+                  />
+                </label>
+                <label className="block">
+                  {tx("Год рождения")}{" "}
+                  <span className="ballers-muted">{tx("· необязательно")}</span>
+                  <input
+                    className={field}
+                    type="number"
+                    min={1900}
+                    max={new Date().getFullYear()}
+                    step={1}
+                    inputMode="numeric"
+                    value={birthYear}
+                    onChange={(e) => setBirthYear(e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  {tx("Дополнительная позиция")}
+                  <select
+                    className={field}
+                    value={secondaryPosition}
+                    onChange={(e) => setSecondaryPosition(e.target.value)}
+                  >
+                    <option value="">{tx("Нет")}</option>
+                    <option value="GK">{tx("Вратарь")}</option>
+                    <option value="DEF">{tx("Защитник")}</option>
+                    <option value="MID">{tx("Полузащитник")}</option>
+                    <option value="ATT">{tx("Нападающий")}</option>
+                  </select>
+                </label>
+                <label className="block">
+                  {tx("Ведущая нога")}
+                  <select
+                    className={field}
+                    value={dominantFoot}
+                    onChange={(e) => setDominantFoot(e.target.value)}
+                  >
+                    <option value="RIGHT">{tx("Правая")}</option>
+                    <option value="LEFT">{tx("Левая")}</option>
+                    <option value="BOTH">{tx("Обе")}</option>
+                  </select>
+                </label>
+              </div>
+            </details>
             <button
               className="neon-button w-full"
               type="submit"
@@ -250,11 +266,6 @@ export default function OnboardingPage() {
                 : tx("Создать профиль")}
             </button>
           </fieldset>
-          <p className="ballers-muted mt-4">
-            {tx(
-              "Если соединение прервётся, повторная отправка сначала проверит сохранённый профиль.",
-            )}
-          </p>
         </form>
       )}
     </main>

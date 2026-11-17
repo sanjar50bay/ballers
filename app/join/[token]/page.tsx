@@ -1,5 +1,7 @@
 "use client";
-import { uiError, t as tx } from "@/lib/i18n";
+import { t as tx } from "@/lib/i18n";
+
+import SignIn from "@/app/components/SignIn";
 
 import { useLocale } from "@/app/components/Language";
 
@@ -133,19 +135,6 @@ export default function JoinPage() {
 
     loadInvite();
   }, [token, joinGame]);
-
-  const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/join/${token}`,
-      },
-    });
-
-    if (error) {
-      alert(uiError(error.message));
-    }
-  };
 
   const createProfileAndJoin = async () => {
     if (!invite || submitting.current) return;
@@ -296,21 +285,12 @@ export default function JoinPage() {
 
         {/* NOT LOGGED IN */}
         {!userReady && (
-          <section className="mt-7">
-            <p className="text-gray-400 text-sm mb-4">
-              {tx("Войди через Google, чтобы принять приглашение.")}
-            </p>
-
-            <button
-              onClick={signInWithGoogle}
-              className="w-full bg-white text-black rounded-2xl py-4 font-semibold cursor-pointer hover:bg-neutral-200 transition"
-            >
-              {tx("Continue with Google")}
-            </button>
+          <section className="mt-6">
+            <p className="ballers-muted mb-4">{tx("Войди, чтобы принять приглашение.")}</p>
+            <SignIn returnTo={`/join/${token}`} />
           </section>
         )}
 
-        {/* NEW PLAYER */}
         {userReady && needsProfile && (
           <section className="mt-8">
             <h2 className="text-xl font-semibold">

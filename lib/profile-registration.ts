@@ -10,7 +10,11 @@ export type RegistrationInput = {
   secondary_position?: string | null;
   dominant_foot: string;
 };
-export type RegisteredProfile = { id: string; user_id: string };
+export type RegisteredProfile = {
+  id: string;
+  user_id: string;
+  createdNow?: boolean;
+};
 const REQUEST_TIMEOUT = 15000;
 
 // A timeout here does not revoke the session or retry an uncertain write.
@@ -103,7 +107,8 @@ export async function ensureRegistrationProfile(
     .select("id,user_id")
     .abortSignal(AbortSignal.timeout(REQUEST_TIMEOUT))
     .single();
-  if (!error && data?.user_id === user.id) return data as RegisteredProfile;
+  if (!error && data?.user_id === user.id)
+    return { ...data, createdNow: true } as RegisteredProfile;
   // Includes a duplicate from another tab, or a committed INSERT whose response was lost.
   // Never treat an arbitrary 23505 as success: verify this user's own persisted row.
   const recovered = await ownRegistrationProfile(client, user.id);
@@ -123,7 +128,7 @@ export function registrationError(error: unknown): string {
     );
   if (code === "42501" || code === "PGRST301")
     return tx(
-      "Нет доступа к сохранению профиля. Повтори вход через Google. Данные формы пока оставлены здесь.",
+      "Нет доступа к сохранению профиля. Повтори вход. Данные формы пока оставлены здесь.",
     );
   return tx(
     "Не удалось проверить или сохранить профиль. Проверь соединение и попробуй ещё раз. Если профиль уже создан, откроем его без повторной регистрации.",

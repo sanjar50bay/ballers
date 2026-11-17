@@ -3,11 +3,11 @@ import { t as tx, uiError, positionLabel } from "@/lib/i18n";
 
 import { useLocale } from "@/app/components/Language";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { Provider } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import LandingPage from "./components/LandingPage";
+import WelcomeCard from "./components/WelcomeCard";
 import { useApp } from "./components/AppState";
 import { GuideInvite } from "./components/Coach";
 import AppHeader from "./components/AppHeader";
@@ -16,14 +16,11 @@ import Avatar from "./components/Avatar";
 import GameCard, { attendanceLabel } from "./components/GameCard";
 import PlayerStats from "./components/PlayerStats";
 import Icon from "./components/Icon";
-import WelcomeCard from "./components/WelcomeCard";
 import { MyTeams, FootballWelcome } from "./components/Network";
 export default function Home() {
   useLocale();
 
   const { data, session, loading, error, refresh } = useApp();
-  const [authError, setAuthError] = useState(""),
-    [signing, setSigning] = useState(false);
   const router = useRouter();
   useEffect(() => {
     if (session && data && !data.profile) router.replace("/onboarding");
@@ -42,87 +39,13 @@ export default function Home() {
       }
     } catch {}
   }, [session, data, router]);
-  async function login(provider: Provider) {
-    setSigning(true);
-    setAuthError("");
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: window.location.origin },
-      });
-      if (error) throw error;
-    } catch (e) {
-      setAuthError(
-        e instanceof Error ? e.message : tx("Не удалось открыть вход"),
-      );
-    } finally {
-      setSigning(false);
-    }
-  }
   if (loading)
     return (
       <main className="ballers-shell">
         <div className="inline-loading">{tx("Загружаем BALLERS…")}</div>
       </main>
     );
-  if (!session)
-    return (
-      <main className="min-h-svh flex items-center justify-center px-6 bg-[#03050b]">
-        <div className="max-w-sm w-full">
-          <div className="text-[#79ffb0] mb-4">
-            <Icon name="ball" size={46} />
-          </div>
-          <h1 className="text-5xl font-black mb-3">
-            BALLERS<span className="text-[#79ffb0]">.</span>
-          </h1>
-          <p className="text-[#b6c7dc] mb-10">
-            {tx("Твой футбол. Твоя команда.")}
-          </p>
-          <button
-            className="provider-button"
-            disabled={signing}
-            onClick={() => void login("google")}
-          >
-            {tx("Продолжить с Google")}
-          </button>
-          {process.env.NEXT_PUBLIC_AUTH_APPLE_ENABLED === "true" && (
-            <button
-              className="provider-button"
-              disabled={signing}
-              onClick={() => void login("apple")}
-            >
-              {tx("Продолжить с Apple")}
-            </button>
-          )}
-          {process.env.NEXT_PUBLIC_AUTH_VK_PROVIDER?.startsWith("custom:") && (
-            <button
-              className="provider-button"
-              disabled={signing}
-              onClick={() =>
-                void login(process.env.NEXT_PUBLIC_AUTH_VK_PROVIDER as Provider)
-              }
-            >
-              {tx("Продолжить с VK")}
-            </button>
-          )}
-          <p className="ballers-muted mt-5">
-            {tx(
-              "Один вход — один Baller ID. В этом браузере вход сохранится автоматически.",
-            )}
-          </p>
-          {authError && (
-            <p role="alert" className="error-panel">
-              {authError}
-            </p>
-          )}
-          {error && (
-            <p role="alert" className="error-panel">
-              {uiError(error)}
-            </p>
-          )}
-        </div>
-      </main>
-    );
+  if (!session) return <LandingPage error={error} />;
   if (!data?.profile)
     return (
       <main className="ballers-shell">
@@ -165,8 +88,6 @@ export default function Home() {
           <button onClick={() => void refresh()}>{tx("Повторить")}</button>
         </p>
       )}
-      <GuideInvite />
-      <FootballWelcome />
       <div className="section-heading">
         <h2>{tx("Ближайший игровой день")}</h2>
         {game && <span className="status-chip">{attendanceLabel(game)}</span>}
@@ -182,11 +103,6 @@ export default function Home() {
                 : "Ты пока не записан на ближайшие игры",
             )}
           </h3>
-          <p className="ballers-muted mt-2">
-            {tx(
-              "Проверь игры своего сообщества, найди открытый набор или собери свой день.",
-            )}
-          </p>
           <div className="network-actions mt-4">
             <Link href="/open-games" className="neon-button">
               {tx("Найти игру →")}
@@ -197,7 +113,6 @@ export default function Home() {
           </div>
         </section>
       )}
-      <PlayerStats playerId={profile.id} compact />
       {game && (
         <Link href="/open-games" className="search-panel">
           <span className="search-icon">
@@ -248,6 +163,12 @@ export default function Home() {
         </Link>
       )}
       <MyTeams />
+      <details className="home-more">
+        <summary>{tx("Моя статистика")}</summary>
+        <PlayerStats playerId={profile.id} compact />
+      </details>
+      <GuideInvite />
+      <FootballWelcome />
       <WelcomeCard profile={profile} stats={data.stats} />
       <BottomNav />
     </main>
