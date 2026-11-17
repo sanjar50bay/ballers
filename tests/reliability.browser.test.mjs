@@ -1,3 +1,4 @@
+import { artifactPath } from "./artifact-path.mjs";
 // Real isolated PostgreSQL/RLS + production browser. OAuth/HTTP transport simulated.
 import { PGlite } from "@electric-sql/pglite";
 import fs from "node:fs";
@@ -257,7 +258,7 @@ async function context(n, locale = "ru", width = 390) {
 }
 async function screenshot(page, name) {
   await page.screenshot({
-    path: new URL("../docs/" + name, import.meta.url).pathname,
+    path: artifactPath(new URL("../docs/" + name, import.meta.url)),
   });
   assert.ok(
     await page.evaluate(
@@ -274,7 +275,7 @@ try {
   await member.goto(base + "/discover?kind=teams");
   await member.getByText("Own Team", { exact: true }).waitFor();
   await member.getByText("Other Owner Team", { exact: true }).waitFor();
-  await member.getByRole("button", { name: "Сообщества", exact: true }).click();
+  await member.getByRole("navigation", {name:"Что ищем?"}).getByRole("link", { name: "Сообщества", exact: true }).click();
   await member.getByText("Other Owner Community", { exact: true }).waitFor();
   assert.equal(await member.getByText(/искусственных TEST/).count(), 0);
   assert.equal(
@@ -315,7 +316,7 @@ try {
   await guest
     .getByText("Ты пока не записан на ближайшие игры", { exact: true })
     .waitFor();
-  assert.equal(await guest.locator('a[href="/open-games"]').count(), 1);
+  assert.equal(await guest.locator('main a[href="/open-games"]').count(), 1);
   await guest
     .getByRole("link", { name: "Создать игровой день →", exact: true })
     .waitFor();

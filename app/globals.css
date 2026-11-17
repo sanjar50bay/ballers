@@ -1423,3 +1423,88 @@ body{line-height:1.6} .ballers-muted{font-size:15px;line-height:1.55;color:#b6c2
 .coach-tip{position:fixed;width:min(360px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow-y:auto;background:#101b2b;border:1px solid #7aabc8;border-radius:18px;padding:18px;box-shadow:0 12px 40px #0008;pointer-events:auto;color:#f5f7ff}
 .coach-tip h2{font-size:22px;font-weight:700;line-height:1.3;margin:10px 0}.coach-tip p{font-size:16px;line-height:1.55}.coach-tip .eyebrow{font-size:13px}.coach-tip .guide-actions{gap:10px}.coach-tip button{font-size:15px;padding:10px 14px}
 @media(max-width:360px){.ballers-header{gap:10px}.ballers-wordmark{font-size:24px}.coach-tip{padding:16px}.guide-actions{gap:10px}}
+
+/* One set of section cues on every signed-in screen, including nested routes. */
+.app-navigation-frame {
+  --section-color: #70efb0;
+  padding-bottom: 96px;
+}
+.app-navigation-frame .ballers-shell {
+  padding-bottom: 24px;
+}
+.navigation-header { max-width: 600px; margin: auto; padding: 0 20px; }
+.app-navigation-frame[data-section="games"] {
+  --section-color: #78d8ff;
+}
+.app-navigation-frame[data-section="find"] {
+  --section-color: #c4a6ff;
+}
+.app-navigation-frame[data-section="profile"] {
+  --section-color: #ffd27a;
+}
+.app-navigation-frame[data-section="create"] {
+  --section-color: #ffd27a;
+}
+.section-location {
+  max-width: 600px;
+  margin: 12px auto 0;
+  padding: 12px 20px;
+  border-left: 4px solid var(--section-color);
+  background: #111a29;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #f2f5ff;
+}
+.section-location > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.section-label {
+  color: var(--section-color);
+  font-size: 12px;
+  font-weight: 700;
+}
+.section-location strong {
+  font-size: 17px;
+}
+.section-location a {
+  font-size: 14px;
+  color: #d6e0f3;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.app-navigation-frame .ballers-nav a.active {
+  color: var(--section-color);
+  background: #ffffff0b;
+  box-shadow: inset 0 3px var(--section-color);
+  font-weight: 800;
+}
+.search-categories {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0 24px;
+}
+.search-categories a {
+  min-height: 48px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #45516a;
+  text-align: center;
+  color: #d6e0f3;
+}
+.search-categories a[aria-current="page"] {
+  color: #e3d3ff;
+  background: #40266c;
+  border-color: #bb94ff;
+  font-weight: 800;
+}
+@media (min-width: 480px) {
+  .search-categories {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

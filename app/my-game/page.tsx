@@ -10,8 +10,6 @@ import { countLabel } from "@/lib/display";
 import { supabase } from "@/lib/supabase";
 import { setAttendance } from "@/lib/pre-match";
 import { useApp } from "../components/AppState";
-import AppHeader from "../components/AppHeader";
-import BottomNav from "../components/BottomNav";
 import GameCard from "../components/GameCard";
 type Snapshot = {
   manager: boolean;
@@ -30,8 +28,16 @@ function MyGame() {
   const query = useSearchParams(),
     router = useRouter();
   const { data, session, loading, error, refresh } = useApp();
-  const [tab, setTab] = useState(query.get("history") ? "history" : "current"),
-    [snap, setSnap] = useState<Snapshot | null>(null),
+  const tab = query.get("history") ? "history" : "current";
+  const setTab = (next: string) => {
+    const params = new URLSearchParams(query.toString());
+    if (next === "history") params.set("history", "1");
+    else params.delete("history");
+    router.push(`/my-game${params.size ? `?${params}` : ""}`, {
+      scroll: false,
+    });
+  };
+  const [snap, setSnap] = useState<Snapshot | null>(null),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
   const selected = query.get("game");
@@ -118,17 +124,18 @@ function MyGame() {
   }
   return (
     <main className="ballers-shell">
-      <AppHeader />
-      <h1 className="page-title">{tx("Твоя игра")}</h1>
+      <h1 className="page-title">{tx("Мои игры")}</h1>
       <div className="tab-bar">
         <button
           className={tab === "current" ? "selected" : ""}
+          aria-pressed={tab === "current"}
           onClick={() => setTab("current")}
         >
-          {tx("Текущий день")}
+          {tx("Ближайшие игры")}
         </button>
         <button
           className={tab === "history" ? "selected" : ""}
+          aria-pressed={tab === "history"}
           onClick={() => setTab("history")}
         >
           {tx("История игр")}
@@ -179,7 +186,7 @@ function MyGame() {
                 {g.status === "COMPLETED" ? tx("Завершён") : tx("Игровой день")}
               </p>
               <Link href={`/games/${g.id}/play#results`} className="text-link">
-                {tx("Результаты и подтверждения →")}
+                {tx("Результаты матчей →")}
               </Link>
             </section>
           ))}
@@ -339,7 +346,6 @@ function MyGame() {
           </Link>
         </section>
       )}
-      <BottomNav />
     </main>
   );
 }

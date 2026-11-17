@@ -79,6 +79,14 @@ export default function MyCommunities({
           )}
         </p>
       )}
+      {creation &&
+        !!data?.communities.length &&
+        !data.communities.some((c) => ["OWNER", "MANAGER"].includes(c.role)) &&
+        !error && (
+          <p className="ballers-muted">
+            {tx("Ты пока не управляешь сообществами. Можно создать своё.")}
+          </p>
+        )}
     </>
   );
 }

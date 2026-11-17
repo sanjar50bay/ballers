@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import CommunityMenu from "@/app/components/CommunityMenu";
-import BottomNav from "@/app/components/BottomNav";
 
 type Community = {
   id: string;
@@ -656,7 +655,6 @@ export default function CommunityPage() {
           </div>
         </section>
       </div>
-      <BottomNav />
     </main>
   );
 }

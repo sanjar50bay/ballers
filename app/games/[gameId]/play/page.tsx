@@ -12,7 +12,6 @@ import MatchCorrections from "@/app/components/MatchCorrections";
 import DayResults, { eventLabel } from "@/app/components/DayResults";
 import DayRequests from "@/app/components/DayRequests";
 import MatchSound from "@/app/components/MatchSound";
-import BottomNav from "@/app/components/BottomNav";
 import { setAttendance } from "@/lib/pre-match";
 
 type Player = {
@@ -1321,7 +1320,6 @@ export default function PlayPage() {
           )}
         </p>
       </div>
-      <BottomNav />
     </main>
   );
 }

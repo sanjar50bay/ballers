@@ -3,6 +3,7 @@ import LanguageBar from "./components/Language";
 import AppState from "./components/AppState";
 import Notifications from "./components/Notifications";
 import CoachProvider from "./components/Coach";
+import NavigationFrame from "./components/NavigationFrame";
 import "./globals.css";
 import "./landing.css";
 
@@ -28,7 +29,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <LanguageBar />
         <AppState>
           <CoachProvider>
-            <Notifications>{children}</Notifications>
+            <Notifications>
+              <NavigationFrame>{children}</NavigationFrame>
+            </Notifications>
           </CoachProvider>
         </AppState>
       </body>

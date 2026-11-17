@@ -1,3 +1,4 @@
+import { artifactPath } from "./artifact-path.mjs";
 // Real isolated PostgreSQL/RLS + production browser. OAuth/HTTP transport simulated.
 import { PGlite } from "@electric-sql/pglite";
 import fs from "node:fs";
@@ -280,7 +281,7 @@ async function context(n, locale = "ru", width = 390) {
 }
 async function screenshot(page, name) {
   await page.screenshot({
-    path: new URL("../docs/" + name, import.meta.url).pathname,
+    path: artifactPath(new URL("../docs/" + name, import.meta.url)),
   });
   assert.ok(
     await page.evaluate(
@@ -314,7 +315,7 @@ try {
   }
   assert.equal(found.size, 60);
   pass("directory shows all 60 real players on three non-overlapping pages");
-  await captain.getByRole("button", { name: "Команды", exact: true }).click();
+  await captain.getByRole("navigation", {name:"Что ищем?"}).getByRole("link", { name: "Команды", exact: true }).click();
   await captain.getByText("Найдено: 27", { exact: true }).waitFor();
   await captain.getByRole("button", { name: "Дальше", exact: true }).click();
   await captain.getByText("Страница 2 из 2", { exact: true }).waitFor();
@@ -325,9 +326,9 @@ try {
   pass("permanent team directory has total and accessible second page");
   await captain.getByRole("button", { name: "Создать", exact: true }).click();
   const menu = captain.getByRole("dialog");
-  await menu.getByText("У меня есть арена", { exact: true }).waitFor();
+  await menu.getByRole("heading", {name:"Создать",exact:true}).waitFor();
   assert.equal(await menu.getByRole("link").count(), 3);
-  assert.equal(await menu.getByText("Скоро", { exact: true }).count(), 2);
+  assert.equal(await menu.getByText("Скоро", { exact: true }).count(), 0);
   await captain.keyboard.press("Escape");
   await menu.waitFor({ state: "hidden" });
   assert.equal(await menu.count(), 0);
@@ -338,7 +339,7 @@ try {
     true,
   );
   pass(
-    "plus opens real creation links and honest Soon items, Escape restores focus",
+    "plus opens three implemented creation links, Escape restores focus",
   );
   await captain.goto(base + "/teams/" + club);
   await captain
@@ -401,8 +402,7 @@ try {
     .getByRole("heading", { name: "Тактическая доска 5×5", exact: true })
     .locator("..")
     .screenshot({
-      path: new URL("../docs/release027-tactics-mobile.png", import.meta.url)
-        .pathname,
+      path: artifactPath(new URL("../docs/release027-tactics-mobile.png", import.meta.url)),
       style: "nav{visibility:hidden!important}",
     });
   const { page: player } = await context(2);
@@ -536,8 +536,7 @@ try {
   const results = captain.getByRole("region", { name: "Итоги игрового дня" });
   await results.getByText("Учтено: 1", { exact: false }).waitFor();
   await results.screenshot({
-    path: new URL("../docs/release027-table-mobile.png", import.meta.url)
-      .pathname,
+    path: artifactPath(new URL("../docs/release027-table-mobile.png", import.meta.url)),
   });
   await results
     .getByRole("button", { name: "Бомбардиры", exact: true })
@@ -624,10 +623,10 @@ try {
     .getByRole("button", { name: "Таблица дня", exact: true })
     .click();
   await results.screenshot({
-    path: new URL(
+    path: artifactPath(new URL(
       "../docs/release027-table-pending-mobile.png",
       import.meta.url,
-    ).pathname,
+    )),
   });
   await captain.getByLabel("Язык интерфейса").selectOption("kk");
   await captain

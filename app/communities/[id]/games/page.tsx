@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import BottomNav from "@/app/components/BottomNav";
 type G = {
   id: string;
   title: string;
@@ -73,7 +72,6 @@ export default function Games() {
           </Link>
         ))}
       </div>
-      <BottomNav />
     </main>
   );
 }

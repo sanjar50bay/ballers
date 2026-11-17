@@ -39,6 +39,7 @@ for (const [n, name, city] of [
   [2, "Dana", "Astana"],
   [3, "Erzhan", "Astana"],
   [4, "Arsen", "Almaty"],
+  [5, "Member", "Astana"],
 ]) {
   await db.query("INSERT INTO auth.users VALUES($1)", [uid(n)]);
   await db.query(
@@ -72,6 +73,10 @@ await db.query(
 await db.query(
   "INSERT INTO game_days(id,community_id,sequence_number,title,game_date,start_time,format,team_count,capacity,created_by) VALUES($1,$2,1,'Nearest Community Day','2099-10-28','20:00',5,2,1,$3)",
   [day, c1, uid(3)],
+);
+await db.query(
+  "INSERT INTO community_members(community_id,player_id,role) VALUES($1,$2,'MEMBER')",
+  [c1, pid(5)],
 );
 await db.query(
   "INSERT INTO ballers_game_settings(game_day_id,is_open) VALUES($1,true)",
@@ -113,6 +118,7 @@ const rpc = {
   ballers_mark_read: { p_id: "uuid" },
   ballers_tactics: { p_team: "uuid", p_layout: "jsonb", p_version: "bigint" },
   ballers_home: {},
+  ballers_my_career: {},
   ballers_notification_feed: {},
   ballers_network: {},
   ballers_player_stats: { p_player: "uuid" },
@@ -275,6 +281,26 @@ async function context(n, locale = "ru", width = 390) {
           return rows[0] || null;
         }
         if (url.pathname === "/rest/v1/player_profiles") {
+          if (req.method() === "PATCH") {
+            const body = req.postDataJSON();
+            const keys = Object.keys(body);
+            assert.ok(
+              keys.every((k) =>
+                [
+                  "display_name",
+                  "city",
+                  "primary_position",
+                  "secondary_position",
+                  "dominant_foot",
+                  "preferred_language",
+                ].includes(k),
+              ),
+            );
+            await db.query(
+              `UPDATE player_profiles SET ${keys.map((k, i) => k + "=$" + (i + 2)).join(",")} WHERE user_id=$1`,
+              [uid(n), ...keys.map((k) => body[k])],
+            );
+          }
           const rows = (
             await db.query("SELECT * FROM player_profiles WHERE user_id=$1", [
               uid(n),
@@ -630,6 +656,206 @@ try {
   );
   pass(
     "Kazakh labels, optional guide and form fit 320px; form text is at least 16px",
+  );
+  const { page: navigation } = await context(1);
+  await navigation.goto(base + "/");
+  await navigation
+    .getByRole("navigation", { name: "Основная навигация" })
+    .waitFor();
+  await navigation
+    .getByRole("navigation", { name: "Основная навигация" })
+    .getByRole("link", { name: "Найти", exact: true })
+    .click();
+  await navigation.waitForURL("**/open-games");
+  await navigation
+    .getByRole("heading", { name: "Nearest Community Day" })
+    .waitFor();
+  assert.equal(
+    await navigation
+      .locator('.ballers-nav a[aria-current="page"]')
+      .getAttribute("href"),
+    "/open-games",
+  );
+  pass(
+    "Find opens available games first, with a persistent bottom navigation and selected category",
+  );
+  await screenshot(navigation, "navigation-games-390.png");
+  const categories = navigation.getByRole("navigation", { name: "Что ищем?" });
+  for (const [label, key] of [
+    ["Игроки", "players"],
+    ["Команды", "teams"],
+    ["Сообщества", "communities"],
+  ]) {
+    await categories.getByRole("link", { name: label, exact: true }).click();
+    await navigation.waitForURL(`**/discover?kind=${key}`);
+    assert.equal(
+      await categories.locator('[aria-current="page"]').innerText(),
+      label,
+    );
+    assert.equal(
+      await navigation
+        .locator('.ballers-nav a[aria-current="page"]')
+        .getAttribute("href"),
+      "/open-games",
+    );
+  }
+  pass(
+    "all four search categories lead to the right list and keep Find highlighted",
+  );
+  await screenshot(navigation, "navigation-directory-390.png");
+  await navigation.getByRole("link", { name: /Запросы и приглашения/ }).click();
+  await navigation.getByRole("heading", { name: "Всё разобрано" }).waitFor();
+  await navigation.reload();
+  await navigation.getByRole("heading", { name: "Всё разобрано" }).waitFor();
+  pass("requests remain accessible separately from search and survive reload");
+  const routes = [
+    ["/teams/" + id(51), "find", "Команда"],
+    ["/players/" + pid(2), "find", "Игрок"],
+    ["/profile", "profile", "Профиль"],
+    ["/profile/football", "profile", "Футбольные предпочтения"],
+    ["/profile/edit", "profile", "Настройки профиля"],
+    ["/career", "profile", "История матчей"],
+    ["/create", "create", "Создать игру"],
+    ["/teams/create", "create", "Создать команду"],
+    ["/communities/create", "create", "Создать сообщество"],
+  ];
+  for (const [route, section, label] of routes) {
+    await navigation.goto(base + route);
+    await navigation
+      .locator(".section-location strong")
+      .getByText(label, { exact: true })
+      .waitFor();
+    assert.equal(
+      await navigation
+        .locator(".app-navigation-frame")
+        .getAttribute("data-section"),
+      section,
+    );
+    assert.equal(await navigation.locator(".ballers-nav").count(), 1, route);
+    assert.equal(
+      await navigation.locator('.ballers-nav [aria-current="page"]').count(),
+      section === "create" ? 0 : 1,
+      route,
+    );
+    await navigation.waitForFunction(
+      () => !document.body.innerText.includes("Загружаем профиль…"),
+    );
+    assert.ok(
+      await navigation.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      route + " overflow",
+    );
+  }
+  pass(
+    "nine nested/profile/creation routes have one navigation, the right section, a named parent and no overflow",
+  );
+  const { page: member } = await context(5);
+  await member.goto(base + "/create");
+  await member
+    .getByText("Ты пока не управляешь сообществами. Можно создать своё.", {
+      exact: true,
+    })
+    .waitFor();
+  pass(
+    "a member without managed communities gets a clear creation empty state",
+  );
+  await navigation.goto(base + "/my-game?history=1");
+  await navigation
+    .getByRole("button", { name: "История игр", exact: true })
+    .waitFor();
+  assert.equal(
+    await navigation
+      .getByRole("button", { name: "История игр", exact: true })
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  await navigation.reload();
+  await navigation
+    .getByRole("button", { name: "История игр", exact: true })
+    .waitFor();
+  assert.equal(
+    await navigation
+      .getByRole("button", { name: "История игр", exact: true })
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  await navigation
+    .getByRole("button", { name: "Ближайшие игры", exact: true })
+    .click();
+  await navigation.waitForURL("**/my-game");
+  await navigation.goBack();
+  await navigation.waitForURL("**/my-game?history=1");
+  assert.equal(
+    await navigation
+      .getByRole("button", { name: "История игр", exact: true })
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  pass(
+    "history tab survives refresh and browser Back; current games remain directly reachable",
+  );
+  await screenshot(navigation, "navigation-history-390.png");
+  await navigation.goto(base + "/profile/edit");
+  await navigation.getByLabel("Отображаемое имя", { exact: true }).waitFor();
+  await navigation
+    .getByLabel("Отображаемое имя", { exact: true })
+    .fill("Navigation Player");
+  await navigation
+    .getByRole("button", { name: "Сохранить изменения", exact: true })
+    .click();
+  await navigation.waitForURL("**/profile");
+  await navigation
+    .getByRole("heading", { name: "Navigation Player", exact: true })
+    .waitFor();
+  assert.equal(
+    (
+      await admin("SELECT display_name FROM player_profiles WHERE id=$1", [
+        pid(1),
+      ])
+    )[0].display_name,
+    "Navigation Player",
+  );
+  await navigation.goto(base + "/profile/edit");
+  await navigation
+    .getByRole("link", { name: "← Профиль", exact: true })
+    .click();
+  await navigation.waitForURL("**/profile");
+  pass(
+    "profile settings save the actual row, refresh visible data and return to Profile; Back has a deterministic parent",
+  );
+  await screenshot(navigation, "navigation-profile-390.png");
+  await navigation
+    .getByRole("button", { name: "Создать", exact: true })
+    .click();
+  const create = navigation.getByRole("dialog", {
+    name: "Создать",
+    exact: true,
+  });
+  assert.equal(await create.getByRole("link").count(), 3);
+  assert.equal(await create.getByText("Скоро", { exact: true }).count(), 0);
+  await navigation.keyboard.press("Escape");
+  pass(
+    "Create contains three available destinations without non-working tournament/arena choices",
+  );
+  await navigation.setViewportSize({ width: 320, height: 740 });
+  await navigation
+    .getByLabel("Язык интерфейса", { exact: true })
+    .selectOption("kk");
+  for (const route of ["/open-games", "/discover?kind=players", "/profile"]) {
+    await navigation.goto(base + route);
+    await navigation.locator(".section-location").waitFor();
+    assert.ok(
+      await navigation.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      route + " KK overflow",
+    );
+    assert.equal(await navigation.locator(".ballers-nav").count(), 1);
+  }
+  await screenshot(navigation, "navigation-profile-kk-320.png");
+  pass(
+    "Kazakh search/profile navigation fits 320px and keeps translated section cues",
   );
   assert.deepEqual(errors, []);
   console.log(

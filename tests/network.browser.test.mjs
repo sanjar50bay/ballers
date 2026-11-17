@@ -1,3 +1,4 @@
+import { artifactPath } from "./artifact-path.mjs";
 // Real isolated PostgreSQL/RLS + production browser. OAuth/HTTP transport simulated.
 import { PGlite } from "@electric-sql/pglite";
 import fs from "node:fs";
@@ -212,7 +213,7 @@ async function context(n, locale = "ru", width = 390) {
 }
 async function screenshot(page, name) {
   await page.screenshot({
-    path: new URL("../docs/" + name, import.meta.url).pathname,
+    path: artifactPath(new URL("../docs/" + name, import.meta.url)),
   });
   assert.ok(
     await page.evaluate(

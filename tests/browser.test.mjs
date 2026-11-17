@@ -1,3 +1,4 @@
+import { artifactPath } from "./artifact-path.mjs";
 import catalog from "../lib/i18n/catalog.json" with { type: "json" };
 const testLocale = process.env.TEST_LOCALE === "kk" ? "kk" : "ru";
 const text = (s) => catalog[s.trim()]?.[testLocale] ?? s;
@@ -303,7 +304,7 @@ try {
   );
   const shot = async (name) => {
     await page.screenshot({
-      path: new URL("../docs/" + name, import.meta.url).pathname,
+      path: artifactPath(new URL("../docs/" + name, import.meta.url)),
       fullPage: false,
     });
     assert.equal(
@@ -407,7 +408,7 @@ try {
     .waitFor({ state: "hidden" });
   await page.goto(`${base}/my-game`);
   await page
-    .getByRole("heading", { name: text("Твоя игра"), exact: true })
+    .getByRole("heading", { name: text("Мои игры"), exact: true })
     .waitFor();
   await page
     .getByRole("button", { name: text("Завершить игровой день"), exact: true })
@@ -423,7 +424,7 @@ try {
   pass("second match and explicit day completion preserve pending results");
   await shot("release-history-mobile.png");
   await page
-    .getByRole("link", { name: text("Результаты и подтверждения →") })
+    .getByRole("link", { name: text("Результаты матчей →") })
     .click();
   await page.locator("#results").waitFor();
   await page
@@ -479,6 +480,7 @@ try {
     .waitFor();
   await shot("release-home-mobile.png");
   pass("compact home displays upcoming day with persisted session");
+  await page.locator(".home-more > summary").click();
   await page.locator(".stats-disclosure summary").click();
   await page.getByText(/В тестах:/).waitFor();
   await shot("release-stats-mobile.png");
@@ -493,7 +495,7 @@ try {
   pass("single top bell exposes completed notification history");
   await page
     .getByRole("navigation")
-    .getByRole("link", { name: text("Игра"), exact: true })
+    .getByRole("link", { name: text("Мои игры"), exact: true })
     .click();
   await page
     .getByRole("button", { name: text("Возможно"), exact: true })
@@ -528,10 +530,10 @@ try {
     .getByRole("link", { name: text("Найти"), exact: true })
     .click();
   await page
-    .getByRole("heading", { name: text("Найти"), exact: true })
+    .getByRole("heading", { name: text("Открытые игры"), exact: true })
     .waitFor();
   await page
-    .getByRole("button", { name: text("Сообщества"), exact: true })
+    .getByRole("link", { name: text("Сообщества"), exact: true })
     .click();
   await page.getByText("Browser Pilot", { exact: true }).waitFor();
   await shot("release-communities-mobile.png");
@@ -550,7 +552,7 @@ try {
     })
     .click();
   await page
-    .getByRole("heading", { name: text("Игровой день"), exact: true })
+    .getByRole("heading", { name: text("Создать игру"), exact: true })
     .waitFor();
   await page
     .getByRole("link", { name: text("Создать игровой день →"), exact: true })
@@ -712,7 +714,7 @@ try {
     0,
   );
   await login.screenshot({
-    path: new URL("../docs/release-login-mobile.png", import.meta.url).pathname,
+    path: artifactPath(new URL("../docs/release-login-mobile.png", import.meta.url)),
     fullPage: false,
   });
   await login.getByLabel(text("Язык интерфейса")).selectOption("kk");
@@ -725,7 +727,7 @@ try {
     .waitFor();
   assert.equal(await login.locator("html").getAttribute("lang"), "kk");
   await login.screenshot({
-    path: new URL("../docs/release-025-login-kk.png", import.meta.url).pathname,
+    path: artifactPath(new URL("../docs/release-025-login-kk.png", import.meta.url)),
   });
   pass("Kazakh is selectable before login and persists after reload");
   await guest.close();
@@ -741,9 +743,9 @@ try {
   assert.ok((await page.textContent("body")).includes("Organizer"));
   const routes = [
     ["/", "Ең жақын ойын күні"],
-    ["/my-game", "Сенің ойының"],
+    ["/my-game", "Менің ойындарым"],
     ["/communities", "Менің қауымдастықтарым"],
-    ["/create", "Ойын күні"],
+    ["/create", "Ойын құру"],
     ["/communities/create", "Қауымдастық құру"],
     [`/communities/${community}`, "Қауымдастыққа шолу"],
     [`/communities/${community}/game-days/create`, "Жаңа ойын күні"],
@@ -788,7 +790,7 @@ try {
     .getByRole("heading", { name: "Ең жақын ойын күні", exact: true })
     .waitFor();
   await page.screenshot({
-    path: new URL("../docs/release-025-home-kk.png", import.meta.url).pathname,
+    path: artifactPath(new URL("../docs/release-025-home-kk.png", import.meta.url)),
   });
   await page.getByRole("button", { name: /^Хабарландырулар/ }).click();
   await page.getByText("Бәрі оқылды. Аяқталмаған сұраулар жоқ.").waitFor();
@@ -798,7 +800,7 @@ try {
   await page.getByRole("button", { name: "Менің карточкамды көрсету" }).click();
   await page.waitForTimeout(1200);
   await page.screenshot({
-    path: new URL("../docs/release-025-card-kk.png", import.meta.url).pathname,
+    path: artifactPath(new URL("../docs/release-025-card-kk.png", import.meta.url)),
   });
   await page.keyboard.press("Escape");
   await page.getByLabel("Интерфейс тілі").selectOption("ru");
