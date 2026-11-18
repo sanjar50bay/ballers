@@ -1,6 +1,12 @@
 "use client";
-import { useRef, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import {
+  Suspense,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { t } from "@/lib/i18n";
 import { useLocale } from "@/app/components/Language";
@@ -8,9 +14,31 @@ import { useApp } from "@/app/components/AppState";
 import { NetworkShell } from "@/app/components/Network";
 import { supabase } from "@/lib/supabase";
 
+const subscribeHydration = () => () => {};
 export default function CreateCommunityPage() {
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    () => true,
+    () => false,
+  );
+  if (!hydrated) return <p>…</p>;
+  return (
+    <Suspense fallback={<p>…</p>}>
+      <CreateCommunity />
+    </Suspense>
+  );
+}
+function CreateCommunity() {
   useLocale();
   const router = useRouter();
+  const teamParam = useSearchParams().get("team");
+  const team =
+    teamParam &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      teamParam,
+    )
+      ? teamParam
+      : null;
   const { refresh } = useApp();
   const lock = useRef(false);
   const [name, setName] = useState(""),
@@ -74,7 +102,11 @@ export default function CreateCommunityPage() {
       }
       void refresh();
       router.push(
-        typeof data === "string" ? `/communities/${data}` : "/communities",
+        team
+          ? `/teams/${team}/games/create`
+          : typeof data === "string"
+            ? `/communities/${data}`
+            : "/communities",
       );
     } catch {
       setUncertain(true);

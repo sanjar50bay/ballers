@@ -90,7 +90,7 @@ for (const file of walk(new URL("../app/", import.meta.url))) {
   );
   checked++;
 }
-assert.equal(checked, 22);
+assert.equal(checked, 23);
 console.log(
   `PASS localization: ${Object.keys(catalog).length} complete RU/KK entries, status/date/errors/templates, user content preserved, ${checked} page files subscribed or redirect without UI`,
 );

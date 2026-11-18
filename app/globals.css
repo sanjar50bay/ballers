@@ -1043,7 +1043,7 @@ main .text-gray-500 {
   padding-bottom: 6px;
   scrollbar-width: thin;
 }
-.directory-tabs button {
+.directory-tabs button, .team-calendar-tabs a {
   border: 1px solid #39465d;
   padding: 10px 13px;
   border-radius: 12px;
@@ -1051,7 +1051,7 @@ main .text-gray-500 {
   min-height: 44px;
   color: #b6c7dc;
 }
-.directory-tabs button.selected {
+.directory-tabs button.selected, .team-calendar-tabs a.selected {
   border-color: #b58aff;
   background: #221238;
   color: #e0cfff;
@@ -1249,11 +1249,21 @@ main .text-gray-500 {
 }
 .team-hero {
   border-bottom: 1px solid #313d52;
-  padding: 24px 0;
+  padding: 16px 0;
 }
 .team-hero .page-title {
   margin: 8px 0;
 }
+.team-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.team-identity > div { min-width: 0; overflow-wrap: anywhere; }
+.team-section-tabs { display: flex; }
+.team-section-tabs button { flex: 1; min-width: 0; padding: 10px 6px; font-size: 13px; }
+.team-primary-actions { display: grid; grid-template-columns: 1fr 1fr; }
+.team-primary-actions > * { text-align: center; padding: 10px 8px; font-size: 13px; }
 .section-title {
   font-size: 19px;
   font-weight: 750;

@@ -11,6 +11,14 @@ export function navigationFor(path: string): LocationInfo {
   const community = path.match(/^\/communities\/([^/]+)(?:\/|$)/)?.[1];
   if (path === "/")
     return { section: "home", label: "Главная", page: "Главная" };
+  const teamSchedule = path.match(/^\/teams\/([^/]+)\/games\/create$/);
+  if (teamSchedule)
+    return {
+      section: "create",
+      label: "Организация",
+      page: "Запланировать игру",
+      parent: parent(`/teams/${teamSchedule[1]}?tab=games`, "К играм команды"),
+    };
   if (path === "/create" || path.endsWith("/create"))
     return {
       section: "create",

@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test:db": "node tests/database.test.mjs",
     "test:alpha": "node tests/alpha.test.mjs",
-    "test": "npm run test:db && npm run test:alpha && npm run test:nav && node tests/relationship.test.mjs && npm run test:mobile && node tests/mobile-legacy.test.mjs && npm run test:i18n && npm run test:network && npm run test:release027 && npm run test:reliability && npm run test:trusted && npm run test:leader && node tests/game-preparation.test.mjs",
+    "test": "npm run test:db && npm run test:alpha && npm run test:nav && node tests/relationship.test.mjs && npm run test:mobile && node tests/mobile-legacy.test.mjs && npm run test:i18n && npm run test:network && npm run test:release027 && npm run test:reliability && npm run test:trusted && npm run test:leader && node tests/game-preparation.test.mjs && node tests/team-calendar.test.mjs",
     "test:nav": "node tests/navigation.test.mjs",
     "test:mobile": "node tests/mobile.test.mjs",
     "test:registration:browser": "node tests/registration.browser.test.mjs",

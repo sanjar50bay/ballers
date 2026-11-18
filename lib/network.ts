@@ -92,7 +92,13 @@ export function networkError(e: unknown) {
       : String(e);
   if (/PGRST202|could not find|does not exist|schema cache/i.test(msg))
     return t(
-      "Проверь, что установлены миграции 005 и 006, затем обнови страницу. Старые профили и игры сохранены.",
+      "Этот раздел пока недоступен. Обнови страницу или попробуй позже.",
+    );
+  if (/INVALID_SCHEDULE_DETAILS/.test(msg))
+    return t("Выбери сегодняшнюю или будущую дату, время и место игры.");
+  if (/SCHEDULE_OPERATION_REUSE/.test(msg))
+    return t(
+      "Этот запрос уже использован. Вернись к играм команды и проверь созданную игру.",
     );
   if (/BOARD_CHANGED/.test(msg))
     return t(

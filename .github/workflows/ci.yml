@@ -33,7 +33,7 @@ jobs:
       - run: npm run build
       - name: Install browser for game-control scenarios
         run: npx playwright install --with-deps chromium
-      - name: Verify leader handoff and competing starts
+      - name: Verify game controls and team scheduling
         shell: bash
         run: |
           npm run start -- --hostname 127.0.0.1 --port 3014 > "$RUNNER_TEMP/ballers-server.log" 2>&1 &
@@ -44,3 +44,4 @@ jobs:
             sleep 1
           done
           TEST_BASE_URL=http://127.0.0.1:3014 npm run test:leader:browser
+          TEST_BASE_URL=http://127.0.0.1:3014 npm run test:network:browser
