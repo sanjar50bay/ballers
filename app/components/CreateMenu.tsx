@@ -115,16 +115,6 @@ export default function CreateMenu() {
                   </small>
                 </Link>
               ))}
-              {["Организовать турнир", "У меня есть арена"].map((label) => (
-                <div
-                  className="network-card flex justify-between gap-3"
-                  key={label}
-                  aria-disabled="true"
-                >
-                  <span>{t(label)}</span>
-                  <span className="soon-badge">{t("Скоро")}</span>
-                </div>
-              ))}
             </div>
           </div>
         </div>

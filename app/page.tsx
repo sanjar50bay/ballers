@@ -10,8 +10,6 @@ import LandingPage from "./components/LandingPage";
 import WelcomeCard from "./components/WelcomeCard";
 import { useApp } from "./components/AppState";
 import { GuideInvite } from "./components/Coach";
-import AppHeader from "./components/AppHeader";
-import BottomNav from "./components/BottomNav";
 import Avatar from "./components/Avatar";
 import GameCard, { attendanceLabel } from "./components/GameCard";
 import PlayerStats from "./components/PlayerStats";
@@ -49,7 +47,6 @@ export default function Home() {
   if (!data?.profile)
     return (
       <main className="ballers-shell">
-        <AppHeader />
         <p className="error-panel">
           {error ? uiError(error) : tx("Открываем профиль…")}
         </p>
@@ -69,7 +66,6 @@ export default function Home() {
   )[0];
   return (
     <main className="ballers-shell">
-      <AppHeader />
       <Link href="/profile" className="profile-strip" data-coach="profile">
         <Avatar src={profile.avatar_url} name={name} />
         <div>
@@ -170,7 +166,6 @@ export default function Home() {
       <GuideInvite />
       <FootballWelcome />
       <WelcomeCard profile={profile} stats={data.stats} />
-      <BottomNav />
     </main>
   );
 }

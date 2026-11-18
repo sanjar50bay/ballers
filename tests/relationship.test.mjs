@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 const source = fs.readFileSync(
   new URL(
-    "../app/communities/[id]/game-days/[gameId]/page.tsx",
+    "../app/components/GameParticipants.tsx",
     import.meta.url,
   ),
   "utf8",

@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "./AppState";
-import AppHeader from "./AppHeader";
-import BottomNav from "./BottomNav";
 import Avatar from "./Avatar";
 import Icon from "./Icon";
 import { useLocale } from "./Language";
@@ -33,7 +31,6 @@ export function NetworkShell({ children }: { children: React.ReactNode }) {
   if (!session)
     return (
       <main className="ballers-shell">
-        <AppHeader />
         <h1 className="page-title">{t("Твой футбол начинается здесь")}</h1>
         <p className="ballers-muted">
           {t(
@@ -52,7 +49,6 @@ export function NetworkShell({ children }: { children: React.ReactNode }) {
   if (!data?.profile)
     return (
       <main className="ballers-shell">
-        <AppHeader />
         <p className="error-panel">
           {error
             ? t("Не удалось загрузить профиль. Повтори проверку.")
@@ -75,9 +71,7 @@ export function NetworkShell({ children }: { children: React.ReactNode }) {
     );
   return (
     <main className="ballers-shell">
-      <AppHeader />
       {children}
-      <BottomNav />
     </main>
   );
 }

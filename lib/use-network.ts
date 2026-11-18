@@ -49,8 +49,17 @@ export function useNetworkResource<T>(
   }, [reload]);
   useEffect(() => {
     const cb = () => void reload();
+    const onReturn = () => {
+      if (document.visibilityState === "visible") void reload();
+    };
     window.addEventListener("ballers:network-changed", cb);
-    return () => window.removeEventListener("ballers:network-changed", cb);
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      window.removeEventListener("ballers:network-changed", cb);
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
   }, [reload]);
   return {
     data: enabled && result.key === identity ? result.value : null,

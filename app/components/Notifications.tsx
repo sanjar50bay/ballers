@@ -12,7 +12,6 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useNetworkResource } from "@/lib/use-network";
 import type { NetworkData } from "@/lib/network";
@@ -58,8 +57,7 @@ export default function Notifications({
 }) {
   useLocale();
 
-  const { session } = useApp(),
-    path = usePathname();
+  const { session } = useApp();
   const [feed, setFeed] = useState<Feed>({
       unread: 0,
       active: [],
@@ -196,29 +194,6 @@ export default function Notifications({
   const items = tab === "active" ? feed.active : feed.history;
   return (
     <BellContext.Provider value={{ count: feed.unread + networkCount, show }}>
-      {session &&
-        path !== "/onboarding" &&
-        !path.startsWith("/teams/") &&
-        !path.startsWith("/discover/") &&
-        !path.startsWith("/join/") &&
-        ![
-          "/",
-          "/my-game",
-          "/profile",
-          "/communities",
-          "/communities/create",
-          "/create",
-          "/discover",
-          "/profile/football",
-          "/teams/create",
-        ].includes(path) && (
-          <div className="legacy-toolbar">
-            <Link href="/" className="ballers-wordmark">
-              BALLERS<span>.</span>
-            </Link>
-            <BellButton />
-          </div>
-        )}
       {children}
       {open && session && (
         <div

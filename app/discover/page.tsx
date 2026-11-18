@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useApp } from "../components/AppState";
 import { useLocale } from "../components/Language";
 import Icon from "../components/Icon";
+import SearchCategories from "../components/SearchCategories";
 import {
   CitySelect,
   NetworkShell,
@@ -87,14 +88,6 @@ function Discover() {
     }, 0);
     return () => clearTimeout(tm);
   }, [params]);
-  const choose = (s: string) => {
-    setKind(s);
-    setOffset(0);
-    setQuery("");
-    setDebounced("");
-    setFree(false);
-    window.history.replaceState(null, "", `/discover?kind=${s}`);
-  };
   async function answer(item: InboxItem, accept: boolean) {
     if (lock.current) return;
     lock.current = true;
@@ -132,36 +125,17 @@ function Discover() {
           + {t("Команда")}
         </Link>
       </div>
-      <p className="ballers-muted mb-5" data-coach="catalog-intro">
-        {t(
-          "Общий каталог: игроки, постоянные команды и сообщества всех организаторов.",
-        )}
-      </p>
-      <div
-        data-coach="directory"
-        className="directory-tabs"
-        role="group"
-        aria-label={t("Категории поиска")}
-      >
-        {[
-          ["players", "Игроки"],
-          ["teams", "Команды"],
-          ["communities", "Сообщества"],
-          ["inbox", "Запросы"],
-        ].map(([key, label]) => (
-          <button
-            key={key}
-            aria-pressed={kind === key}
-            className={kind === key ? "selected" : ""}
-            onClick={() => choose(key)}
-          >
-            {t(label)}
-            {key === "inbox" && net.data?.inbox.length
-              ? " · " + net.data.inbox.length
-              : ""}
-          </button>
-        ))}
+      <div data-coach="directory">
+        <SearchCategories active={kind} />
       </div>
+      <Link
+        className="text-link mb-4"
+        href="/discover?kind=inbox"
+        aria-current={kind === "inbox" ? "page" : undefined}
+      >
+        {t("Запросы и приглашения")}
+        {net.data?.inbox.length ? " · " + net.data.inbox.length : ""} →
+      </Link>
       {kind === "communities" && (
         <Link className="text-link mb-4" href="/communities">
           {t("Мои сообщества →")}
@@ -223,9 +197,6 @@ function Discover() {
               {t("Только ищущие команду")}
             </label>
           )}
-          <p className="ballers-muted my-3">
-            {t("Находи игроков, команды и сообщества в своём городе.")}
-          </p>
           {data && (
             <p role="status" className="ballers-muted my-3">
               {t("Найдено: {count}", {
@@ -382,9 +353,6 @@ function Discover() {
           ))}
         </>
       )}
-      <Link className="text-link mt-6" href="/open-games">
-        {t("Найти открытую игру →")}
-      </Link>
     </NetworkShell>
   );
 }

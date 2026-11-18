@@ -7,6 +7,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "./AppState";
 import Icon from "./Icon";
+import { navigationFor } from "@/lib/navigation";
 export default function BottomNav() {
   useLocale();
 
@@ -25,21 +26,27 @@ export default function BottomNav() {
     <nav aria-label={tx("Основная навигация")} className="ballers-nav">
       <div>
         {[
-          { href: "/", label: tx("Главная"), icon: "home" },
-          { href: "/my-game", label: tx("Игра"), icon: "ball" },
-          { href: "/discover", label: tx("Найти"), icon: "search" },
-          { href: "/profile", label: tx("Профиль"), icon: "profile" },
+          { href: "/", section: "home", label: tx("Главная"), icon: "home" },
+          {
+            href: "/my-game",
+            section: "games",
+            label: tx("Мои игры"),
+            icon: "ball",
+          },
+          {
+            href: "/open-games",
+            section: "find",
+            label: tx("Найти"),
+            icon: "search",
+          },
+          {
+            href: "/profile",
+            section: "profile",
+            label: tx("Профиль"),
+            icon: "profile",
+          },
         ].map((x) => {
-          const active =
-            x.href === "/"
-              ? path === "/"
-              : path.startsWith(x.href) ||
-                (x.href === "/profile" && path === "/career") ||
-                (x.href === "/discover" &&
-                  (path.startsWith("/teams") ||
-                    path.startsWith("/communities") ||
-                    path === "/open-games" ||
-                    path.startsWith("/players")));
+          const active = navigationFor(path).section === x.section;
           return (
             <Link
               key={x.href}

@@ -1,3 +1,4 @@
+import { artifactPath } from "./artifact-path.mjs";
 // Real isolated PostgreSQL/RLS + production browser. OAuth/HTTP transport simulated.
 import { PGlite } from "@electric-sql/pglite";
 import fs from "node:fs";
@@ -51,7 +52,48 @@ for (const [id, name] of [
   );
 }
 const rpc = {
-  ballers_tactics: {p_team:"uuid",p_layout:"jsonb",p_version:"bigint"},
+  ballers_community_workspace: { p_community: "uuid" },
+  ballers_schedule_community_game: {
+    p_community: "uuid",
+    p_operation: "uuid",
+    p_source: "uuid",
+    p_date: "date",
+    p_time: "time",
+    p_venue: "text",
+    p_format: "integer",
+    p_team_count: "integer",
+    p_capacity: "integer",
+  },
+  ballers_community_action: {
+    p_community: "uuid",
+    p_action: "text",
+    p_payload: "jsonb",
+  },
+  ballers_team_calendar: { p_team: "uuid" },
+  ballers_schedule_team_game: {
+    p_team: "uuid",
+    p_operation: "uuid",
+    p_community: "uuid",
+    p_date: "date",
+    p_time: "time",
+    p_venue: "text",
+  },
+  ballers_create_community: {
+    p_name: "text",
+    p_city: "text",
+    p_team_mode: "public.team_mode",
+    p_format: "int",
+    p_team_count: "int",
+    p_capacity: "int",
+  },
+  ballers_alpha_snapshot: { p_game: "uuid" },
+  ballers_day_requests_feed: { p_game: "uuid" },
+  ballers_set_attendance: {
+    p_game_id: "uuid",
+    p_player_id: "uuid",
+    p_status: "public.attendance_status",
+  },
+  ballers_tactics: { p_team: "uuid", p_layout: "jsonb", p_version: "bigint" },
   ballers_home: {},
   ballers_notification_feed: {},
   ballers_network: {},
@@ -105,7 +147,14 @@ function pass(s) {
   console.log("PASS " + s);
   passed++;
 }
-async function context(n, locale = "ru", width = 390) {
+async function context(
+  n,
+  locale = "ru",
+  width = 390,
+  { loseSchedule = false, loseCommunitySchedule = false } = {},
+) {
+  let lostSchedule = false;
+  let lostCommunitySchedule = false;
   const ctx = await browser.newContext({ viewport: { width, height: 844 } });
   contexts.push(ctx);
   const user = {
@@ -194,6 +243,22 @@ async function context(n, locale = "ru", width = 390) {
         }
         throw new Error("Unhandled " + url.pathname);
       });
+      if (
+        loseSchedule &&
+        !lostSchedule &&
+        url.pathname.endsWith("/rpc/ballers_schedule_team_game")
+      ) {
+        lostSchedule = true;
+        return route.abort("failed");
+      }
+      if (
+        loseCommunitySchedule &&
+        !lostCommunitySchedule &&
+        url.pathname.endsWith("/rpc/ballers_schedule_community_game")
+      ) {
+        lostCommunitySchedule = true;
+        return route.abort("failed");
+      }
       return route.fulfill({ status: 200, headers, json: result });
     } catch (e) {
       console.log("TRANSPORT ERROR", e.message);
@@ -206,13 +271,16 @@ async function context(n, locale = "ru", width = 390) {
   });
   const page = await ctx.newPage();
   page.setDefaultTimeout(15000);
-  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("pageerror", (e) => {
+    errors.push(e.message);
+    console.log("PAGE ERROR", new URL(page.url()).pathname, e.message);
+  });
   page.on("dialog", (d) => d.accept());
   return { ctx, page };
 }
 async function screenshot(page, name) {
   await page.screenshot({
-    path: new URL("../docs/" + name, import.meta.url).pathname,
+    path: artifactPath(new URL("../docs/" + name, import.meta.url)),
   });
   assert.ok(
     await page.evaluate(
@@ -227,7 +295,9 @@ try {
   await captain.getByRole("heading", { name: "Найти", exact: true }).waitFor();
   await captain.getByText("Dana", { exact: true }).waitFor();
   await captain.getByText("Arsen", { exact: true }).waitFor();
-  await captain.getByLabel("Город игры", { exact: true }).selectOption("Astana");
+  await captain
+    .getByLabel("Город игры", { exact: true })
+    .selectOption("Astana");
   await captain.waitForTimeout(600);
   assert.equal(await captain.getByText("Arsen", { exact: true }).count(), 0);
   await captain.getByLabel("Город игры", { exact: true }).selectOption("");
@@ -251,7 +321,7 @@ try {
   await captain.getByRole("heading", { name: "Bars", exact: true }).waitFor();
   pass("double create creates one persistent team and captain");
   await captain
-    .getByRole("button", { name: "Пригласить", exact: true })
+    .getByRole("button", { name: "Пригласить игроков", exact: true })
     .click();
   await captain.getByLabel("Имя, ник или Baller ID").fill("Dana");
   await captain.getByRole("button", { name: "Выбрать", exact: true }).click();
@@ -296,7 +366,7 @@ try {
   );
   await captain.goto(base + "/teams/" + teamId);
   await captain
-    .getByRole("button", { name: "Сообщества", exact: true })
+    .getByRole("button", { name: "Управление", exact: true })
     .click();
   for (const name of ["Saturday", "Wednesday"]) {
     await captain.getByLabel("Найти сообщество", { exact: true }).fill(name);
@@ -342,6 +412,490 @@ try {
   await captain.setViewportSize({ width: 320, height: 740 });
   await screenshot(captain, "network-team-320.png");
   pass("team roster layouts fit 320px, mobile and desktop");
+  const { page: planner } = await context(1, "ru", 390, {
+    loseSchedule: true,
+    loseCommunitySchedule: true,
+  });
+  await planner.goto(base + "/teams/" + teamId + "?tab=games");
+  await planner
+    .getByRole("heading", { name: "Ближайшие игры команды", exact: true })
+    .waitFor();
+  await planner
+    .getByRole("link", { name: "Запланировать игру", exact: true })
+    .last()
+    .click();
+  await planner
+    .getByRole("heading", {
+      name: "Где собирается ваша компания?",
+      exact: true,
+    })
+    .waitFor();
+  await planner
+    .getByRole("link", { name: "Создать своё сообщество", exact: true })
+    .click();
+  await planner
+    .getByLabel("Название сообщества", { exact: true })
+    .fill("Team Friday");
+  await planner
+    .getByRole("button", { name: "Создать сообщество", exact: true })
+    .click();
+  await planner.waitForURL("**/teams/" + teamId + "/games/create");
+  await planner.getByLabel("Место", { exact: true }).waitFor();
+  pass(
+    "team planning creates a missing managed community and returns to the same team",
+  );
+  await planner.getByLabel("Дата", { exact: true }).fill("2099-01-08");
+  await planner.getByLabel("Время начала", { exact: true }).fill("20:00");
+  await planner
+    .getByLabel("Место", { exact: true })
+    .fill("Тестовая площадка без бронирования");
+  await screenshot(planner, "team-schedule-form-390.png");
+  await planner
+    .getByRole("button", {
+      name: "Создать игру и пригласить состав",
+      exact: true,
+    })
+    .click();
+  await planner
+    .getByRole("button", { name: "Проверить создание", exact: true })
+    .waitFor();
+  await planner.reload();
+  await planner
+    .getByRole("button", { name: "Проверить создание", exact: true })
+    .waitFor();
+  assert.equal(
+    await planner.getByLabel("Место", { exact: true }).inputValue(),
+    "Тестовая площадка без бронирования",
+  );
+  assert.equal(
+    await planner.getByLabel("Место", { exact: true }).isEnabled(),
+    false,
+  );
+  await planner
+    .getByRole("button", { name: "Проверить создание", exact: true })
+    .click();
+  await planner.waitForURL("**/play?tab=overview");
+  const dayId = new URL(planner.url()).pathname.split("/")[2];
+  await planner
+    .getByRole("heading", { name: "Team Friday #1", exact: true })
+    .waitFor();
+  const created = await serial(async () => {
+    await db.exec("RESET ROLE");
+    return (
+      await db.query(
+        "SELECT (SELECT count(*)::int FROM ballers_team_games WHERE team_id=$1) days,(SELECT count(*)::int FROM game_participants WHERE game_day_id=$2) invited,(SELECT count(*)::int FROM game_participants WHERE game_day_id=$2 AND attendance_status='GOING') going",
+        [teamId, dayId],
+      )
+    ).rows[0];
+  });
+  assert.deepEqual(created, { days: 1, invited: 3, going: 0 });
+  assert.equal(
+    await planner.evaluate(
+      () =>
+        Object.keys(localStorage).filter((k) =>
+          k.startsWith("ballers:team-schedule:"),
+        ).length,
+    ),
+    0,
+  );
+  pass(
+    "lost schedule response survives reload and retry creates one game with one invitation per active member",
+  );
+  await arsen.goto(base + "/teams/" + teamId + "?tab=games");
+  await arsen
+    .getByRole("link", { name: "Ответить на приглашение", exact: true })
+    .click();
+  await arsen
+    .getByRole("heading", { name: "Будешь играть?", exact: true })
+    .waitFor();
+  await arsen.getByRole("button", { name: "✓ Иду", exact: true }).click();
+  await planner.goto(base + "/teams/" + teamId + "?tab=games");
+  await planner
+    .getByText("Из команды подтвердились: 1", { exact: false })
+    .waitFor();
+  await screenshot(planner, "team-calendar-390.png");
+  await planner.reload();
+  await planner
+    .getByRole("heading", { name: "Ближайшие игры команды", exact: true })
+    .waitFor();
+  pass(
+    "team member follows a real invitation and the calendar shows their confirmed participation",
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query("UPDATE game_days SET status='COMPLETED' WHERE id=$1", [
+      dayId,
+    ]);
+  });
+  await planner.reload();
+  await planner.getByRole("link", { name: "История", exact: true }).click();
+  await planner
+    .getByRole("heading", { name: "История игр команды", exact: true })
+    .waitFor();
+  await planner
+    .getByRole("heading", { name: "Team Friday #1", exact: true })
+    .waitFor();
+  await planner.reload();
+  assert.equal(new URL(planner.url()).searchParams.get("view"), "history");
+  pass(
+    "team calendar history survives reload and separates completed games from upcoming",
+  );
+  await planner.setViewportSize({ width: 320, height: 740 });
+  await planner
+    .getByLabel("Язык интерфейса", { exact: true })
+    .selectOption("kk");
+  await screenshot(planner, "team-calendar-kk-320.png");
+  pass("team calendar and schedule navigation fit Kazakh labels at 320px");
+  const communityId = await serial(async () => {
+    await db.exec("RESET ROLE");
+    return (
+      await db.query("SELECT community_id FROM game_days WHERE id=$1", [dayId])
+    ).rows[0].community_id;
+  });
+  await planner
+    .getByLabel("Интерфейс тілі", { exact: true })
+    .selectOption("ru");
+  await planner.goto(base + "/communities/" + communityId);
+  await planner
+    .getByRole("heading", { name: "Ближайшие игры сообщества", exact: true })
+    .waitFor();
+  assert.equal(
+    await planner
+      .getByRole("link", { name: "Создать игру", exact: true })
+      .count(),
+    1,
+  );
+  await planner.getByRole("link", { name: "История", exact: true }).click();
+  await planner
+    .getByRole("heading", { name: "Team Friday #1", exact: true })
+    .waitFor();
+  await planner.reload();
+  await planner
+    .getByRole("heading", { name: "История игр сообщества", exact: true })
+    .waitFor();
+  assert.equal(new URL(planner.url()).searchParams.get("view"), "history");
+  assert.equal(
+    await planner
+      .getByRole("link", { name: "К игре →", exact: true })
+      .getAttribute("href"),
+    "/games/" + dayId + "/play?tab=overview",
+  );
+  pass(
+    "community has one creation action and persistent history with canonical game links",
+  );
+  await planner.getByRole("button", { name: "Люди", exact: true }).click();
+  await planner
+    .getByRole("heading", { name: "Участники сообщества", exact: true })
+    .waitFor();
+  await planner
+    .getByRole("button", {
+      name: "Пригласить игроков в сообщество",
+      exact: true,
+    })
+    .click();
+  await planner
+    .getByRole("button", { name: "Создать ссылку приглашения", exact: true })
+    .click();
+  await planner.getByLabel("Ссылка", { exact: true }).waitFor();
+  await planner
+    .getByRole("button", { name: "Закрыть меню", exact: true })
+    .click();
+  pass(
+    "community people section opens the working consent-based invitation flow",
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query("UPDATE communities SET default_capacity=NULL WHERE id=$1", [
+      communityId,
+    ]);
+  });
+  await planner.reload();
+  await planner
+    .getByRole("button", { name: "Управление", exact: true })
+    .click();
+  await planner
+    .getByRole("button", { name: "Изменить настройки", exact: true })
+    .click();
+  assert.equal(
+    await planner
+      .getByRole("button", { name: "Создать ссылку приглашения", exact: true })
+      .count(),
+    0,
+  );
+  await planner
+    .getByLabel("Название", { exact: true })
+    .fill("Team Friday Updated");
+  await planner
+    .getByRole("button", { name: "Сохранить настройки", exact: true })
+    .click();
+  await planner
+    .getByRole("heading", { name: "Team Friday Updated", exact: true })
+    .waitFor();
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    assert.equal(
+      (await db.query("SELECT title FROM game_days WHERE id=$1", [dayId]))
+        .rows[0].title,
+      "Team Friday #1",
+    );
+    assert.equal(
+      (
+        await db.query("SELECT default_capacity FROM communities WHERE id=$1", [
+          communityId,
+        ])
+      ).rows[0].default_capacity,
+      null,
+    );
+  });
+  pass(
+    "community settings update real data without renaming existing games or duplicating invitations",
+  );
+  await arsen.goto(base + "/communities/" + communityId + "?tab=people");
+  await arsen
+    .getByText(
+      "Участники сообщества видят его игры и людей. Вступить можно по приглашению организатора.",
+      { exact: true },
+    )
+    .waitFor();
+  assert.equal(
+    await arsen
+      .getByRole("heading", { name: "Участники сообщества", exact: true })
+      .count(),
+    0,
+  );
+  assert.equal(
+    await arsen
+      .getByRole("link", { name: "Создать игру", exact: true })
+      .count(),
+    0,
+  );
+  pass(
+    "a game guest cannot open the private community roster or organizer controls",
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query(
+      "INSERT INTO community_members(community_id,player_id,role) VALUES($1,$2,'MEMBER')",
+      [communityId, pid(2)],
+    );
+  });
+  await player.getByLabel("Интерфейс тілі", { exact: true }).selectOption("ru");
+  await player.goto(base + "/communities/" + communityId + "?tab=settings");
+  await player
+    .getByRole("heading", { name: "Ближайшие игры сообщества", exact: true })
+    .waitFor();
+  assert.equal(
+    await player
+      .getByRole("button", { name: "Управление", exact: true })
+      .count(),
+    0,
+  );
+  await player.getByRole("button", { name: "Люди", exact: true }).click();
+  await player
+    .getByRole("heading", { name: "Участники сообщества", exact: true })
+    .waitFor();
+  assert.equal(
+    await player
+      .getByRole("button", {
+        name: "Пригласить игроков в сообщество",
+        exact: true,
+      })
+      .count(),
+    0,
+  );
+  await player
+    .getByLabel("Язык интерфейса", { exact: true })
+    .selectOption("kk");
+  await player.reload();
+  await player
+    .getByRole("heading", { name: "Қауымдастық мүшелері", exact: true })
+    .waitFor();
+  await player.setViewportSize({ width: 320, height: 740 });
+  await screenshot(player, "community-people-kk-320.png");
+  pass(
+    "regular community member gets a private role-appropriate view with persisted Kazakh tabs at 320px",
+  );
+  await planner.goto(base + "/communities/" + communityId + "/games");
+  await planner.waitForURL("**/communities/" + communityId + "?tab=games");
+  await planner.getByRole("link", { name: "История", exact: true }).click();
+  await planner
+    .getByRole("heading", { name: "Team Friday #1", exact: true })
+    .waitFor();
+  await planner.setViewportSize({ width: 390, height: 844 });
+  await screenshot(planner, "community-calendar-390.png");
+  pass(
+    "legacy community games bookmark opens the unified calendar and retains access to history",
+  );
+  await planner
+    .getByRole("link", { name: "На следующую неделю", exact: true })
+    .click();
+  await planner
+    .getByRole("heading", { name: "Игра на следующую неделю", exact: true })
+    .waitFor();
+  await planner.getByLabel("Дата", { exact: true }).waitFor();
+  assert.equal(
+    await planner.getByLabel("Дата", { exact: true }).inputValue(),
+    "2099-01-15",
+  );
+  assert.equal(
+    await planner.getByLabel("Время начала", { exact: true }).inputValue(),
+    "20:00",
+  );
+  assert.equal(
+    await planner.getByLabel("Место", { exact: true }).inputValue(),
+    "Тестовая площадка без бронирования",
+  );
+  await screenshot(planner, "community-next-week-form-390.png");
+  pass(
+    "next-week action prefills the source date plus seven days, time and venue without writing",
+  );
+  await planner
+    .getByRole("button", { name: "Создать игру", exact: true })
+    .click();
+  await planner
+    .getByRole("button", { name: "Проверить создание", exact: true })
+    .waitFor();
+  await planner.reload();
+  await planner
+    .getByRole("button", { name: "Проверить создание", exact: true })
+    .waitFor();
+  assert.equal(
+    await planner.getByLabel("Место", { exact: true }).isEnabled(),
+    false,
+  );
+  await planner
+    .getByRole("button", { name: "Проверить создание", exact: true })
+    .click();
+  await planner.waitForURL("**/play?tab=overview");
+  const nextId = new URL(planner.url()).pathname.split("/")[2];
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    const counts = (
+      await db.query(
+        "SELECT (SELECT count(*)::int FROM game_days WHERE community_id=$1) days,(SELECT count(*)::int FROM game_participants WHERE game_day_id=$2) players,(SELECT count(*)::int FROM ballers_community_game_operations WHERE community_id=$1) operations",
+        [communityId, nextId],
+      )
+    ).rows[0];
+    assert.deepEqual(counts, { days: 2, players: 0, operations: 1 });
+    assert.equal(
+      (await db.query("SELECT capacity FROM game_days WHERE id=$1", [nextId]))
+        .rows[0].capacity,
+      15,
+    );
+  });
+  pass(
+    "community next-week creation survives lost reply and reload with one empty day and one receipt",
+  );
+  await planner.goto(
+    base + "/communities/" + communityId + "/game-days/create?from=" + dayId,
+  );
+  await planner.getByLabel("Дата", { exact: true }).waitFor();
+  await planner
+    .getByRole("button", { name: "Создать игру", exact: true })
+    .click();
+  await planner
+    .getByRole("link", { name: "Открыть существующую игру", exact: true })
+    .waitFor();
+  assert.equal(
+    await planner
+      .getByRole("link", { name: "Открыть существующую игру", exact: true })
+      .getAttribute("href"),
+    "/games/" + nextId + "/play?tab=overview",
+  );
+  assert.equal(
+    await planner.getByLabel("Место", { exact: true }).isEnabled(),
+    true,
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    assert.equal(
+      (
+        await db.query(
+          "SELECT count(*)::int n FROM game_days WHERE community_id=$1",
+          [communityId],
+        )
+      ).rows[0].n,
+      2,
+    );
+  });
+  pass(
+    "fresh duplicate request shows the existing game and leaves the form editable",
+  );
+  await planner
+    .getByLabel("Язык интерфейса", { exact: true })
+    .selectOption("kk");
+  await planner.setViewportSize({ width: 320, height: 740 });
+  await screenshot(planner, "community-next-week-kk-320.png");
+  await arsen.goto(
+    base + "/communities/" + communityId + "/game-days/create?from=" + dayId,
+  );
+  await arsen
+    .getByText("Создавать игры может организатор сообщества.", { exact: true })
+    .waitFor();
+  assert.equal(
+    await arsen
+      .getByRole("button", { name: "Создать игру", exact: true })
+      .count(),
+    0,
+  );
+  pass(
+    "next-week form fits Kazakh at 320px and hides creation from a game guest",
+  );
+  await planner
+    .getByLabel("Интерфейс тілі", { exact: true })
+    .selectOption("ru");
+  await planner.goto(
+    base + "/communities/" + communityId + "/game-days/create",
+  );
+  await planner.getByLabel("Дата", { exact: true }).waitFor();
+  assert.equal(
+    await planner.getByLabel("Дата", { exact: true }).inputValue(),
+    "",
+  );
+  assert.equal(
+    await planner.getByLabel("Место", { exact: true }).inputValue(),
+    "",
+  );
+  await planner.getByLabel("Дата", { exact: true }).fill("2099-01-22");
+  await planner
+    .getByLabel("Место", { exact: true })
+    .fill("Новое тестовое поле");
+  await planner
+    .getByRole("button", { name: "Создать игру", exact: true })
+    .click();
+  await planner.waitForURL("**/play?tab=overview");
+  const plainId = new URL(planner.url()).pathname.split("/")[2];
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    assert.equal(
+      (await db.query("SELECT capacity FROM game_days WHERE id=$1", [plainId]))
+        .rows[0].capacity,
+      null,
+    );
+  });
+  pass(
+    "ordinary creation starts empty and preserves the community's unlimited capacity",
+  );
+  await planner.getByRole("button", { name: "✓ Иду", exact: true }).click();
+  await planner
+    .locator('button[aria-pressed="true"]')
+    .filter({ hasText: "✓ Иду" })
+    .waitFor();
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    assert.equal(
+      (
+        await db.query(
+          "SELECT attendance_status FROM game_participants WHERE game_day_id=$1 AND player_id=$2",
+          [plainId, pid(1)],
+        )
+      ).rows[0].attendance_status,
+      "GOING",
+    );
+  });
+  pass(
+    "a community member can personally join a newly created empty day without a pre-created invitation",
+  );
   await player.goto(base + "/discover");
   await player.getByLabel("Интерфейс тілі").selectOption("ru");
   await player.getByRole("heading", { name: "Найти", exact: true }).waitFor();
@@ -358,9 +912,7 @@ try {
   await anon
     .getByText("Твой футбол начинается здесь", { exact: true })
     .waitFor();
-  await anon
-    .getByRole("link", { name: "Войти", exact: true })
-    .click();
+  await anon.getByRole("link", { name: "Войти", exact: true }).click();
   await anon.waitForURL(base + "/");
   assert.equal(
     await anon.evaluate(() => localStorage.getItem("ballers:network-return")),

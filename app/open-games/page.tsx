@@ -11,6 +11,7 @@ import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import SearchCategories from "@/app/components/SearchCategories";
 type Game = {
   join_mode?: string;
   id: string;
@@ -33,6 +34,7 @@ export default function OpenGames() {
   const [city, setCity] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const joinLock = useRef(false);
   const router = useRouter();
   useEffect(() => {
     if (home?.profile && !initialCity.current) {
@@ -69,16 +71,12 @@ export default function OpenGames() {
       !city || cityKey(g.city).toLowerCase() === cityKey(city).toLowerCase(),
   );
   return (
-    <main className="min-h-screen bg-[#050710] text-white p-4">
-      <div className="max-w-xl mx-auto py-6">
-        <Link href="/" className="text-violet-300">
-          {tx("← На главную")}
-        </Link>
-        <h1 className="text-3xl font-black my-5">{tx("Открытые игры")}</h1>
+    <main className="ballers-shell">
+      <div>
+        <h1 className="page-title">{tx("Открытые игры")}</h1>
+        <SearchCategories active="games" />
         <p className="text-gray-400 text-sm mb-5">
-          {tx(
-            "Здесь игры, которым нужны дополнительные игроки. Выбери игру и подай заявку — постоянная команда не нужна.",
-          )}
+          {tx("Выбери игру и подай заявку. Команда не нужна.")}
         </p>
         <div data-coach="game-city">
           <CitySelect value={city} onChange={setCity} all id="games-city" />
@@ -90,7 +88,7 @@ export default function OpenGames() {
         )}
         {!session && !authLoading && (
           <Link className="neon-button" href="/">
-            {tx("Войти через Google")}
+            {tx("Войти")}
           </Link>
         )}
         {(loading || authLoading) && <p role="status">{tx("Загружаем…")}</p>}
@@ -116,13 +114,22 @@ export default function OpenGames() {
                 onClick={() => {
                   void (async () => {
                     setBusy(true);
-                    const { error } = await supabase.rpc(
-                      "ballers_join_open_game",
-                      { p_game: g.id },
-                    );
-                    if (error) setError(error.message);
-                    else router.push(`/games/${g.id}/play`);
-                    setBusy(false);
+                    if (joinLock.current) return;
+                    joinLock.current = true;
+                    setError("");
+                    try {
+                      const { error } = await supabase.rpc(
+                        "ballers_join_open_game",
+                        { p_game: g.id },
+                      );
+                      if (error) setError(error.message);
+                      else router.push(`/games/${g.id}/play`);
+                    } catch {
+                      setError("NETWORK_ERROR");
+                    } finally {
+                      joinLock.current = false;
+                      setBusy(false);
+                    }
                   })();
                 }}
               >

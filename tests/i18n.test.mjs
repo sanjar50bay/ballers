@@ -53,6 +53,15 @@ assert.match(
   /Барамын/,
 );
 assert.ok(!exports.uiError("duplicate key SQL secret").includes("SQL"));
+assert.match(
+  exports.uiError(
+    "Составы нельзя менять во время матча. Сначала завершите матч.",
+  ),
+  /Матч|матч/,
+);
+assert.ok(
+  !exports.uiError("Назначьте капитанов обеих команд").includes("соединение"),
+);
 assert.equal(
   exports.t("Арсен / Wednesday Football"),
   "Арсен / Wednesday Football",
@@ -74,10 +83,14 @@ let checked = 0;
 for (const file of walk(new URL("../app/", import.meta.url))) {
   if (!file.pathname.endsWith("/page.tsx")) continue;
   const s = fs.readFileSync(file, "utf8");
-  assert.ok(s.includes("useLocale()"), file.pathname);
+  assert.ok(
+    s.includes("useLocale()") ||
+      (!s.includes('"use client"') && s.includes("redirect(")),
+    file.pathname,
+  );
   checked++;
 }
-assert.equal(checked, 22);
+assert.equal(checked, 23);
 console.log(
-  `PASS localization: ${Object.keys(catalog).length} complete RU/KK entries, status/date/errors/templates, user content preserved, ${checked} page files subscribed`,
+  `PASS localization: ${Object.keys(catalog).length} complete RU/KK entries, status/date/errors/templates, user content preserved, ${checked} page files subscribed or redirect without UI`,
 );

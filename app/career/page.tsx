@@ -6,7 +6,6 @@ import { useLocale } from "@/app/components/Language";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import BottomNav from "@/app/components/BottomNav";
 import PlayerStats from "@/app/components/PlayerStats";
 type M = {
   id: string;
@@ -35,7 +34,7 @@ export default function CareerPage() {
       } = await supabase.auth.getUser();
       if (!user) {
         if (active) {
-          setError(tx("Сначала войди через Google на главной странице."));
+          setError(tx("Сначала войди на главной странице."));
           setLoading(false);
         }
         return;
@@ -121,7 +120,6 @@ export default function CareerPage() {
           </>
         )}
       </div>
-      <BottomNav />
     </main>
   );
 }

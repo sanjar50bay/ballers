@@ -1,3 +1,4 @@
+import { artifactPath } from "./artifact-path.mjs";
 import { PGlite } from "@electric-sql/pglite";
 import assert from "node:assert/strict";
 import { init, uid, day, actor, start } from "./trusted-fixture.mjs";
@@ -185,7 +186,7 @@ async function context(n, locale = "ru", width = 390) {
 }
 
 async function shot(page, name) {
-  await page.screenshot({ path: "docs/" + name });
+  await page.screenshot({ path: artifactPath("docs/" + name) });
   assert.ok(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

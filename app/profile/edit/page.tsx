@@ -10,6 +10,8 @@ import {
 import { useLocale } from "@/app/components/Language";
 
 import { CitySelect } from "@/app/components/Network";
+import Link from "next/link";
+import { useApp } from "@/app/components/AppState";
 import { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
@@ -34,6 +36,7 @@ export default function EditProfilePage() {
   useLocale();
 
   const router = useRouter();
+  const { refresh } = useApp();
 
   const [profile, setProfile] = useState<Profile | null>(null);
 
@@ -111,7 +114,8 @@ export default function EditProfilePage() {
       return;
     }
 
-    router.push("/");
+    await refresh();
+    router.push("/profile");
   };
 
   if (loading) {
@@ -133,12 +137,12 @@ export default function EditProfilePage() {
   return (
     <main className="min-h-screen bg-black text-white px-6 py-8">
       <div className="max-w-md mx-auto">
-        <button
-          onClick={() => router.back()}
+        <Link
+          href="/profile"
           className="text-gray-400 mb-6 cursor-pointer hover:text-white"
         >
-          {tx("← Back")}
-        </button>
+          {tx("← Профиль")}
+        </Link>
 
         <h1 className="text-3xl font-bold mb-2">{tx("Edit Profile")}</h1>
 
@@ -160,12 +164,9 @@ export default function EditProfilePage() {
             )}
           </div>
 
-          <button
-            onClick={() => alert(tx("Photo upload comes next"))}
-            className="mt-3 text-sm text-blue-400 cursor-pointer"
-          >
-            {tx("Change photo")}
-          </button>
+          <p className="mt-3 text-sm text-gray-400">
+            {tx("Загрузка своего фото пока недоступна.")}
+          </p>
         </section>
 
         <div className="space-y-5">
@@ -187,11 +188,15 @@ export default function EditProfilePage() {
 
           {/* DISPLAY NAME */}
           <div>
-            <label className="text-sm text-gray-500 block mb-2">
+            <label
+              htmlFor="edit-display-name"
+              className="text-sm text-gray-500 block mb-2"
+            >
               {tx("Display name")}
             </label>
 
             <input
+              id="edit-display-name"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
@@ -201,11 +206,15 @@ export default function EditProfilePage() {
           <CitySelect value={city} onChange={setCity} id="edit-city" />
 
           <div>
-            <label className="text-sm text-gray-500 block mb-2">
+            <label
+              htmlFor="edit-primary-position"
+              className="text-sm text-gray-500 block mb-2"
+            >
               {tx("Primary position")}
             </label>
 
             <select
+              id="edit-primary-position"
               value={primaryPosition}
               onChange={(e) => setPrimaryPosition(e.target.value)}
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
@@ -218,11 +227,15 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-500 block mb-2">
+            <label
+              htmlFor="edit-secondary-position"
+              className="text-sm text-gray-500 block mb-2"
+            >
               {tx("Secondary position")}
             </label>
 
             <select
+              id="edit-secondary-position"
               value={secondaryPosition}
               onChange={(e) => setSecondaryPosition(e.target.value)}
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
@@ -236,11 +249,15 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-500 block mb-2">
+            <label
+              htmlFor="edit-dominant-foot"
+              className="text-sm text-gray-500 block mb-2"
+            >
               {tx("Dominant foot")}
             </label>
 
             <select
+              id="edit-dominant-foot"
               value={dominantFoot}
               onChange={(e) => setDominantFoot(e.target.value)}
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
@@ -252,11 +269,15 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-500 block mb-2">
+            <label
+              htmlFor="edit-language"
+              className="text-sm text-gray-500 block mb-2"
+            >
               {tx("Language")}
             </label>
 
             <select
+              id="edit-language"
               value={language}
               onChange={(e) => setLocale(e.target.value as Locale)}
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"

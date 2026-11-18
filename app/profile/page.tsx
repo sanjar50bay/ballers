@@ -8,8 +8,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useApp } from "../components/AppState";
-import AppHeader from "../components/AppHeader";
-import BottomNav from "../components/BottomNav";
 import PlayerStats from "../components/PlayerStats";
 import { PlayerCard } from "../components/WelcomeCard";
 import Avatar from "../components/Avatar";
@@ -35,7 +33,6 @@ export default function ProfilePage() {
   const p = data?.profile;
   return (
     <main className="ballers-shell">
-      <AppHeader />
       <h1 className="page-title">{tx("Твой Baller ID")}</h1>
       <p className="ballers-muted mb-6">{tx("Карьера и настройки")}</p>
       {loading ? (
@@ -113,7 +110,6 @@ export default function ProfilePage() {
           </Link>
         </div>
       )}
-      <BottomNav />
     </main>
   );
 }

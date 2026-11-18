@@ -66,7 +66,7 @@ export default function GameCard({
         {compact ? (
           <span className="status-chip">{attendanceLabel(game)}</span>
         ) : (
-          <Link href={`/my-game?game=${game.id}`} className="neon-button">
+          <Link href={`/games/${game.id}/play`} className="neon-button">
             {tx("К игре →")}
           </Link>
         )}

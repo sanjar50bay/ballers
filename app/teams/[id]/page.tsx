@@ -1,7 +1,12 @@
 "use client";
 import { useTeamAction } from "@/lib/use-network";
-import { useParams } from "next/navigation";
-import { useRef, useState } from "react";
+import {
+  useParams,
+  useRouter,
+  usePathname,
+  useSearchParams,
+} from "next/navigation";
+import { Suspense, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useApp } from "@/app/components/AppState";
 import { useLocale } from "@/app/components/Language";
@@ -12,7 +17,8 @@ import {
   useNetworkResource,
 } from "@/app/components/Network";
 import TacticalBoard from "@/app/components/TacticalBoard";
-import Icon from "@/app/components/Icon";
+import TeamGames from "@/app/components/TeamGames";
+import type { TeamCalendar } from "@/lib/team-calendar";
 import { t } from "@/lib/i18n";
 import {
   networkCount,
@@ -32,19 +38,49 @@ type Detail = {
   communities: { id: string; name: string; city: string; status: string }[];
 };
 type Results<T> = { items: T[]; has_more: boolean };
+const subscribeHydration = () => () => {};
 export default function Page() {
+  const params = useParams();
+  // Resolve the saved language before mounting the query-dependent private workspace.
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    () => true,
+    () => false,
+  );
+  if (!hydrated) return <p>…</p>;
+  return (
+    <Suspense fallback={<p>…</p>}>
+      <TeamWorkspace key={String(params.id)} id={String(params.id)} />
+    </Suspense>
+  );
+}
+function TeamWorkspace({ id }: { id: string }) {
   useLocale();
   const runTeamAction = useTeamAction();
-  const params = useParams();
-  const id = String(params.id);
+  const router = useRouter(),
+    path = usePathname(),
+    search = useSearchParams();
+  const selectedTab = search.get("tab");
+  const chooseTab = (next: string) => {
+    router.push(path + "?tab=" + next, { scroll: false });
+    setNotice("");
+  };
   const { data: home } = useApp();
   const detail = useNetworkResource<Detail>(
     "ballers_team_detail",
     { p_team: id },
     !!home?.profile,
   );
-  const [tab, setTab] = useState("overview"),
-    [query, setQuery] = useState(""),
+  const tab =
+    selectedTab === "games"
+      ? "games"
+      : detail.data?.captain && selectedTab === "invite"
+        ? "invite"
+        : detail.data?.captain &&
+            ["settings", "communities"].includes(selectedTab || "")
+          ? "settings"
+          : "roster";
+  const [query, setQuery] = useState(""),
     [communityQuery, setCommunityQuery] = useState(""),
     [selected, setSelected] = useState<Person[]>([]),
     [error, setError] = useState(""),
@@ -61,8 +97,13 @@ export default function Page() {
     "ballers_directory",
     { p_kind: "communities", p_city: "", p_query: communityQuery, p_offset: 0 },
     !!detail.data?.captain &&
-      tab === "communities" &&
+      tab === "settings" &&
       communityQuery.trim().length >= 2,
+  );
+  const calendar = useNetworkResource<TeamCalendar>(
+    "ballers_team_calendar",
+    { p_team: id },
+    !!home?.profile && !!detail.data,
   );
   async function act(
     action: string,
@@ -84,7 +125,7 @@ export default function Page() {
         p_accept,
       });
       changed();
-      await detail.reload();
+      await Promise.all([detail.reload(), calendar.reload()]);
       setNotice(t("Изменения сохранены."));
       return true;
     } catch (e) {
@@ -102,9 +143,6 @@ export default function Page() {
   ]);
   return (
     <NetworkShell>
-      <Link href="/discover?kind=teams" className="text-link">
-        {t("← Команды")}
-      </Link>
       <NetworkError error={detail.error} retry={() => void detail.reload()} />
       {detail.loading && !d && (
         <p role="status" className="inline-loading">
@@ -114,17 +152,21 @@ export default function Page() {
       {d && (
         <>
           <header className="team-hero">
-            <span className="team-mark large">
-              {d.team.name.slice(0, 2).toUpperCase()}
-            </span>
-            <p className="eyebrow">
-              {cityLabel(d.team.city)} · {t("Постоянная команда")}
-            </p>
-            <h1 className="page-title">{d.team.name}</h1>
-            <p className="ballers-muted">
-              {networkCount(d.members.length)}
-              {d.captain ? " · " + t("Ты ответственный") : ""}
-            </p>
+            <div className="team-identity">
+              <span className="team-mark">
+                {d.team.name.slice(0, 2).toUpperCase()}
+              </span>
+              <div>
+                <p className="eyebrow">
+                  {cityLabel(d.team.city)} · {t("Постоянная команда")}
+                </p>
+                <h1 className="page-title">{d.team.name}</h1>
+                <p className="ballers-muted">
+                  {networkCount(d.members.length)}
+                  {d.captain ? " · " + t("Ты ответственный") : ""}
+                </p>
+              </div>
+            </div>
             <div className="network-actions">
               {!d.my_status || d.my_status === "DECLINED" ? (
                 <button
@@ -151,7 +193,7 @@ export default function Page() {
                     {t("Отклонить")}
                   </button>
                 </>
-              ) : (
+              ) : !d.captain ? (
                 <span className="network-badge">
                   {t(
                     d.my_status === "REQUESTED"
@@ -159,7 +201,31 @@ export default function Page() {
                       : "Ты в команде",
                   )}
                 </span>
-              )}
+              ) : null}
+            </div>
+            {d.captain && (
+              <div className="network-actions team-primary-actions mt-3">
+                <button
+                  className="neon-button green"
+                  onClick={() => chooseTab("invite")}
+                >
+                  {t("Пригласить игроков")}
+                </button>
+                <Link
+                  className="network-secondary"
+                  href={`/teams/${id}/games/create`}
+                >
+                  {t("Запланировать игру")}
+                </Link>
+              </div>
+            )}
+            <details className="mt-3">
+              <summary className="text-link cursor-pointer py-2">
+                {t("О команде")}
+              </summary>
+              <p className="ballers-muted mt-2 mb-3">
+                {d.team.about || t("Команда собирает свою историю в BALLERS.")}
+              </p>
               <button
                 className="network-secondary"
                 onClick={() => {
@@ -170,21 +236,21 @@ export default function Page() {
               >
                 {t("Ссылка команды")}
               </button>
-            </div>
-            {share && (
-              <label className="network-field mt-4">
-                <span>
-                  {t(
-                    "Скопируй и отправь игрокам. Вступление подтверждает ответственный.",
-                  )}
-                </span>
-                <input
-                  readOnly
-                  value={share}
-                  onFocus={(e) => e.target.select()}
-                />
-              </label>
-            )}
+              {share && (
+                <label className="network-field mt-4">
+                  <span>
+                    {t(
+                      "Скопируй и отправь игрокам. Вступление подтверждает ответственный.",
+                    )}
+                  </span>
+                  <input
+                    readOnly
+                    value={share}
+                    onFocus={(e) => e.target.select()}
+                  />
+                </label>
+              )}
+            </details>
           </header>
           <NetworkError error={error} />
           {notice && (
@@ -193,81 +259,80 @@ export default function Page() {
             </p>
           )}
           <div
-            className="directory-tabs"
+            className="directory-tabs team-section-tabs"
             role="group"
             aria-label={t("Разделы команды")}
           >
             {[
-              ["overview", "Обзор"],
               ["roster", "Состав"],
-              ["communities", "Сообщества"],
-              ...(d.captain ? [["invite", "Пригласить"]] : []),
+              ["games", "Игры"],
+              ...(d.captain ? [["settings", "Управление"]] : []),
             ].map(([key, label]) => (
               <button
                 key={key}
-                aria-pressed={tab === key}
-                className={tab === key ? "selected" : ""}
+                aria-pressed={
+                  tab === key || (key === "roster" && tab === "invite")
+                }
+                className={
+                  tab === key || (key === "roster" && tab === "invite")
+                    ? "selected"
+                    : ""
+                }
                 onClick={() => {
-                  setTab(key);
-                  setNotice("");
+                  chooseTab(key);
                 }}
               >
                 {t(label)}
               </button>
             ))}
           </div>
-          {tab === "overview" && (
+          {tab === "games" && (
             <>
-              <section className="network-card">
-                <h2>{t("О команде")}</h2>
-                <p className="ballers-muted mt-3">
-                  {d.team.about ||
-                    t("Команда собирает свою историю в BALLERS.")}
-                </p>
-              </section>
-              <section className="network-card">
-                <h2>{t("Статистика команды")}</h2>
-                <p className="ballers-muted mt-3">
-                  {t(
-                    "Постоянные команды ещё не связаны с результатами игровых дней. Победы и поражения появятся после подключения командных матчей; старые результаты игроков сохранены.",
-                  )}
-                </p>
-              </section>
-              <Link href="/open-games" className="search-panel">
-                <Icon name="ball" />
-                <b>{t("Найти открытую игру →")}</b>
-              </Link>
+              <nav
+                className="directory-tabs team-calendar-tabs mb-4"
+                aria-label={t("Период игр команды")}
+              >
+                <Link
+                  aria-current={
+                    search.get("view") !== "history" ? "page" : undefined
+                  }
+                  className={search.get("view") !== "history" ? "selected" : ""}
+                  href={path + "?tab=games"}
+                >
+                  {t("Ближайшие")}
+                </Link>
+                <Link
+                  aria-current={
+                    search.get("view") === "history" ? "page" : undefined
+                  }
+                  className={search.get("view") === "history" ? "selected" : ""}
+                  href={path + "?tab=games&view=history"}
+                >
+                  {t("История")}
+                </Link>
+              </nav>
+              <TeamGames
+                data={calendar.data}
+                loading={calendar.loading}
+                error={calendar.error}
+                retry={() => void calendar.reload()}
+                teamId={id}
+                captain={false}
+                history={search.get("view") === "history"}
+              />
             </>
           )}
           {tab === "roster" && (
             <>
-              <h2 className="section-title">{t("Подтверждённый состав")}</h2>
-              {d.members.map((p) => (
-                <article className="network-card" key={p.id}>
-                  <PersonRow person={p} />
-                  <span className="network-badge">
-                    {t(p.role === "CAPTAIN" ? "Ответственный" : "Игрок")}
-                  </span>
-                  {d.captain && p.role !== "CAPTAIN" && (
-                    <button
-                      disabled={busy}
-                      className="text-link"
-                      onClick={() => {
-                        if (
-                          confirm(
-                            t(
-                              "Убрать игрока из команды? Его история сохранится.",
-                            ),
-                          )
-                        )
-                          void act("REMOVE", [p.id]);
-                      }}
-                    >
-                      {t("Убрать из состава")}
-                    </button>
-                  )}
-                </article>
-              ))}
+              <TeamGames
+                compact
+                data={calendar.data}
+                loading={calendar.loading}
+                error={calendar.error}
+                retry={() => void calendar.reload()}
+                teamId={id}
+                captain={false}
+              />
               {d.captain && d.pending.length > 0 && (
                 <h2 className="section-title">{t("Ожидают подтверждения")}</h2>
               )}
@@ -312,6 +377,38 @@ export default function Page() {
                     )}
                   </article>
                 ))}
+              <h2 className="section-title">{t("Подтверждённый состав")}</h2>
+              {d.members.map((p) => (
+                <article className="network-card" key={p.id}>
+                  <PersonRow person={p} />
+                  <span className="network-badge">
+                    {t(p.role === "CAPTAIN" ? "Ответственный" : "Игрок")}
+                  </span>
+                  {d.captain && p.role !== "CAPTAIN" && (
+                    <details className="mt-2">
+                      <summary className="text-link cursor-pointer py-2">
+                        {t("Действия с игроком")}
+                      </summary>
+                      <button
+                        disabled={busy}
+                        className="text-link"
+                        onClick={() => {
+                          if (
+                            confirm(
+                              t(
+                                "Убрать игрока из команды? Его история сохранится.",
+                              ),
+                            )
+                          )
+                            void act("REMOVE", [p.id]);
+                        }}
+                      >
+                        {t("Убрать из состава")}
+                      </button>
+                    </details>
+                  )}
+                </article>
+              ))}
               {!d.captain && d.my_status && (
                 <button
                   className="network-secondary mt-5"
@@ -338,6 +435,9 @@ export default function Page() {
           )}
           {tab === "invite" && d.captain && (
             <section>
+              <Link href={path + "?tab=roster"} className="text-link">
+                {t("← К составу")}
+              </Link>
               <h2 className="section-title">{t("Найди своих игроков")}</h2>
               <p className="ballers-muted mb-4">
                 {t(
@@ -425,7 +525,7 @@ export default function Page() {
                         ) {
                           setSelected([]);
                           setQuery("");
-                          setTab("roster");
+                          chooseTab("roster");
                         }
                       })()
                     }
@@ -443,7 +543,7 @@ export default function Page() {
               )}
             </section>
           )}
-          {tab === "communities" && (
+          {tab === "settings" && d.captain && (
             <>
               <h2 className="section-title">{t("Команда в сообществах")}</h2>
               <p className="ballers-muted mb-4">
@@ -520,7 +620,18 @@ export default function Page() {
               )}
             </>
           )}
-          <TacticalBoard teamId={id} members={d.members} editable={d.captain} />
+          {tab === "roster" && (
+            <details className="network-card">
+              <summary className="cursor-pointer py-2 font-bold">
+                {t("Расстановка команды")}
+              </summary>
+              <TacticalBoard
+                teamId={id}
+                members={d.members}
+                editable={d.captain}
+              />
+            </details>
+          )}
         </>
       )}
     </NetworkShell>

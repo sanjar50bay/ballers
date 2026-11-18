@@ -12,7 +12,12 @@ export async function init(db, before008 = false) {
     "supabase/test_project_baseline.sql",
     ...fs
       .readdirSync("supabase/migrations")
-      .filter((x) => x.endsWith(".sql") && (!before008 || !x.includes("_008_")))
+      // This fixture exercises the historical 008 policy; leader tests install 009 explicitly.
+      .filter(
+        (x) =>
+          x.endsWith(".sql") &&
+          Number(x.match(/_(\d+)_/)?.[1]) <= (before008 ? 7 : 8),
+      )
       .sort()
       .map((x) => "supabase/migrations/" + x),
   ])
