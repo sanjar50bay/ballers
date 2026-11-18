@@ -6,6 +6,7 @@ import { useLocale } from "@/app/components/Language";
 import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { networkError } from "@/lib/network";
 type C = {
   id: string;
   name: string;
@@ -20,11 +21,15 @@ export default function CommunityMenu({
   canManage,
   onSaved,
   inviteOnly = false,
+  compact = false,
+  settingsOnly = false,
 }: {
   community: C;
   canManage: boolean;
   onSaved?: () => void;
   inviteOnly?: boolean;
+  compact?: boolean;
+  settingsOnly?: boolean;
 }) {
   useLocale();
   const [open, setOpen] = useState(false),
@@ -48,11 +53,7 @@ export default function CommunityMenu({
     });
     setBusy(false);
     if (error) {
-      setMessage(
-        error.message.includes("PGRST202")
-          ? tx("Нужна миграция 003.")
-          : error.message,
-      );
+      setMessage(networkError(error));
       return;
     }
     if (type === "INVITE") {
@@ -69,17 +70,21 @@ export default function CommunityMenu({
         aria-label={
           inviteOnly
             ? tx("Пригласить игроков в сообщество")
-            : tx("Меню сообщества")
+            : tx(settingsOnly ? "Изменить настройки" : "Меню сообщества")
         }
         aria-expanded={open}
         onClick={() => setOpen(true)}
         className={
-          inviteOnly
-            ? "w-full h-full min-h-32 rounded-[20px] border border-emerald-800/40 bg-[#071b15] p-4 text-left hover:border-emerald-500 focus-visible:outline-2 focus-visible:outline-violet-400"
-            : "w-11 h-11 rounded-full border border-violet-900/50 bg-[#090b14] text-gray-300 focus-visible:outline-2 focus-visible:outline-violet-400"
+          compact || settingsOnly
+            ? "neon-button green"
+            : inviteOnly
+              ? "w-full h-full min-h-32 rounded-[20px] border border-emerald-800/40 bg-[#071b15] p-4 text-left hover:border-emerald-500 focus-visible:outline-2 focus-visible:outline-violet-400"
+              : "w-11 h-11 rounded-full border border-violet-900/50 bg-[#090b14] text-gray-300 focus-visible:outline-2 focus-visible:outline-violet-400"
         }
       >
-        {inviteOnly ? (
+        {compact || settingsOnly ? (
+          tx(settingsOnly ? "Изменить настройки" : "Пригласить игроков")
+        ) : inviteOnly ? (
           <>
             <span className="text-2xl">👥</span>
             <p className="font-bold mt-3">{tx("Invite Players")}</p>
@@ -145,7 +150,7 @@ export default function CommunityMenu({
                 {uiError(message)}
               </p>
             )}
-            {!inviteOnly && (
+            {!inviteOnly && !settingsOnly && (
               <>
                 <Link
                   className="block min-h-11 py-3 text-violet-300"
@@ -238,42 +243,48 @@ export default function CommunityMenu({
                     </button>
                   </form>
                 )}
-                <button
-                  disabled={busy}
-                  onClick={() => void action("INVITE")}
-                  className="w-full min-h-11 p-3 rounded-lg border border-emerald-600 disabled:opacity-50"
-                >
-                  {tx("Создать ссылку приглашения")}
-                </button>
-                {link && (
+                {!settingsOnly && (
                   <>
-                    <label className="block">
-                      {tx("Ссылка")}
-                      <input
-                        readOnly
-                        value={link}
-                        onFocus={(e) => e.target.select()}
-                        className="w-full mt-1 p-3 rounded-lg bg-[#191d2b] border border-white/20"
-                      />
-                    </label>
                     <button
-                      className="w-full min-h-11 p-3 border border-white/20 rounded-lg"
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(link);
-                          setMessage(tx("Ссылка скопирована."));
-                        } catch {
-                          setMessage(tx("Выдели ссылку и скопируй вручную."));
-                        }
-                      }}
+                      disabled={busy}
+                      onClick={() => void action("INVITE")}
+                      className="w-full min-h-11 p-3 rounded-lg border border-emerald-600 disabled:opacity-50"
                     >
-                      {tx("Скопировать ссылку")}
+                      {tx("Создать ссылку приглашения")}
                     </button>
-                    <p className="text-sm text-gray-400">
-                      {tx(
-                        "Войди в BALLERS и присоединись к сообществу. На игру нужно записаться отдельно.",
-                      )}
-                    </p>
+                    {link && (
+                      <>
+                        <label className="block">
+                          {tx("Ссылка")}
+                          <input
+                            readOnly
+                            value={link}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full mt-1 p-3 rounded-lg bg-[#191d2b] border border-white/20"
+                          />
+                        </label>
+                        <button
+                          className="w-full min-h-11 p-3 border border-white/20 rounded-lg"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(link);
+                              setMessage(tx("Ссылка скопирована."));
+                            } catch {
+                              setMessage(
+                                tx("Выдели ссылку и скопируй вручную."),
+                              );
+                            }
+                          }}
+                        >
+                          {tx("Скопировать ссылку")}
+                        </button>
+                        <p className="text-sm text-gray-400">
+                          {tx(
+                            "Войди в BALLERS и присоединись к сообществу. На игру нужно записаться отдельно.",
+                          )}
+                        </p>
+                      </>
+                    )}
                   </>
                 )}
               </>

@@ -1,0 +1,30 @@
+import type { Person } from "./network";
+export type CommunityGame = {
+  id: string;
+  title: string;
+  game_date: string;
+  start_time: string | null;
+  venue: string | null;
+  format: number;
+  team_count: number;
+  capacity: number | null;
+  status: string;
+  upcoming: boolean;
+  live: boolean;
+  going: number;
+  attendance_status: string | null;
+};
+export type CommunityWorkspace = {
+  id: string;
+  name: string;
+  city: string | null;
+  member: boolean;
+  can_manage: boolean;
+  team_mode: string;
+  default_format: number;
+  default_team_count: number;
+  default_capacity: number | null;
+  member_count: number;
+  members: (Person & { role: string; member_status: string })[];
+  games: CommunityGame[];
+};

@@ -52,6 +52,12 @@ for (const [id, name] of [
   );
 }
 const rpc = {
+  ballers_community_workspace: { p_community: "uuid" },
+  ballers_community_action: {
+    p_community: "uuid",
+    p_action: "text",
+    p_payload: "jsonb",
+  },
   ballers_team_calendar: { p_team: "uuid" },
   ballers_schedule_team_game: {
     p_team: "uuid",
@@ -517,6 +523,171 @@ try {
     .selectOption("kk");
   await screenshot(planner, "team-calendar-kk-320.png");
   pass("team calendar and schedule navigation fit Kazakh labels at 320px");
+  const communityId = await serial(async () => {
+    await db.exec("RESET ROLE");
+    return (
+      await db.query("SELECT community_id FROM game_days WHERE id=$1", [dayId])
+    ).rows[0].community_id;
+  });
+  await planner
+    .getByLabel("Интерфейс тілі", { exact: true })
+    .selectOption("ru");
+  await planner.goto(base + "/communities/" + communityId);
+  await planner
+    .getByRole("heading", { name: "Ближайшие игры сообщества", exact: true })
+    .waitFor();
+  assert.equal(
+    await planner
+      .getByRole("link", { name: "Создать игру", exact: true })
+      .count(),
+    1,
+  );
+  await planner.getByRole("link", { name: "История", exact: true }).click();
+  await planner
+    .getByRole("heading", { name: "Team Friday #1", exact: true })
+    .waitFor();
+  await planner.reload();
+  await planner
+    .getByRole("heading", { name: "История игр сообщества", exact: true })
+    .waitFor();
+  assert.equal(new URL(planner.url()).searchParams.get("view"), "history");
+  assert.equal(
+    await planner
+      .getByRole("link", { name: "К игре →", exact: true })
+      .getAttribute("href"),
+    "/games/" + dayId + "/play?tab=overview",
+  );
+  pass(
+    "community has one creation action and persistent history with canonical game links",
+  );
+  await planner.getByRole("button", { name: "Люди", exact: true }).click();
+  await planner
+    .getByRole("heading", { name: "Участники сообщества", exact: true })
+    .waitFor();
+  await planner
+    .getByRole("button", {
+      name: "Пригласить игроков в сообщество",
+      exact: true,
+    })
+    .click();
+  await planner
+    .getByRole("button", { name: "Создать ссылку приглашения", exact: true })
+    .click();
+  await planner.getByLabel("Ссылка", { exact: true }).waitFor();
+  await planner
+    .getByRole("button", { name: "Закрыть меню", exact: true })
+    .click();
+  pass(
+    "community people section opens the working consent-based invitation flow",
+  );
+  await planner
+    .getByRole("button", { name: "Управление", exact: true })
+    .click();
+  await planner
+    .getByRole("button", { name: "Изменить настройки", exact: true })
+    .click();
+  assert.equal(
+    await planner
+      .getByRole("button", { name: "Создать ссылку приглашения", exact: true })
+      .count(),
+    0,
+  );
+  await planner
+    .getByLabel("Название", { exact: true })
+    .fill("Team Friday Updated");
+  await planner
+    .getByRole("button", { name: "Сохранить настройки", exact: true })
+    .click();
+  await planner
+    .getByRole("heading", { name: "Team Friday Updated", exact: true })
+    .waitFor();
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    assert.equal(
+      (await db.query("SELECT title FROM game_days WHERE id=$1", [dayId]))
+        .rows[0].title,
+      "Team Friday #1",
+    );
+  });
+  pass(
+    "community settings update real data without renaming existing games or duplicating invitations",
+  );
+  await arsen.goto(base + "/communities/" + communityId + "?tab=people");
+  await arsen
+    .getByText(
+      "Участники сообщества видят его игры и людей. Вступить можно по приглашению организатора.",
+      { exact: true },
+    )
+    .waitFor();
+  assert.equal(
+    await arsen
+      .getByRole("heading", { name: "Участники сообщества", exact: true })
+      .count(),
+    0,
+  );
+  assert.equal(
+    await arsen
+      .getByRole("link", { name: "Создать игру", exact: true })
+      .count(),
+    0,
+  );
+  pass(
+    "a game guest cannot open the private community roster or organizer controls",
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query(
+      "INSERT INTO community_members(community_id,player_id,role) VALUES($1,$2,'MEMBER')",
+      [communityId, pid(2)],
+    );
+  });
+  await player.getByLabel("Интерфейс тілі", { exact: true }).selectOption("ru");
+  await player.goto(base + "/communities/" + communityId + "?tab=settings");
+  await player
+    .getByRole("heading", { name: "Ближайшие игры сообщества", exact: true })
+    .waitFor();
+  assert.equal(
+    await player
+      .getByRole("button", { name: "Управление", exact: true })
+      .count(),
+    0,
+  );
+  await player.getByRole("button", { name: "Люди", exact: true }).click();
+  await player
+    .getByRole("heading", { name: "Участники сообщества", exact: true })
+    .waitFor();
+  assert.equal(
+    await player
+      .getByRole("button", {
+        name: "Пригласить игроков в сообщество",
+        exact: true,
+      })
+      .count(),
+    0,
+  );
+  await player
+    .getByLabel("Язык интерфейса", { exact: true })
+    .selectOption("kk");
+  await player.reload();
+  await player
+    .getByRole("heading", { name: "Қауымдастық мүшелері", exact: true })
+    .waitFor();
+  await player.setViewportSize({ width: 320, height: 740 });
+  await screenshot(player, "community-people-kk-320.png");
+  pass(
+    "regular community member gets a private role-appropriate view with persisted Kazakh tabs at 320px",
+  );
+  await planner.goto(base + "/communities/" + communityId + "/games");
+  await planner.waitForURL("**/communities/" + communityId + "?tab=games");
+  await planner.getByRole("link", { name: "История", exact: true }).click();
+  await planner
+    .getByRole("heading", { name: "Team Friday #1", exact: true })
+    .waitFor();
+  await planner.setViewportSize({ width: 390, height: 844 });
+  await screenshot(planner, "community-calendar-390.png");
+  pass(
+    "legacy community games bookmark opens the unified calendar and retains access to history",
+  );
   await player.goto(base + "/discover");
   await player.getByLabel("Интерфейс тілі").selectOption("ru");
   await player.getByRole("heading", { name: "Найти", exact: true }).waitFor();

@@ -1525,3 +1525,10 @@ body{line-height:1.6} .ballers-muted{font-size:15px;line-height:1.55;color:#b6c2
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+.community-hero { border-bottom: 1px solid #245340; padding: 16px 0; }
+.community-hero .page-title { margin: 8px 0; overflow-wrap: anywhere; }
+.community-section-tabs button.selected { border-color: #69edac; background: #0e3024; color: #8effc0; }
+.directory-tabs.community-calendar-tabs { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.community-calendar-tabs a { border: 1px solid #39465d; border-radius: 12px; padding: 10px 13px; min-height: 44px; text-align: center; }
+.community-calendar-tabs a.selected { border-color: #69edac; background: #0e3024; color: #8effc0; }
