@@ -350,10 +350,11 @@ try {
     .click();
   await owner.getByRole("heading", { name: "Команды", exact: true }).waitFor();
   await owner
-    .getByText(
-      "Составы закреплены на время матча. Изменить их можно после завершения матча.",
-      { exact: true },
-    )
+    .getByRole("status")
+    .filter({
+      hasText:
+        "Составы закреплены на время матча. Изменить их можно после завершения матча.",
+    })
     .waitFor();
   assert.equal(
     await owner
