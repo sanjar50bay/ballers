@@ -1260,8 +1260,8 @@ main .text-gray-500 {
   gap: 16px;
 }
 .team-identity > div { min-width: 0; overflow-wrap: anywhere; }
-.team-section-tabs { display: flex; }
-.team-section-tabs button { flex: 1; min-width: 0; padding: 10px 6px; font-size: 13px; }
+.directory-tabs.team-section-tabs { display: flex; }
+.directory-tabs.team-section-tabs button { flex: 1; min-width: 0; padding: 10px 6px; font-size: 13px; white-space: normal; }
 .team-primary-actions { display: grid; grid-template-columns: 1fr 1fr; }
 .team-primary-actions > * { text-align: center; padding: 10px 8px; font-size: 13px; }
 .section-title {
