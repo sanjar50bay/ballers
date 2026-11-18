@@ -149,9 +149,6 @@ function ScheduleTeamGame({ teamId }: { teamId: string }) {
   }
   return (
     <NetworkShell>
-      <Link className="text-link" href={`/teams/${teamId}?tab=games`}>
-        {t("← К играм команды")}
-      </Link>
       <h1 className="page-title mt-5">{t("Запланировать игру")}</h1>
       {resource.data && (
         <p className="ballers-muted mb-5">{resource.data.team_name}</p>
@@ -197,7 +194,7 @@ function ScheduleTeamGame({ teamId }: { teamId: string }) {
             {pending && (
               <p role="status" className="neon-panel">
                 {t(
-                  "Проверяем прежний запрос. Дату и состав приглашённых повторно не меняем.",
+                  "Проверяем создание игры с прежними датой и временем.",
                 )}
               </p>
             )}
