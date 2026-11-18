@@ -569,44 +569,6 @@ summary::-webkit-details-marker {
   padding: 24px;
   perspective: 1000px;
 }
-.welcome-card {
-  position: relative;
-  max-width: 330px;
-  width: 100%;
-  padding: 25px;
-  text-align: center;
-  border: 1px solid #82ffb4;
-  border-radius: 28px;
-  background: radial-gradient(
-    ellipse at top right,
-    #183a4e,
-    #100d22 55%,
-    #05100c
-  );
-  box-shadow:
-    0 0 60px #5cffaa22,
-    0 0 24px #a34dff33;
-  animation: card-intro 1.2s ease-out both;
-}
-.welcome-card .ballers-avatar {
-  margin: 18px auto;
-}
-.welcome-card h2 {
-  font-size: 28px;
-  font-weight: 800;
-}
-.welcome-card .stats-grid {
-  grid-template-columns: repeat(3, 1fr);
-  margin: 24px 0;
-}
-.welcome-card:after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-  inset: 9px;
-  border: 1px solid #9569ff55;
-  border-radius: 21px;
-}
 .dialog-backdrop {
   position: fixed;
   inset: 0;
@@ -821,197 +783,6 @@ main .text-gray-600 {
 }
 main .text-gray-500 {
   color: #a9b3c7;
-}
-.collectible-card {
-  max-width: 350px;
-  padding: 22px 24px 20px;
-  border-radius: 30px 30px 48px 12px;
-  overflow: hidden;
-  background:
-    radial-gradient(ellipse at 100% 0%, #113e50 0, transparent 48%),
-    radial-gradient(ellipse at 0 70%, #271440 0, transparent 65%), #070c16;
-  border-color: #79ffb0;
-  animation: collectible-arrival 1s ease-out both;
-  transform-style: preserve-3d;
-}
-.collectible-card:after {
-  border-radius: 23px 23px 41px 6px;
-  border-color: #b58aff70;
-}
-.collectible-card > :not(.card-foil) {
-  position: relative;
-  z-index: 1;
-}
-.card-foil {
-  position: absolute;
-  z-index: 0;
-  inset: -70%;
-  pointer-events: none;
-  background: linear-gradient(
-    115deg,
-    transparent 37%,
-    #63ceff00 43%,
-    #63ceff25 47%,
-    #ffffff30 49%,
-    #b58aff20 52%,
-    transparent 58%
-  );
-  transform: translateX(-40%);
-  animation: foil-sweep 3.7s 0.5s ease-in-out both;
-}
-.card-kicker {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  font-weight: 850;
-  letter-spacing: 0.06em;
-  font-size: 17px;
-}
-.card-kicker > :last-child {
-  font-size: 12px;
-  color: #83e7ce;
-  padding: 5px 8px;
-  border: 1px solid #448977;
-  border-radius: 7px;
-}
-.card-caption {
-  font-size: 12px;
-  color: #b5c3d7;
-  margin-top: 8px;
-  letter-spacing: 0.08em;
-}
-.card-portrait {
-  width: 148px;
-  margin: 18px auto 15px;
-}
-.collectible-card .ballers-avatar-large {
-  width: 148px;
-  height: 164px;
-  border-radius: 22px 22px 30px 10px;
-  margin: 0;
-  font-size: 48px;
-  box-shadow: 0 0 25px #964cff33;
-  border-color: #b58aff;
-}
-.card-portrait .position-tag {
-  display: block;
-  width: max-content;
-  max-width: 190px;
-  margin: -12px auto 0;
-  position: relative;
-  border: 1px solid #528b81;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 650;
-  background: #102927;
-  color: #9bffd0;
-}
-.collectible-card h2 {
-  font-size: 27px;
-  line-height: 1.12;
-  overflow-wrap: anywhere;
-}
-.card-city {
-  font-size: 14px;
-  margin-top: 8px;
-}
-.collectible-card .stats-grid {
-  margin: 18px 0 12px;
-  border-top: 1px solid #7389a144;
-  padding-top: 16px;
-  gap: 8px;
-}
-.collectible-card .stats-grid b {
-  font-size: 29px;
-  color: #7bdbff;
-}
-.collectible-card .stats-grid p {
-  font-size: 12px;
-  line-height: 1.4;
-  margin-top: 4px;
-}
-.card-proof {
-  font-size: 12px;
-  margin-bottom: 16px;
-}
-.card-skip {
-  font-size: 11px;
-  margin-top: 12px;
-}
-.welcome-backdrop {
-  overflow-y: auto;
-  padding: 16px;
-}
-@keyframes collectible-arrival {
-  from {
-    opacity: 0;
-    transform: rotateY(-42deg) translateY(16px) scale(0.92);
-  }
-  to {
-    opacity: 1;
-    transform: rotateY(0) translateY(0) scale(1);
-  }
-}
-@keyframes collectible-float {
-  0%,
-  100% {
-    transform: rotateY(0);
-  }
-  40% {
-    transform: rotateY(5deg) rotateZ(0.5deg);
-  }
-  75% {
-    transform: rotateY(-4deg) rotateZ(-0.5deg);
-  }
-}
-@keyframes foil-sweep {
-  from {
-    transform: translateX(-40%);
-  }
-  to {
-    transform: translateX(45%);
-  }
-}
-@media (max-height: 700px) {
-  .collectible-card {
-    padding: 16px 20px;
-  }
-  .card-portrait {
-    margin: 12px auto;
-    width: 110px;
-  }
-  .collectible-card .ballers-avatar-large {
-    width: 110px;
-    height: 120px;
-  }
-  .collectible-card .stats-grid {
-    margin: 12px 0 8px;
-    padding-top: 10px;
-  }
-  .card-proof {
-    margin-bottom: 10px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .collectible-card,
-  .card-foil {
-    animation: none;
-    transform: none;
-  }
-  .card-foil {
-    display: none;
-  }
-}
-
-.card-portrait {
-  animation: collectible-float 5s 1s ease-in-out both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .card-portrait {
-    animation: none;
-  }
 }
 /* 0.2.6: city football network. */
 .directory-title {
@@ -1532,3 +1303,55 @@ body{line-height:1.6} .ballers-muted{font-size:15px;line-height:1.55;color:#b6c2
 .directory-tabs.community-calendar-tabs { grid-template-columns: repeat(2,minmax(0,1fr)); }
 .community-calendar-tabs a { border: 1px solid #39465d; border-radius: 12px; padding: 10px 13px; min-height: 44px; text-align: center; }
 .community-calendar-tabs a.selected { border-color: #69edac; background: #0e3024; color: #8effc0; }
+
+/* Vertical collectible player card. */
+.player-card-overlay { overflow-y:auto; align-items:flex-start; padding:20px 16px; background:radial-gradient(ellipse at 50% 40%,#28154a 0,#0c091c 52%,#050710 90%); }
+.player-card-dialog { position:relative; isolation:isolate; width:100%; max-width:360px; margin:auto; flex-shrink:0; }
+.player-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:16px; }
+.player-card-brand { font-size:22px; letter-spacing:-1px; font-weight:900; color:#f6f6ef; }
+.player-card-brand>span { color:#ebff29; }
+.player-card-close { width:44px; height:44px; border:1px solid #746389; border-radius:50%; background:#1c1231; color:#f3edfa; font-size:28px; }
+.ultimate-player-card { position:relative; width:100%; color:#efff39; padding:1px 0 33px; isolation:isolate; filter:drop-shadow(0 16px 26px #0009); }
+.ultimate-card-frame { position:absolute; inset:0; width:100%; height:100%; z-index:-1; overflow:visible; }
+.player-passport-body { position:relative; height:clamp(188px,62vw,235px); margin:56px 34px 0; }
+.ultimate-card-rating { position:relative; display:flex; flex-direction:column; align-items:flex-start; z-index:2; width:83px; color:#eeff2d; }
+.ultimate-rating-value { font-family:Arial,sans-serif; font-size:52px; line-height:1; font-weight:400; letter-spacing:-2px; }
+.ultimate-rating-label { font-size:11px; line-height:1.1; margin-top:2px; }
+.ultimate-position-code { font-family:Impact,'Arial Narrow',sans-serif; font-size:25px; line-height:1.3; margin-top:8px; letter-spacing:.4px; }
+.player-card-id { margin-top:8px; font-size:11px; color:#e1d5ee; letter-spacing:.5px; }
+.ultimate-club-mark { display:grid; place-items:center; margin-top:13px; width:39px; height:39px; border:2px solid #f34891; border-radius:50%; color:#f4ff54; background:#28164b; font-size:22px; font-weight:900; line-height:1; }
+.ultimate-club-mark>span { display:none; }
+.player-passport-art { position:absolute; top:-5px; bottom:0; left:24%; right:-8px; overflow:hidden; mask-image:linear-gradient(transparent 0,#000 13%,#000 73%,transparent 100%); }
+.player-card-watermark { position:absolute; inset:25px -5px 0; font-family:Impact,sans-serif; font-size:200px; line-height:1; color:#9e70d519; letter-spacing:-20px; }
+.player-passport-art:before { content:''; position:absolute; width:38%; height:35%; left:35%; top:8%; border-radius:45% 48% 44% 44%; background:linear-gradient(105deg,#bcce3260,#eeff4470 50%,#9b992e55); transform:rotate(-6deg); }
+.player-passport-art:after { content:''; position:absolute; left:6%; right:-12%; height:64%; bottom:-5px; background:linear-gradient(120deg,#a4a92d39,#eeff4480 55%,#a7af2a30); border-radius:50% 46% 0 0; transform:rotate(-5deg); }
+.player-passport-art:has(img):before,.player-passport-art:has(img):after { display:none; }
+.player-passport-art .ballers-avatar { position:absolute; z-index:1; inset:0; width:100%; height:100%; margin:0; border:0; border-radius:0; background:transparent; align-items:flex-end; justify-content:flex-end; padding:0 15px 50px 0; font-size:24px; color:#f1ff7a; }
+.player-passport-art .ballers-avatar img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:50% 25%; mask-image:linear-gradient(90deg,transparent,#000 12%,#000 90%,transparent); }
+.player-passport-copy { background:radial-gradient(ellipse,#1d123e 40%,#1d123edb 72%,transparent); box-shadow:0 0 18px 8px #1d123eaa; position:relative; z-index:2; margin:0 35px; text-align:center; }
+.player-passport-copy h2 { max-width:100%; font-family:Impact,'Arial Narrow',sans-serif; font-size:clamp(24px,7.6vw,31px); font-weight:400; line-height:1.08; letter-spacing:.6px; text-transform:uppercase; overflow-wrap:anywhere; margin:0; color:#f0ff2e; }
+.player-card-city { color:#c6b6db; font-size:11px; letter-spacing:1px; margin-top:6px; overflow-wrap:anywhere; }
+.player-card-stats { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin:12px 43px 0; padding:13px 0 10px; border-top:2px solid #ef438d; }
+.player-card-stats:before { content:''; position:absolute; top:12px; bottom:6px; left:50%; width:1px; background:#e8469066; }
+.player-card-stats>div { display:flex; align-items:center; gap:6px; min-width:0; }
+.player-card-stats dt { font-size:11px; line-height:1.2; color:#e6ed77; overflow-wrap:anywhere; }
+.player-card-stats dd { order:-1; font-family:Impact,'Arial Narrow',sans-serif; font-size:27px; font-weight:400; line-height:1.1; margin:0; min-width:22px; color:#efff37; font-variant-numeric:tabular-nums; }
+.player-card-position { position:relative; text-align:center; margin:3px 43px 0; color:#c6b9d8; font-size:11px; line-height:1.2; overflow-wrap:anywhere; }
+.ultimate-bottom-mark { position:relative; margin:13px auto 0; display:grid; place-items:center; width:23px; height:23px; border:1px solid #c8d83c; border-radius:50%; color:#eaff2e; font-size:14px; font-weight:900; }
+.ultimate-bottom-mark>span { display:none; }
+.player-card-proof { text-align:center; color:#b6a5c8; font-size:11px; margin:10px 0 0; }
+.player-card-status { font-size:12px; color:#d9d991; min-height:34px; display:flex; justify-content:center; align-items:center; text-align:center; padding:7px 0; }
+.player-card-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.player-card-actions button { min-width:0; white-space:normal; font-size:13px; }
+.player-card-actions>button:first-child { background:#221637; border-color:#79618b; color:#e1d3ef; box-shadow:none; }
+.player-card-actions>.neon-button.green { background:#ddf526; color:#20123a; border-color:#efff69; box-shadow:0 0 22px #eaff1410; }
+.player-card-fireworks { position:absolute; z-index:3; inset:0; width:100%; height:100%; pointer-events:none; }
+.ultimate-card-foil { opacity:0; pointer-events:none; }
+.player-card-revealing .player-passport { animation:player-card-arrival 2.8s cubic-bezier(.2,.7,.3,1) both; }
+.player-card-revealing .ultimate-card-foil { animation:player-card-foil 2.8s ease both; }
+@keyframes player-card-arrival { 0% { opacity:0; transform:translateY(35px) rotateY(105deg) scale(.78); } 18% { opacity:.5; } 56% { opacity:1; transform:translateY(-6px) rotateY(-4deg) scale(1.01); } 80%,100% { opacity:1; transform:none; } }
+@keyframes player-card-foil { 0%,42% { transform:translateX(-50px); opacity:0; } 58% { opacity:.9; } 96%,100% { transform:translateX(550px); opacity:0; } }
+@media(max-width:420px) { .player-card-actions { grid-template-columns:1fr; } }
+@media(max-width:340px) { .player-passport-copy { margin-left:30px; margin-right:30px; } .player-card-stats { margin-left:35px; margin-right:35px; gap:8px 12px; } .player-card-stats dd { font-size:24px; } .player-passport-copy h2 { font-size:23px; } }
+@media(max-height:600px) { .player-card-overlay { padding:10px 14px; } .player-card-header { margin-bottom:8px; } }
+@media(prefers-reduced-motion:reduce) { .player-card-revealing .player-passport { animation:none; transform:none; } .player-card-revealing .ultimate-card-foil,.player-card-fireworks { display:none; } }

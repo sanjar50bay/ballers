@@ -896,6 +896,177 @@ try {
   pass(
     "a community member can personally join a newly created empty day without a pre-created invitation",
   );
+  await planner.setViewportSize({ width: 390, height: 844 });
+  await planner.goto(base + "/profile");
+  const showCard = planner.getByRole("button", {
+    name: "Показать мою карточку",
+    exact: true,
+  });
+  await showCard.click();
+  const card = planner.getByRole("dialog", {
+    name: "Твой Baller ID",
+    exact: true,
+  });
+  await card.waitFor();
+  assert.equal(await planner.locator(".player-card-revealing").count(), 0);
+  await card.getByRole("heading", { name: "Sanzhar", exact: true }).click();
+  assert.equal(await card.isVisible(), true);
+  const actualStats = await serial(async () => {
+    await db.exec("RESET ROLE");
+    return (await db.query("SELECT ballers_player_stats($1) stats", [pid(1)]))
+      .rows[0].stats;
+  });
+  assert.deepEqual(
+    await card.locator(".player-card-stats dd").allTextContents(),
+    [
+      actualStats.matches,
+      actualStats.goals,
+      actualStats.assists,
+      actualStats.saves,
+    ].map(String),
+  );
+  await screenshot(planner, "passport-real-data-390.png");
+  pass(
+    "manual passport uses real identity and stats including zero, and stays open when its content is tapped",
+  );
+  await card
+    .getByRole("button", { name: "Повторить выход", exact: true })
+    .click();
+  await card
+    .getByRole("button", { name: "Пропустить эффекты", exact: true })
+    .waitFor();
+  await card
+    .getByRole("button", { name: "Пропустить эффекты", exact: true })
+    .click();
+  assert.equal(await card.isVisible(), true);
+  assert.equal(await planner.locator(".player-card-revealing").count(), 0);
+  await card
+    .getByRole("button", { name: "Повторить выход", exact: true })
+    .click();
+  await card
+    .getByRole("button", { name: "Повторить выход", exact: true })
+    .waitFor();
+  assert.equal(await planner.locator(".player-card-revealing").count(), 0);
+  pass(
+    "passport reveal can be skipped and completes without closing the card or blocking access",
+  );
+  await card.locator(".player-card-close").focus();
+  await planner.keyboard.press("Shift+Tab");
+  assert.equal(
+    await card
+      .getByRole("button", { name: "Скрыть карточку", exact: true })
+      .last()
+      .evaluate((el) => el === document.activeElement),
+    true,
+  );
+  await planner.keyboard.press("Tab");
+  assert.equal(
+    await card
+      .locator(".player-card-close")
+      .evaluate((el) => el === document.activeElement),
+    true,
+  );
+  await planner.keyboard.press("Escape");
+  await card.waitFor({ state: "hidden" });
+  assert.equal(
+    await showCard.evaluate((el) => el === document.activeElement),
+    true,
+  );
+  assert.notEqual(
+    await planner.evaluate(() => document.body.style.overflow),
+    "hidden",
+  );
+  pass(
+    "passport traps keyboard focus, closes with Escape and restores focus and page scroll",
+  );
+  await planner.emulateMedia({ reducedMotion: "reduce" });
+  await showCard.click();
+  await card
+    .getByText("Эффекты отключены настройками устройства.", { exact: true })
+    .waitFor();
+  assert.equal(
+    await card
+      .getByRole("button", { name: "Повторить выход", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(await planner.locator(".player-card-revealing").count(), 0);
+  await card
+    .getByRole("button", { name: "Скрыть карточку", exact: true })
+    .last()
+    .click();
+  pass(
+    "reduced-motion preference disables fireworks and reveal while the card remains usable",
+  );
+  await planner.route("https://card.example.invalid/avatar.svg", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "image/svg+xml",
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260"><rect width="200" height="260" fill="#24634c"/></svg>',
+    }),
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query(
+      "UPDATE player_profiles SET avatar_url='https://card.example.invalid/avatar.svg' WHERE id=$1",
+      [pid(1)],
+    );
+  });
+  await planner.reload();
+  await showCard.click();
+  await card.getByRole("img", { name: "Sanzhar", exact: true }).waitFor();
+  await card.locator(".player-passport-art img").evaluate((el) => el.decode());
+  assert.equal(
+    await card
+      .locator(".player-passport-art img")
+      .evaluate((el) => el.complete && el.naturalWidth > 0),
+    true,
+  );
+  await card
+    .getByRole("button", { name: "Скрыть карточку", exact: true })
+    .last()
+    .click();
+  const longName = "Қанатбек Әбдірахманов Ұзынаты";
+  await planner.route("https://card.example.invalid/broken.png", (route) =>
+    route.abort("failed"),
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query(
+      "UPDATE player_profiles SET avatar_url='https://card.example.invalid/broken.png',display_name=$2 WHERE id=$1",
+      [pid(1), longName],
+    );
+  });
+  await planner.reload();
+  await planner
+    .getByLabel("Язык интерфейса", { exact: true })
+    .selectOption("kk");
+  await planner.setViewportSize({ width: 320, height: 568 });
+  await planner
+    .getByRole("button", { name: "Менің карточкамды көрсету", exact: true })
+    .click();
+  const kkCard = planner.getByRole("dialog", {
+    name: "Сенің Baller ID",
+    exact: true,
+  });
+  await kkCard.waitFor();
+  await kkCard.getByRole("heading", { name: longName, exact: true }).waitFor();
+  await kkCard
+    .locator(".player-passport-art img")
+    .waitFor({ state: "detached" });
+  assert.equal(
+    await kkCard.locator(".player-passport-art .ballers-avatar").innerText(),
+    "ҚӘ",
+  );
+  assert.ok(await kkCard.evaluate((el) => el.scrollWidth <= el.clientWidth));
+  await screenshot(planner, "passport-kazakh-320.png");
+  await kkCard
+    .getByRole("button", { name: "Карточканы жабу", exact: true })
+    .last()
+    .click();
+  pass(
+    "passport renders a real avatar, falls back after image failure and fits long Kazakh identity at 320px",
+  );
   await player.goto(base + "/discover");
   await player.getByLabel("Интерфейс тілі").selectOption("ru");
   await player.getByRole("heading", { name: "Найти", exact: true }).waitFor();
