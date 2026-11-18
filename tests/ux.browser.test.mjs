@@ -132,6 +132,8 @@ const rpc = {
   },
   ballers_team_detail: { p_team: "uuid" },
   ballers_community_preview: { p_community: "uuid" },
+  ballers_community_workspace: { p_community: "uuid" },
+  ballers_team_calendar: { p_team: "uuid" },
   ballers_team_create: {
     p_id: "uuid",
     p_name: "text",
@@ -572,9 +574,8 @@ try {
     .waitFor();
   assert.equal(creates, 1);
   assert.equal(await nRows("communities"), initialCommunities + 1);
-  await page
-    .getByText("15 мест на игру по умолчанию", { exact: true })
-    .waitFor();
+  await page.getByRole("button", { name: "Управление", exact: true }).click();
+  await page.getByText("Мест: 15", { exact: false }).waitFor();
   assert.ok(
     (
       await admin("SELECT name FROM communities WHERE name LIKE 'Достар%'")
