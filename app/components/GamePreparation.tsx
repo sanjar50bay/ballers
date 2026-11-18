@@ -29,7 +29,7 @@ export default function GamePreparation({
     {
       name: "Игроки подтвердились",
       done: p.playersReady,
-      detail: t("{count} из {needed} для старта", {
+      detail: t("{count} игроков · для старта нужно {needed}", {
         count: p.going,
         needed: p.needed,
       }),
