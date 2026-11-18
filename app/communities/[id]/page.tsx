@@ -181,6 +181,14 @@ function Workspace({ id }: { id: string }) {
                               : "К игре →",
                           )}
                         </Link>
+                        {d.can_manage && (
+                          <Link
+                            className="text-link block mt-3"
+                            href={`/communities/${id}/game-days/create?from=${g.id}`}
+                          >
+                            {t("На следующую неделю")}
+                          </Link>
+                        )}
                       </article>
                     ))}
                   {!d.games.some((g) => g.upcoming !== history) && (

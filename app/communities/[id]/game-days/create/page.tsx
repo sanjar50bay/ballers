@@ -1,253 +1,335 @@
 "use client";
-import { t as tx } from "@/lib/i18n";
-
+import {
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useApp } from "@/app/components/AppState";
 import { useLocale } from "@/app/components/Language";
-
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import {
+  NetworkShell,
+  NetworkError,
+  useNetworkResource,
+} from "@/app/components/Network";
 import { supabase } from "@/lib/supabase";
-import { preMatchError } from "@/lib/pre-match";
-
-type Community = {
-  id: string;
-  name: string;
-  default_format: number;
-  default_team_count: number;
-  default_capacity: number | null;
-};
-
-export default function CreateGameDayPage() {
+import { changed, networkError } from "@/lib/network";
+import { t } from "@/lib/i18n";
+import type { CommunityWorkspace } from "@/lib/community-workspace";
+import {
+  followingWeek,
+  localDate,
+  readCommunityOperation,
+  saveCommunityOperation,
+  type CommunityDraft,
+  type CommunityOperation,
+} from "@/lib/community-schedule";
+const subscribe = () => () => {};
+export default function Page() {
+  const id = String(useParams().id),
+    { session } = useApp();
+  const hydrated = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
+  if (!hydrated) return <p>…</p>;
+  return (
+    <Suspense fallback={<p>…</p>}>
+      <Route key={id + ":" + session?.user.id} id={id} />
+    </Suspense>
+  );
+}
+function Route({ id }: { id: string }) {
+  const source = useSearchParams().get("from");
+  return <Plan key={id + ":" + source} id={id} source={source} />;
+}
+function Plan({ id, source }: { id: string; source: string | null }) {
   useLocale();
-
-  const params = useParams();
-  const router = useRouter();
-
-  const communityId = params.id as string;
-
-  const [community, setCommunity] = useState<Community | null>(null);
-
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("20:00");
-  const [venue, setVenue] = useState("");
-  const [format, setFormat] = useState("5");
-  const [teamCount, setTeamCount] = useState("3");
-  const [capacity, setCapacity] = useState("15");
-
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-
+  const { data: home, refresh } = useApp(),
+    router = useRouter();
+  const resource = useNetworkResource<CommunityWorkspace>(
+    "ballers_community_workspace",
+    { p_community: id },
+    !!home?.profile,
+  );
+  const actor = home?.profile?.id;
+  const [draft, setDraft] = useState<CommunityDraft | null>(null),
+    [pending, setPending] = useState<CommunityOperation | null>(null),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [conflict, setConflict] = useState("");
+  const lock = useRef(false),
+    initialized = useRef(false);
+  const active = useRef(true);
   useEffect(() => {
-    const loadCommunity = async () => {
-      const { data, error } = await supabase
-        .from("communities")
-        .select(
-          `
-          id,
-          name,
-          default_format,
-          default_team_count,
-          default_capacity
-        `,
-        )
-        .eq("id", communityId)
-        .single();
-
-      if (error || !data) {
-        console.error(error);
-        setLoading(false);
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+  const d = resource.data;
+  useEffect(() => {
+    if (!actor || !d || initialized.current) return;
+    const timer = setTimeout(() => {
+      const p = readCommunityOperation(id, actor);
+      if (p) {
+        setPending(p);
+        setDraft(p.draft);
+        initialized.current = true;
         return;
       }
-
-      setCommunity(data);
-      setFormat(String(data.default_format));
-      setTeamCount(String(data.default_team_count));
-      setCapacity(String(data.default_capacity ?? 15));
-
-      setLoading(false);
-    };
-
-    loadCommunity();
-  }, [communityId]);
-
-  const createGameDay = async () => {
-    if (!community) return;
-
-    if (!date) {
-      alert(tx("Choose game date"));
+      const previous = source ? d.games.find((g) => g.id === source) : null;
+      if (source && !previous) {
+        setError(
+          t(
+            "Исходная игра недоступна. Вернись в календарь и выбери игру заново.",
+          ),
+        );
+        initialized.current = true;
+        return;
+      }
+      setDraft({
+        source: previous?.id || null,
+        date: previous ? followingWeek(previous.game_date) : "",
+        time: previous?.start_time?.slice(0, 5) || "20:00",
+        venue: previous?.venue || "",
+        format: previous?.format || d.default_format,
+        teams: previous?.team_count || d.default_team_count,
+        capacity: previous ? previous.capacity : d.default_capacity,
+      });
+      initialized.current = true;
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [actor, d, id, source]);
+  const update = <K extends keyof CommunityDraft>(k: K, v: CommunityDraft[K]) =>
+    setDraft((old) => (old ? { ...old, [k]: v } : old));
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (lock.current || !actor || !draft) return;
+    const p = pending ||
+      readCommunityOperation(id, actor) || {
+        id: crypto.randomUUID(),
+        draft: { ...draft, venue: draft.venue.trim() },
+      };
+    if (!p.draft.date || !p.draft.time || !p.draft.venue) {
+      setError(t("Выбери дату, время и место."));
       return;
     }
-
-    setCreating(true);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      alert(tx("User not found"));
-      setCreating(false);
-      return;
+    saveCommunityOperation(id, actor, p);
+    setPending(p);
+    setDraft(p.draft);
+    setError("");
+    setConflict("");
+    lock.current = true;
+    setBusy(true);
+    try {
+      const { data, error: err } = await supabase
+        .rpc("ballers_schedule_community_game", {
+          p_community: id,
+          p_operation: p.id,
+          p_source: p.draft.source,
+          p_date: p.draft.date,
+          p_time: p.draft.time,
+          p_venue: p.draft.venue,
+          p_format: p.draft.format,
+          p_team_count: p.draft.teams,
+          p_capacity: p.draft.capacity,
+        })
+        .abortSignal(AbortSignal.timeout(15000));
+      if (!active.current) return;
+      if (err) {
+        if (err.code === "P0001" || err.code?.startsWith("22")) {
+          saveCommunityOperation(id, actor, null);
+          setPending(null);
+          setError(
+            err.message.includes("INVALID_SCHEDULE_SOURCE")
+              ? t(
+                  "Исходная игра недоступна. Вернись в календарь и выбери игру заново.",
+                )
+              : networkError(err),
+          );
+        } else
+          setError(
+            t(
+              "Ответ не получен. Нажми «Проверить создание»: повтор использует тот же запрос.",
+            ),
+          );
+        return;
+      }
+      if (
+        !data ||
+        typeof data.id !== "string" ||
+        typeof data.created !== "boolean"
+      ) {
+        setError(
+          t(
+            "Ответ не получен. Нажми «Проверить создание»: повтор использует тот же запрос.",
+          ),
+        );
+        return;
+      }
+      saveCommunityOperation(id, actor, null);
+      setPending(null);
+      if (!data.created) {
+        setConflict(data.id);
+        setError(
+          t(
+            "На эту дату и время в сообществе уже есть игра. Открой её или выбери другое время.",
+          ),
+        );
+        return;
+      }
+      changed();
+      void refresh();
+      router.push(`/games/${data.id}/play?tab=overview`);
+    } catch {
+      if (!active.current) return;
+      setError(
+        t(
+          "Ответ не получен. Нажми «Проверить создание»: повтор использует тот же запрос.",
+        ),
+      );
+    } finally {
+      lock.current = false;
+      if (active.current) setBusy(false);
     }
-
-    const { data: gameDayId, error } = await supabase.rpc(
-      "ballers_create_game_day",
-      {
-        p_community_id: communityId,
-        p_date: date,
-        p_time: time || null,
-        p_venue: venue || null,
-        p_format: Number(format),
-        p_team_count: Number(teamCount),
-        p_capacity: capacity ? Number(capacity) : null,
-      },
-    );
-
-    if (error || !gameDayId) {
-      alert(error ? preMatchError(error) : tx("Could not create Game Day"));
-      setCreating(false);
-      return;
-    }
-
-    router.push(`/communities/${communityId}`);
-  };
-
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p className="text-gray-400">{tx("Loading...")}</p>
-      </main>
-    );
   }
-
-  if (!community) {
-    return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p>{tx("Community not found")}</p>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-black text-white px-6 py-8">
-      <div className="max-w-md mx-auto">
-        <button
-          onClick={() => router.back()}
-          className="text-gray-400 mb-6 cursor-pointer hover:text-white transition"
-        >
-          {tx("← Back")}
-        </button>
-
-        <p className="text-blue-400 text-sm mb-1">{tx("New Game Day")}</p>
-
-        <h1 className="text-3xl font-bold mb-2">{community.name}</h1>
-
-        <p className="text-gray-400 mb-8">
-          {tx("Create the next football session.")}
+    <NetworkShell>
+      <h1 className="page-title">
+        {t(source ? "Игра на следующую неделю" : "Создать игру")}
+      </h1>
+      {d && <p className="ballers-muted mb-5">{d.name}</p>}
+      <NetworkError
+        error={resource.error}
+        retry={() => void resource.reload()}
+      />
+      {error && (
+        <p className="error-panel" role="alert">
+          {error}
         </p>
-
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm text-gray-400 block mb-2">
-              {tx("Date")}
+      )}
+      {conflict && (
+        <Link
+          className="neon-button mb-5"
+          href={`/games/${conflict}/play?tab=overview`}
+        >
+          {t("Открыть существующую игру")}
+        </Link>
+      )}
+      {resource.loading && !d && <p role="status">{t("Загружаем…")}</p>}
+      {d && !d.can_manage && (
+        <p className="network-card">
+          {t("Создавать игры может организатор сообщества.")}
+        </p>
+      )}
+      {d?.can_manage && draft && (
+        <form className="network-form" onSubmit={submit}>
+          {pending && (
+            <p role="status" className="neon-panel">
+              {t("Проверяем создание игры с прежними датой и временем.")}
+            </p>
+          )}
+          <fieldset disabled={busy || !!pending} className="space-y-4">
+            <label className="network-field">
+              <span>{t("Дата")}</span>
+              <input
+                type="date"
+                required
+                min={pending ? undefined : localDate()}
+                value={draft.date}
+                onChange={(e) => update("date", e.target.value)}
+              />
             </label>
-
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-gray-400 block mb-2">
-              {tx("Start time")}
+            <label className="network-field">
+              <span>{t("Время начала")}</span>
+              <input
+                type="time"
+                required
+                value={draft.time}
+                onChange={(e) => update("time", e.target.value)}
+              />
             </label>
-
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-gray-400 block mb-2">
-              {tx("Venue")}
+            <label className="network-field">
+              <span>{t("Место")}</span>
+              <input
+                required
+                maxLength={160}
+                placeholder={t("Название поля или адрес")}
+                value={draft.venue}
+                onChange={(e) => update("venue", e.target.value)}
+              />
             </label>
-
-            <input
-              type="text"
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              placeholder={tx("Arena / field")}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-gray-400 block mb-2">
-              {tx("Format")}
-            </label>
-
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-            >
-              <option value="1">1×1</option>
-              <option value="2">2×2</option>
-              <option value="3">3×3</option>
-              <option value="4">4×4</option>
-              <option value="5">5×5</option>
-              <option value="6">6×6</option>
-              <option value="7">7×7</option>
-              <option value="8">8×8</option>
-              <option value="9">9×9</option>
-              <option value="10">10×10</option>
-              <option value="11">11×11</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm text-gray-400 block mb-2">
-              {tx("Number of teams")}
-            </label>
-
-            <input
-              type="number"
-              min="2"
-              value={teamCount}
-              onChange={(e) => setTeamCount(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-gray-400 block mb-2">
-              {tx("Мест на этот игровой день")}
-            </label>
-
-            <input
-              type="number"
-              min="1"
-              aria-label={tx("Мест на этот игровой день")}
-              value={capacity}
-              onChange={(e) => setCapacity(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3"
-            />
-          </div>
-
-          <button
-            onClick={createGameDay}
-            disabled={creating}
-            className="w-full bg-blue-500 hover:bg-blue-400 text-white rounded-xl py-4 font-semibold cursor-pointer transition disabled:opacity-50"
-          >
-            {creating ? tx("Creating...") : tx("Create Game Day")}
+            <p className="ballers-muted">
+              {draft.format}×{draft.format} ·{" "}
+              {t("Команд: {count}", { count: draft.teams })} ·{" "}
+              {t("Мест: {count}", { count: draft.capacity ?? "∞" })}
+            </p>
+            <details>
+              <summary className="text-link cursor-pointer py-3">
+                {t("Изменить формат и число мест")}
+              </summary>
+              <label className="network-field">
+                <span>{t("Игроков на поле")}</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="11"
+                  required
+                  value={draft.format}
+                  onChange={(e) => update("format", Number(e.target.value))}
+                />
+              </label>
+              <label className="network-field">
+                <span>{t("Команд")}</span>
+                <input
+                  type="number"
+                  min="2"
+                  max="8"
+                  required
+                  value={draft.teams}
+                  onChange={(e) => update("teams", Number(e.target.value))}
+                />
+              </label>
+              <label className="network-field">
+                <span>{t("Мест на этот игровой день")}</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="200"
+                  placeholder={t("Без ограничения")}
+                  value={draft.capacity ?? ""}
+                  onChange={(e) =>
+                    update(
+                      "capacity",
+                      e.target.value === "" ? null : Number(e.target.value),
+                    )
+                  }
+                />
+              </label>
+            </details>
+          </fieldset>
+          <p className="ballers-muted text-sm my-3">
+            {t(
+              "Новая игра: составы и ответы собираются заново. Поле не бронируется.",
+            )}
+          </p>
+          <button disabled={busy} className="neon-button green w-full">
+            {t(
+              busy
+                ? "Сохраняем…"
+                : pending
+                  ? "Проверить создание"
+                  : "Создать игру",
+            )}
           </button>
-        </div>
-      </div>
-    </main>
+        </form>
+      )}
+    </NetworkShell>
   );
 }
