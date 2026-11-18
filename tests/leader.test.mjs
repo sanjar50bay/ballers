@@ -49,6 +49,15 @@ try {
   const oldMatch = await start(db, old.g);
   await db.exec("RESET ROLE");
   await db.exec(migration);
+  await db.exec(
+    fs.readFileSync(
+      new URL(
+        "../supabase/migrations/20261118_010_first_match_defaults.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   await actor(db, 1);
   await test("installation preserves legacy controls until explicit activation", async () => {
     await act(db, oldMatch, "PAUSE", {}, 1);
@@ -339,6 +348,121 @@ try {
   await test("migration repeat is transactional and rejected", async () => {
     await db.exec("RESET ROLE");
     await assert.rejects(() => db.exec(migration), /009 already applied/);
+    await db.exec("ROLLBACK");
+  });
+  await test("a fresh day initializes default rules and lineup only for its assigned leader", async () => {
+    const fresh = await day(db, 600);
+    await assign(fresh.g, pid(3), 0);
+    await db.exec("RESET ROLE");
+    await db.query("DELETE FROM ballers_game_settings WHERE game_day_id=$1", [
+      fresh.g,
+    ]);
+    await db.query("DELETE FROM ballers_sessions WHERE game_day_id=$1", [
+      fresh.g,
+    ]);
+    await actor(db, 2);
+    await assert.rejects(
+      () => launch(fresh.g, id(650), 0, 1),
+      /LEADER_REQUIRED/,
+    );
+    await db.exec("RESET ROLE");
+    assert.equal(
+      await scalar(
+        db,
+        "SELECT count(*)::int FROM ballers_game_settings WHERE game_day_id=$1",
+        [fresh.g],
+      ),
+      0,
+    );
+    await actor(db, 3);
+    const match = await launch(fresh.g, id(650), 0, 1);
+    const rules = (
+      await db.query(
+        "SELECT duration_seconds,goal_limit,end_mode FROM ballers_matches WHERE id=$1",
+        [match],
+      )
+    ).rows[0];
+    assert.deepEqual(rules, {
+      duration_seconds: 420,
+      goal_limit: 2,
+      end_mode: "FIRST_REACHED",
+    });
+    assert.equal(await launch(fresh.g, id(650), 0, 1), match);
+    assert.equal(await count(fresh.g), 1);
+  });
+  await test("first start preserves previously customized rules", async () => {
+    const custom = await day(db, 700);
+    await assign(custom.g, pid(3), 0);
+    await db.exec("RESET ROLE");
+    await db.query(
+      "UPDATE ballers_game_settings SET duration_seconds=600,goal_limit=5,end_mode='TIME_ONLY' WHERE game_day_id=$1",
+      [custom.g],
+    );
+    await actor(db, 3);
+    const match = await launch(custom.g, id(750), 0, 1);
+    const rules = (
+      await db.query(
+        "SELECT duration_seconds,goal_limit,end_mode FROM ballers_matches WHERE id=$1",
+        [match],
+      )
+    ).rows[0];
+    assert.deepEqual(rules, {
+      duration_seconds: 600,
+      goal_limit: 5,
+      end_mode: "TIME_ONLY",
+    });
+  });
+  await test("failed first start rolls back default settings and creates no receipt", async () => {
+    const empty = await day(db, 800);
+    await assign(empty.g, pid(3), 0);
+    await db.exec("RESET ROLE");
+    await db.query("DELETE FROM ballers_game_settings WHERE game_day_id=$1", [
+      empty.g,
+    ]);
+    await db.query("DELETE FROM ballers_sessions WHERE game_day_id=$1", [
+      empty.g,
+    ]);
+    await db.query("DELETE FROM game_day_teams WHERE game_day_id=$1", [
+      empty.g,
+    ]);
+    await actor(db, 3);
+    await assert.rejects(
+      () => launch(empty.g, id(850), 0, 1),
+      /Сначала соберите минимум две команды/,
+    );
+    await db.exec("RESET ROLE");
+    assert.equal(
+      await scalar(
+        db,
+        "SELECT count(*)::int FROM ballers_game_settings WHERE game_day_id=$1",
+        [empty.g],
+      ),
+      0,
+    );
+    assert.equal(
+      await scalar(
+        db,
+        "SELECT count(*)::int FROM ballers_start_operations WHERE operation_id=$1",
+        [id(850)],
+      ),
+      0,
+    );
+  });
+  await test("010 cannot be applied twice", async () => {
+    await db.exec("RESET ROLE");
+    await assert.rejects(
+      () =>
+        db.exec(
+          fs.readFileSync(
+            new URL(
+              "../supabase/migrations/20261118_010_first_match_defaults.sql",
+              import.meta.url,
+            ),
+            "utf8",
+          ),
+        ),
+      /010 already applied/,
+    );
     await db.exec("ROLLBACK");
   });
   console.log(

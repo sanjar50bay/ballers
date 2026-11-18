@@ -51,6 +51,20 @@ await db.exec(
     "utf8",
   ),
 );
+await db.exec(
+  fs.readFileSync(
+    new URL(
+      "../supabase/migrations/20261118_010_first_match_defaults.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+// Mirror a day created in the real UI: no saved rules and no lineup before its first start.
+await db.query("DELETE FROM ballers_game_settings WHERE game_day_id=$1", [
+  game,
+]);
+await db.query("DELETE FROM ballers_sessions WHERE game_day_id=$1", [game]);
 export const browser = await chromium.launch({
   headless: true,
   executablePath: process.env.CHROMIUM_PATH,
