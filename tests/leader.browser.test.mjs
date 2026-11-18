@@ -13,6 +13,7 @@ import {
   errors,
 } from "./leader-browser-fixture.mjs";
 let passed = 0;
+let debugPage;
 const pass = (s) => {
   passed++;
   console.log("PASS " + s);
@@ -38,6 +39,7 @@ try {
     { page: leader } = await context(3, { loseStart: true }),
     { page: spectator } = await context(2),
     { page: manager } = await context(5);
+  debugPage = owner;
   await open(owner);
   await owner.getByText("Ещё не назначен", { exact: true }).waitFor();
   assert.equal(
@@ -46,7 +48,10 @@ try {
       .count(),
     0,
   );
-  await leaderName(owner).getByText("Кто ведёт матч?", { exact: true }).click();
+  await owner
+    .getByRole("region", { name: "Подготовка игры", exact: true })
+    .getByRole("button", { name: "Назначить ведущего", exact: true })
+    .click();
   await leaderName(owner).getByRole("combobox").selectOption(pid(3));
   await leaderName(owner)
     .getByRole("button", { name: "Назначить ведущего", exact: true })
@@ -74,6 +79,69 @@ try {
     "players and other managers are spectators until they receive the baton",
   );
   await open(leader);
+  await admin("DELETE FROM ballers_team_roles WHERE team_id IN ($1,$2)", [
+    id(201),
+    id(202),
+  ]);
+  await leader.reload();
+  await leader
+    .getByRole("heading", { name: "Подготовка игры", exact: true })
+    .waitFor();
+  assert.equal(
+    await leader
+      .getByRole("button", { name: "Начать первый матч", exact: true })
+      .isEnabled(),
+    false,
+  );
+  await open(owner);
+  await owner
+    .getByRole("region", { name: "Подготовка игры", exact: true })
+    .screenshot({ path: artifactPath("docs/preparation-checklist-390.png") });
+  await owner
+    .getByRole("link", { name: "Назначить капитанов", exact: true })
+    .click();
+  const blue = owner
+    .locator("form")
+    .filter({ has: owner.getByRole("heading", { name: /^Blue\s*·/ }) });
+  const red = owner
+    .locator("form")
+    .filter({ has: owner.getByRole("heading", { name: /^Red\s*·/ }) });
+  await blue.getByLabel("Капитан", { exact: true }).waitFor();
+  assert.equal(
+    await blue.getByLabel("Капитан", { exact: true }).inputValue(),
+    "",
+  );
+  assert.equal(
+    await blue.getByLabel("Ответственный", { exact: true }).inputValue(),
+    "",
+  );
+  await shot(owner, "preparation-captains-390.png");
+  pass(
+    "missing saved captains block start and the preparation link reveals unsaved role fields",
+  );
+  for (const [form, player, name] of [
+    [blue, pid(1), "Blue"],
+    [red, pid(2), "Red"],
+  ]) {
+    await form.getByLabel("Капитан", { exact: true }).selectOption(player);
+    await form
+      .getByLabel("Ответственный", { exact: true })
+      .selectOption(player);
+    await form
+      .getByRole("button", { name: "Сохранить роли " + name, exact: true })
+      .click();
+    await form.getByText("Роли сохранены", { exact: true }).waitFor();
+  }
+  await owner
+    .getByRole("heading", { name: "Можно начинать", exact: true })
+    .waitFor();
+  pass(
+    "saving both starting captains makes preparation ready without changing the waiting team",
+  );
+  await leader.reload();
+  await leader
+    .getByRole("heading", { name: "Можно начинать", exact: true })
+    .waitFor();
   await leader
     .getByRole("button", { name: "Начать первый матч", exact: true })
     .click();
@@ -213,6 +281,9 @@ try {
   pass(
     "leader pauses/resumes while a second player sees the shared state without controls",
   );
+  // Stop polling in this tab: returning focus must fetch the new authority itself.
+  await spectator.clock.install({ time: new Date("2026-11-18T12:00:00Z") });
+  await spectator.clock.pauseAt(new Date("2026-11-18T12:00:01Z"));
   await leaderName(leader)
     .locator("summary")
     .filter({ hasText: /^Передать управление$/ })
@@ -226,8 +297,17 @@ try {
     await leader.getByRole("button", { name: "Пауза", exact: true }).count(),
     0,
   );
-  await open(spectator, "matches");
+  await Promise.all([
+    spectator.waitForRequest((req) =>
+      req.url().endsWith("/rpc/ballers_alpha_snapshot"),
+    ),
+    spectator.evaluate(() => window.dispatchEvent(new Event("focus"))),
+  ]);
   await spectator.getByRole("button", { name: "Пауза", exact: true }).waitFor();
+  await spectator.clock.resume();
+  pass(
+    "returning focus refreshes changed leader authority without reload or a polling tick",
+  );
   const oldWrite = await rpc(leader, "ballers_match_action", {
     p_match: simultaneous[0].body,
     p_version: 0,
@@ -269,6 +349,27 @@ try {
     .getByRole("link", { name: "Участники", exact: true })
     .click();
   await owner.getByRole("heading", { name: "Команды", exact: true }).waitFor();
+  await owner
+    .getByText(
+      "Составы закреплены на время матча. Изменить их можно после завершения матча.",
+      { exact: true },
+    )
+    .waitFor();
+  assert.equal(
+    await owner
+      .getByRole("button", { name: "⚡ Перемешать", exact: true })
+      .count(),
+    0,
+  );
+  assert.equal(
+    await owner
+      .getByRole("button", { name: "Управление →", exact: true })
+      .count(),
+    0,
+  );
+  pass(
+    "active-match participants explain the roster lock and hide unavailable changes",
+  );
   assert.equal(await owner.locator(".ballers-nav").count(), 1);
   await shot(owner, "leader-participants-390.png");
   await owner.reload();
@@ -348,6 +449,22 @@ try {
   console.log(
     `RESULT: ${passed} leader/unified-game browser checks passed. Multiple browser contexts; isolated PGlite serializes SQL transport, not a multi-connection production load test.`,
   );
+} catch (error) {
+  if (debugPage) {
+    await debugPage.screenshot({
+      path: artifactPath("docs/preparation-failure.png"),
+    });
+    console.error(
+      "Preparation UI:",
+      debugPage.url(),
+      await debugPage
+        .locator("details[id]")
+        .evaluateAll((nodes) =>
+          nodes.map((n) => ({ id: n.id, open: n.open, hidden: n.hidden })),
+        ),
+    );
+  }
+  throw error;
 } finally {
   await close();
 }

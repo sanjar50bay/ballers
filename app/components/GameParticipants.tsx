@@ -89,10 +89,12 @@ export default function GameParticipants({
   communityId,
   gameId,
   embedded = true,
+  rosterLocked = false,
 }: {
   communityId: string;
   gameId: string;
   embedded?: boolean;
+  rosterLocked?: boolean;
 }) {
   useLocale();
 
@@ -628,7 +630,8 @@ export default function GameParticipants({
   const filledPercent =
     capacity > 0 ? Math.min((goingPlayers.length / capacity) * 100, 100) : 0;
 
-  const canManage = myRole === "OWNER" || myRole === "MANAGER";
+  const canManage =
+    !rosterLocked && (myRole === "OWNER" || myRole === "MANAGER");
 
   const communityPlayerIds = new Set(
     communityMembers
@@ -706,6 +709,13 @@ export default function GameParticipants({
 
   return (
     <section className="min-h-screen bg-[#02030a] text-white pb-24">
+      {rosterLocked && (
+        <p role="status" className="neon-panel mb-4">
+          {tx(
+            "Составы закреплены на время матча. Изменить их можно после завершения матча.",
+          )}
+        </p>
+      )}
       <div className="max-w-md mx-auto px-4 pt-6">
         {!embedded && (
           <>

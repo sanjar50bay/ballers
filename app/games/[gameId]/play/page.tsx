@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import GameLeader, { type GameControl } from "@/app/components/GameLeader";
+import GamePreparation from "@/app/components/GamePreparation";
 import dynamic from "next/dynamic";
 import { readStart, saveStart, type StartOperation } from "@/lib/game-start";
 import MatchCorrections from "@/app/components/MatchCorrections";
@@ -182,6 +183,8 @@ function UnifiedGame() {
   });
   const initialized = useRef<string | null>(null);
   const activeGame = useRef<string | null>(gameId);
+  const refreshSequence = useRef(0);
+  const refreshApplied = useRef(0);
   useEffect(() => {
     activeGame.current = gameId;
     return () => {
@@ -189,10 +192,13 @@ function UnifiedGame() {
     };
   }, [gameId]);
   const refresh = useCallback(async () => {
+    const request = ++refreshSequence.current;
     const { data, error } = await supabase.rpc("ballers_alpha_snapshot", {
       p_game: gameId,
     });
-    if (activeGame.current !== gameId) return;
+    if (activeGame.current !== gameId || request < refreshApplied.current)
+      return;
+    refreshApplied.current = request;
     if (error) {
       setError(error.message);
       return;
@@ -214,13 +220,38 @@ function UnifiedGame() {
     const poll = window.setInterval(() => {
       void refresh();
     }, 5000);
+    const onReturn = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
     const tick = window.setInterval(() => setClock(Date.now()), 1000);
     return () => {
       clearTimeout(first);
       clearInterval(poll);
       clearInterval(tick);
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
     };
   }, [refresh]);
+  useEffect(() => {
+    const reveal = () => {
+      if (tab !== "matches" || location.hash !== "#game-captains") return;
+      for (const id of ["game-organizer", "game-captains"]) {
+        const el = document.getElementById(id);
+        if (el instanceof HTMLDetailsElement) el.open = true;
+      }
+      document
+        .getElementById("game-captains")
+        ?.scrollIntoView({ block: "start" });
+    };
+    const timer = window.setTimeout(reveal, 0);
+    window.addEventListener("hashchange", reveal);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("hashchange", reveal);
+    };
+  }, [tab, s?.game.id]);
   async function run(
     task: () => PromiseLike<{ error: { message: string } | null }>,
     message = tx("Сохранено"),
@@ -385,6 +416,23 @@ function UnifiedGame() {
   const pending = s.matches.filter((m) =>
     ["PENDING", "DISPUTED"].includes(m.status),
   );
+  const preparation =
+    !live && s.game.status === "OPEN" && (s.manager || s.control?.is_leader) ? (
+      <GamePreparation
+        snapshot={s}
+        path={path}
+        busy={busy}
+        pending={!!pendingStart}
+        hasMatches={!!s.matches.length}
+        start={() => void startMatch()}
+        revealLeader={() => {
+          const panel = document.getElementById("game-leader");
+          const details = panel?.querySelector("details");
+          if (details) details.open = true;
+          panel?.scrollIntoView({ block: "start", behavior: "smooth" });
+        }}
+      />
+    ) : null;
   return (
     <main className="min-h-screen bg-[#050710] text-white pb-24">
       <div className="max-w-3xl mx-auto px-4 pt-6 pb-16">
@@ -428,21 +476,24 @@ function UnifiedGame() {
             </button>
           </div>
         )}
-        <GameLeader
-          gameId={gameId}
-          control={s.control}
-          manager={s.manager}
-          open={s.game.status === "OPEN"}
-          players={s.players.filter(
-            (p) =>
-              p.user_id &&
-              (s.participants.some(
-                (a) => a.player_id === p.id && a.attendance_status === "GOING",
-              ) ||
-                (s.manager && p.id === s.my_player_id)),
-          )}
-          refresh={refresh}
-        />
+        <div id="game-leader">
+          <GameLeader
+            gameId={gameId}
+            control={s.control}
+            manager={s.manager}
+            open={s.game.status === "OPEN"}
+            players={s.players.filter(
+              (p) =>
+                p.user_id &&
+                (s.participants.some(
+                  (a) =>
+                    a.player_id === p.id && a.attendance_status === "GOING",
+                ) ||
+                  (s.manager && p.id === s.my_player_id)),
+            )}
+            refresh={refresh}
+          />
+        </div>
         {pendingStart && (
           <button
             disabled={busy}
@@ -453,6 +504,7 @@ function UnifiedGame() {
           </button>
         )}
         <section hidden={tab !== "overview"} aria-labelledby="tab-overview">
+          {tab === "overview" && preparation}
           <div className="neon-panel mb-4">
             <h2>{tx("Когда и где")}</h2>
             <p className="mt-2">
@@ -474,6 +526,13 @@ function UnifiedGame() {
             !home?.games.find((g) => g.id === gameId)?.request_status && (
               <div className="neon-panel mb-4">
                 <h2>{tx("Будешь играть?")}</h2>
+                {!!live && rosterIds.includes(s.my_player_id) && (
+                  <p className="ballers-muted text-sm my-2">
+                    {tx(
+                      "Ты в текущем матче. Изменить участие можно после его завершения.",
+                    )}
+                  </p>
+                )}
                 <div className="attendance-options">
                   {[
                     ["GOING", "✓ Иду"],
@@ -487,7 +546,9 @@ function UnifiedGame() {
                           p.player_id === s.my_player_id &&
                           p.attendance_status === status,
                       )}
-                      disabled={busy}
+                      disabled={
+                        busy || (!!live && rosterIds.includes(s.my_player_id))
+                      }
                       onClick={() =>
                         void run(() =>
                           setAttendance(
@@ -519,31 +580,17 @@ function UnifiedGame() {
               </Link>
             </div>
           )}
-          {!live &&
-            s.game.status === "OPEN" &&
-            s.control?.is_leader &&
-            !pendingStart && (
-              <button
-                className="neon-button mb-4"
-                disabled={busy || s.teams.length < 2}
-                onClick={() => void startMatch()}
-              >
-                {tx(
-                  s.matches.length
-                    ? "Начать следующий матч"
-                    : "Начать первый матч",
-                )}
-              </button>
-            )}
         </section>
         {tab === "participants" && (
           <GameParticipants
             key={gameId}
             gameId={gameId}
             communityId={s.game.community_id}
+            rosterLocked={!!live}
           />
         )}
         <section hidden={tab !== "matches"} aria-labelledby="tab-matches">
+          {tab === "matches" && preparation}
           {live && (
             <section className="rounded-3xl border border-violet-500 bg-gradient-to-br from-violet-950 to-[#09131d] p-5 mb-5">
               <div className="flex justify-between gap-2 text-sm text-gray-300">
@@ -765,21 +812,6 @@ function UnifiedGame() {
                   </form>
                 </details>
               )}
-              {s.control?.is_leader && !live && !pendingStart && (
-                <button
-                  className={`${button} mt-4`}
-                  disabled={
-                    busy || s.teams.length < 2 || s.game.status !== "OPEN"
-                  }
-                  onClick={() => {
-                    void startMatch();
-                  }}
-                >
-                  {s.matches.length
-                    ? tx("Начать следующий матч")
-                    : tx("Начать первый матч")}
-                </button>
-              )}
             </section>
           )}
           <DayResults
@@ -979,7 +1011,11 @@ function UnifiedGame() {
               </article>
             ))}
           </section>
-          <details className="organizer-settings" hidden={!s.manager}>
+          <details
+            id="game-organizer"
+            className="organizer-settings"
+            hidden={!s.manager}
+          >
             <summary className="min-h-11 py-3">
               {tx("Настройки организатора")}
             </summary>
@@ -1293,7 +1329,7 @@ function UnifiedGame() {
                 })}
               </section>
             ) : (
-              <details className={section}>
+              <details id="game-captains" className={section}>
                 <summary className="min-h-11 py-2 text-lg font-bold">
                   {tx("Капитаны и ответственные")}
                   <span className="text-[#73d4ff]">↓</span>
@@ -1317,20 +1353,35 @@ function UnifiedGame() {
                         className="border border-white/10 rounded-2xl p-4"
                       >
                         <h3 className="font-bold mb-3">
-                          {t.name} · {t.player_ids.length}
-                          {tx("игроков")}
+                          {`${t.name} · ${t.player_ids.length} ${tx("игроков")}`}
                         </h3>
+                        <p className="ballers-muted text-sm mb-3">
+                          {tx(
+                            role &&
+                              t.player_ids.includes(role.captain_id) &&
+                              t.player_ids.includes(role.responsible_id)
+                              ? "Роли сохранены"
+                              : "Выбери людей и сохрани роли команды.",
+                          )}
+                        </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <label className="text-sm">
                             {tx("Капитан")}
                             <select
                               name="captain"
+                              aria-label={tx("Капитан")}
+                              required
                               className={field}
                               defaultValue={
-                                role?.captain_id || t.player_ids[0] || ""
+                                t.player_ids.includes(role?.captain_id || "")
+                                  ? role?.captain_id
+                                  : ""
                               }
                               disabled={!s.manager || busy || !!live}
                             >
+                              <option value="" disabled>
+                                {tx("Выбери капитана")}
+                              </option>
                               {t.player_ids.map((id) => (
                                 <option key={id} value={id}>
                                   {playerName(id)}
@@ -1342,12 +1393,21 @@ function UnifiedGame() {
                             {tx("Ответственный")}
                             <select
                               name="responsible"
+                              aria-label={tx("Ответственный")}
+                              required
                               className={field}
                               defaultValue={
-                                role?.responsible_id || t.player_ids[0] || ""
+                                t.player_ids.includes(
+                                  role?.responsible_id || "",
+                                )
+                                  ? role?.responsible_id
+                                  : ""
                               }
                               disabled={!s.manager || busy || !!live}
                             >
+                              <option value="" disabled>
+                                {tx("Выбери ответственного")}
+                              </option>
                               {t.player_ids.map((id) => (
                                 <option key={id} value={id}>
                                   {playerName(id)}
