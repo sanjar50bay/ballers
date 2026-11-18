@@ -151,8 +151,13 @@ async function context(
   n,
   locale = "ru",
   width = 390,
-  { loseSchedule = false, loseCommunitySchedule = false } = {},
+  {
+    loseSchedule = false,
+    loseCommunitySchedule = false,
+    loseAttendance = false,
+  } = {},
 ) {
+  let lostAttendance = false;
   let lostSchedule = false;
   let lostCommunitySchedule = false;
   const ctx = await browser.newContext({ viewport: { width, height: 844 } });
@@ -257,6 +262,14 @@ async function context(
         url.pathname.endsWith("/rpc/ballers_schedule_community_game")
       ) {
         lostCommunitySchedule = true;
+        return route.abort("failed");
+      }
+      if (
+        loseAttendance &&
+        !lostAttendance &&
+        url.pathname.endsWith("/rpc/ballers_set_attendance")
+      ) {
+        lostAttendance = true;
         return route.abort("failed");
       }
       return route.fulfill({ status: 200, headers, json: result });
@@ -1090,6 +1103,190 @@ try {
     "/teams/" + teamId,
   );
   pass("shared team link preserves destination for login without auto-joining");
+  // Player home: same real attendance RPC, isolated from earlier calendar fixtures.
+  const homeGame = id(970);
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.exec("UPDATE game_days SET status='CLOSED'");
+    await db.query(
+      "UPDATE community_members SET role='MEMBER' WHERE player_id=$1",
+      [pid(1)],
+    );
+    await db.query(
+      "INSERT INTO game_days(id,community_id,sequence_number,title,game_date,start_time,venue,format,team_count,capacity,created_by) VALUES($1,$2,970,'Home Football','2099-02-01','20:00','Купол',5,2,10,$3)",
+      [homeGame, c1, uid(3)],
+    );
+    await db.query(
+      "INSERT INTO game_participants(game_day_id,player_id,attendance_status) VALUES($1,$2,'INVITED')",
+      [homeGame, pid(1)],
+    );
+  });
+  const { page: home } = await context(1);
+  await home.goto(base + "/");
+  const hero = home.getByRole("region", {
+    name: "Твоя ближайшая игра",
+    exact: true,
+  });
+  await hero.getByText("Home Football", { exact: true }).waitFor();
+  await hero.getByText("Купол", { exact: true }).waitFor();
+  await hero
+    .getByText("До двух составов не хватает: 10", { exact: true })
+    .waitFor();
+  assert.equal(
+    await hero
+      .getByRole("link", { name: "Кто играет →", exact: true })
+      .getAttribute("href"),
+    `/games/${homeGame}/play?tab=participants`,
+  );
+  await screenshot(home, "player-home-invited-390.png");
+  let writes = 0;
+  home.on("request", (r) => {
+    if (r.url().endsWith("/rpc/ballers_set_attendance")) writes++;
+  });
+  await hero.getByRole("button", { name: "Иду", exact: true }).dblclick();
+  await hero.getByText("● Ты идёшь", { exact: true }).waitFor();
+  assert.equal(writes, 1);
+  await hero
+    .getByText("До двух составов не хватает: 9", { exact: true })
+    .waitFor();
+  await home.reload();
+  await hero.getByText("● Ты идёшь", { exact: true }).waitFor();
+  pass(
+    "player home shows time, venue, roster link and real availability; double confirmation writes once and survives reload",
+  );
+  await hero.getByRole("button", { name: "Не могу", exact: true }).click();
+  await hero
+    .getByRole("button", { name: "Оставить участие", exact: true })
+    .click();
+  assert.equal(writes, 1);
+  await hero.getByRole("button", { name: "Не могу", exact: true }).click();
+  await hero.getByRole("button", { name: "Да, не смогу", exact: true }).click();
+  await hero.getByText("Ты не идёшь", { exact: true }).waitFor();
+  pass(
+    "withdrawing a confirmed place requires explicit confirmation and cancel keeps participation",
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query(
+      "UPDATE game_participants SET attendance_status='INVITED' WHERE game_day_id=$1",
+      [homeGame],
+    );
+  });
+  await home.reload();
+  await hero.getByText("Приглашение", { exact: true }).waitFor();
+  await home.route("**/rpc/ballers_set_attendance", (r) =>
+    r.fulfill({ status: 400, json: { message: "GAME_NOT_OPEN" } }),
+  );
+  await hero.getByRole("button", { name: "Иду", exact: true }).click();
+  await hero.getByRole("alert").waitFor();
+  assert.equal(await hero.getByText("● Ты идёшь", { exact: true }).count(), 0);
+  await home.unroute("**/rpc/ballers_set_attendance");
+  pass(
+    "failed home attendance shows an inline error and never claims a confirmed place",
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query("UPDATE game_days SET capacity=1 WHERE id=$1", [homeGame]);
+    await db.query(
+      "INSERT INTO game_participants(game_day_id,player_id,attendance_status) VALUES($1,$2,'GOING')",
+      [homeGame, pid(2)],
+    );
+  });
+  await home.reload();
+  await hero.getByRole("button", { name: "Иду", exact: true }).click();
+  await hero.getByText("Ты в резерве", { exact: true }).waitFor();
+  await hero
+    .getByRole("link", { name: "Открыть резерв →", exact: true })
+    .waitFor();
+  assert.equal(
+    await hero.getByRole("button", { name: "Иду", exact: true }).count(),
+    0,
+  );
+  pass(
+    "a full game puts the player in real SQL waitlist and home does not claim GOING",
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query("DELETE FROM ballers_waitlist WHERE game_day_id=$1", [
+      homeGame,
+    ]);
+    await db.query(
+      "DELETE FROM game_participants WHERE game_day_id=$1 AND player_id=$2",
+      [homeGame, pid(1)],
+    );
+    await db.query(
+      "INSERT INTO ballers_day_requests(game_day_id,player_id,status) VALUES($1,$2,'PENDING')",
+      [homeGame, pid(1)],
+    );
+    await db.query(
+      "UPDATE game_days SET capacity=10,venue=NULL,start_time=NULL WHERE id=$1",
+      [homeGame],
+    );
+  });
+  await home.reload();
+  await hero.getByText("Заявка ожидает решения", { exact: true }).waitFor();
+  await hero
+    .getByRole("link", { name: "Посмотреть заявку →", exact: true })
+    .waitFor();
+  assert.equal(
+    await hero.getByRole("button", { name: "Иду", exact: true }).count(),
+    0,
+  );
+  await hero.getByText("Место уточняется", { exact: true }).waitFor();
+  await home.getByLabel("Язык интерфейса", { exact: true }).selectOption("kk");
+  await home.setViewportSize({ width: 320, height: 568 });
+  await home
+    .getByRole("region", { name: "Ең жақын ойының", exact: true })
+    .waitFor();
+  await screenshot(home, "player-home-request-kk-320.png");
+  pass(
+    "pending request has a detail link instead of bypass controls; unknown venue/time and Kazakh home fit 320px",
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query("DELETE FROM ballers_day_requests WHERE game_day_id=$1", [
+      homeGame,
+    ]);
+    await db.query(
+      "INSERT INTO game_participants(game_day_id,player_id,attendance_status) VALUES($1,$2,'INVITED')",
+      [homeGame, pid(1)],
+    );
+  });
+  const { page: lostAnswer } = await context(1, "ru", 390, {
+    loseAttendance: true,
+  });
+  await lostAnswer.goto(base + "/");
+  const lostHero = lostAnswer.getByRole("region", {
+    name: "Твоя ближайшая игра",
+    exact: true,
+  });
+  await lostHero.getByRole("button", { name: "Иду", exact: true }).click();
+  await lostHero.getByText("● Ты идёшь", { exact: true }).waitFor();
+  assert.equal(
+    await lostHero
+      .getByRole("button", { name: "Иду", exact: true })
+      .isDisabled(),
+    true,
+  );
+  pass(
+    "lost attendance response is reconciled from SQL and does not invite an automatic duplicate write",
+  );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query("UPDATE game_days SET status='CLOSED' WHERE id=$1", [
+      homeGame,
+    ]);
+  });
+  await home.getByLabel("Интерфейс тілі", { exact: true }).selectOption("ru");
+  await home.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await home
+    .getByText("Ты пока не записан на ближайшие игры", { exact: true })
+    .waitFor();
+  assert.equal(await home.locator(".next-game-card").count(), 0);
+  pass(
+    "focus refresh removes a newly closed game and exposes the find-game empty state",
+  );
+
   assert.deepEqual(errors, []);
   console.log(
     `RESULT: ${passed} network browser checks passed; isolated SQL, simulated OAuth/HTTP, not live Supabase.`,

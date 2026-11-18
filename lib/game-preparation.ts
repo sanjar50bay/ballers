@@ -1,14 +1,21 @@
 type Team = { id: string; name: string; player_ids: string[] };
 export type PreparationInput = {
-  game: { format: number };
+  game: {
+    format: number;
+    game_date?: string;
+    start_time?: string | null;
+    venue?: string | null;
+  };
   teams: Team[];
   roles: { team_id: string; captain_id: string | null }[];
   participants: { player_id: string; attendance_status: string }[];
+  waitlist?: { player_id: string }[];
   session: { team_a: string; team_b: string } | null;
   control?: { leader_id: string | null };
 };
 
 export function gamePreparation(s: PreparationInput) {
+  const waiting = new Set(s.waitlist?.map((p) => p.player_id) || []);
   const going = new Set(
     s.participants
       .filter((p) => p.attendance_status === "GOING")
@@ -26,6 +33,8 @@ export function gamePreparation(s: PreparationInput) {
   const playersReady = going.size >= s.game.format * 2;
   const teamsReady =
     validPair &&
+    new Set(teams.flatMap((t) => t.player_ids)).size ===
+      teams.reduce((count, t) => count + t.player_ids.length, 0) &&
     teams.every(
       (t) =>
         t.player_ids.length >= s.game.format &&
@@ -46,6 +55,27 @@ export function gamePreparation(s: PreparationInput) {
     teamsReady,
     captainsReady,
     leaderReady,
+    missing: Math.max(0, s.game.format * 2 - going.size),
+    invited: s.participants.filter((p) => p.attendance_status === "INVITED")
+      .length,
+    maybe: s.participants.filter(
+      (p) => p.attendance_status === "MAYBE" && !waiting.has(p.player_id),
+    ).length,
+    reserved: waiting.size,
+    declined: s.participants.filter((p) => p.attendance_status === "DECLINED")
+      .length,
+    dateSpecified: !!s.game.game_date?.trim(),
+    timeSpecified: !!s.game.start_time?.trim(),
+    venueSpecified: !!s.game.venue?.trim(),
+    nextStep: !playersReady
+      ? "players"
+      : !teamsReady
+        ? "teams"
+        : !captainsReady
+          ? "captains"
+          : !leaderReady
+            ? "leader"
+            : null,
     ready: playersReady && teamsReady && captainsReady && leaderReady,
   };
 }

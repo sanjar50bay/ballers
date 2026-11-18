@@ -41,6 +41,70 @@ try {
     { page: manager } = await context(5);
   debugPage = owner;
   await open(owner);
+  await admin(
+    "UPDATE game_participants SET attendance_status=CASE player_id WHEN $2 THEN 'INVITED'::attendance_status WHEN $3 THEN 'MAYBE'::attendance_status WHEN $4 THEN 'DECLINED'::attendance_status ELSE attendance_status END WHERE game_day_id=$1",
+    [game, pid(8), pid(7), pid(6)],
+  );
+  await owner.reload();
+  const prep = owner.getByRole("region", {
+    name: "Подготовка игры",
+    exact: true,
+  });
+  await prep
+    .getByRole("heading", { name: "Назначить ведущего", exact: true })
+    .waitFor();
+  assert.deepEqual(
+    await prep.locator(".preparation-counts dd").allTextContents(),
+    ["4", "1", "1", "1"],
+  );
+  assert.equal(await prep.locator("details").getAttribute("open"), null);
+  assert.equal(
+    await prep.locator(".preparation-next button,.preparation-next a").count(),
+    1,
+  );
+  await prep.screenshot({
+    path: artifactPath("docs/organizer-readiness-390.png"),
+  });
+  pass(
+    "organizer sees authoritative reply counts, one next action and a collapsed checklist",
+  );
+  await admin("UPDATE game_days SET start_time=NULL,venue=NULL WHERE id=$1", [
+    game,
+  ]);
+  await owner.reload();
+  await prep
+    .getByText("Уточни недостающие данные с участниками до игры.", {
+      exact: true,
+    })
+    .waitFor();
+  await owner.setViewportSize({ width: 320, height: 740 });
+  await owner.getByLabel("Язык интерфейса", { exact: true }).selectOption("kk");
+  await owner
+    .locator(".preparation-next-label")
+    .getByText("Келесі қадам", { exact: true })
+    .waitFor();
+  await owner
+    .locator(".game-preparation")
+    .screenshot({ path: artifactPath("docs/organizer-readiness-kk-320.png") });
+  assert.ok(
+    await owner.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await owner.getByLabel("Интерфейс тілі", { exact: true }).selectOption("ru");
+  await owner.setViewportSize({ width: 390, height: 844 });
+  await admin(
+    "UPDATE game_days SET start_time='20:00',venue='Купол · тестовая площадка' WHERE id=$1",
+    [game],
+  );
+  await admin(
+    "UPDATE game_participants SET attendance_status='GOING' WHERE game_day_id=$1",
+    [game],
+  );
+  await owner.reload();
+  pass(
+    "missing planning details are explicit, organizer controls fit Kazakh at 320px",
+  );
   await owner.getByText("Ещё не назначен", { exact: true }).waitFor();
   assert.equal(
     await owner
@@ -62,6 +126,7 @@ try {
   );
   await shot(owner, "leader-overview-390.png");
   await open(spectator);
+  assert.equal(await spectator.locator(".game-preparation").count(), 0);
   await open(manager);
   for (const page of [owner, spectator, manager]) {
     assert.equal(
