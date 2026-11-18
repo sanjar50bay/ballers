@@ -478,6 +478,7 @@ function UnifiedGame() {
             </button>
           </div>
         )}
+        {tab === "overview" && preparation}
         <div id="game-leader">
           <GameLeader
             gameId={gameId}
@@ -506,7 +507,6 @@ function UnifiedGame() {
           </button>
         )}
         <section hidden={tab !== "overview"} aria-labelledby="tab-overview">
-          {tab === "overview" && preparation}
           <div className="neon-panel mb-4">
             <h2>{tx("Когда и где")}</h2>
             <p className="mt-2">

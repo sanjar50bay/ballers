@@ -108,4 +108,74 @@ check(
   },
   { leaderReady: false, ready: false },
 );
+
+check(
+  "a player cannot make both starting teams ready",
+  (s) => {
+    s.teams[1].player_ids = ["p1"];
+    s.roles[1].captain_id = "p1";
+  },
+  { teamsReady: false, ready: false, nextStep: "teams" },
+);
+check(
+  "missing confirmations take priority over all other setup",
+  (s) => {
+    s.participants = [];
+    s.roles = [];
+    s.control = undefined;
+  },
+  { nextStep: "players", missing: 2 },
+);
+check(
+  "no missing players means teams are the next actionable step",
+  (s) => {
+    s.teams = [];
+    s.roles = [];
+  },
+  { nextStep: "teams", missing: 0 },
+);
+check(
+  "saved teams require saved captains before a leader",
+  (s) => {
+    s.roles = [];
+    s.control = undefined;
+  },
+  { nextStep: "captains" },
+);
+check(
+  "reply totals do not inflate the confirmed pool",
+  (s) => {
+    s.participants.push(
+      { player_id: "p3", attendance_status: "INVITED" },
+      { player_id: "p4", attendance_status: "MAYBE" },
+      { player_id: "p5", attendance_status: "DECLINED" },
+    );
+  },
+  { going: 2, invited: 1, maybe: 1, declined: 1, missing: 0 },
+);
+check(
+  "waitlist players are distinguished from uncertain replies",
+  (s) => {
+    s.participants.push({ player_id: "p3", attendance_status: "MAYBE" });
+    s.waitlist = [{ player_id: "p3" }];
+  },
+  { reserved: 1, maybe: 0, going: 2 },
+);
+check(
+  "missing time and place are explicit planning gaps, not new match permissions",
+  (s) => {
+    s.game.start_time = null;
+    s.game.venue = "  ";
+  },
+  { timeSpecified: false, venueSpecified: false, ready: true },
+);
+check(
+  "provided details are not a booking confirmation",
+  (s) => {
+    s.game.game_date = "2099-01-01";
+    s.game.start_time = "20:00";
+    s.game.venue = "Купол";
+  },
+  { dateSpecified: true, timeSpecified: true, venueSpecified: true },
+);
 console.log(`RESULT: ${count} preparation checks passed.`);
