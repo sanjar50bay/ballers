@@ -413,6 +413,8 @@ function UnifiedGame() {
   const rosterIds = live
     ? s.rosters.filter((r) => r.match_id === live.id).map((r) => r.player_id)
     : [];
+  const ownRosterLocked =
+    !!live && s.teams.some((team) => team.player_ids.includes(s.my_player_id));
   const pending = s.matches.filter((m) =>
     ["PENDING", "DISPUTED"].includes(m.status),
   );
@@ -526,10 +528,10 @@ function UnifiedGame() {
             !home?.games.find((g) => g.id === gameId)?.request_status && (
               <div className="neon-panel mb-4">
                 <h2>{tx("Будешь играть?")}</h2>
-                {!!live && rosterIds.includes(s.my_player_id) && (
+                {ownRosterLocked && (
                   <p className="ballers-muted text-sm my-2">
                     {tx(
-                      "Ты в текущем матче. Изменить участие можно после его завершения.",
+                      "Составы закреплены на время матча. Изменить их можно после завершения матча.",
                     )}
                   </p>
                 )}
@@ -546,9 +548,7 @@ function UnifiedGame() {
                           p.player_id === s.my_player_id &&
                           p.attendance_status === status,
                       )}
-                      disabled={
-                        busy || (!!live && rosterIds.includes(s.my_player_id))
-                      }
+                      disabled={busy || ownRosterLocked}
                       onClick={() =>
                         void run(() =>
                           setAttendance(
