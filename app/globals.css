@@ -1355,3 +1355,32 @@ body{line-height:1.6} .ballers-muted{font-size:15px;line-height:1.55;color:#b6c2
 @media(max-width:340px) { .player-passport-copy { margin-left:30px; margin-right:30px; } .player-card-stats { margin-left:35px; margin-right:35px; gap:8px 12px; } .player-card-stats dd { font-size:24px; } .player-passport-copy h2 { font-size:23px; } }
 @media(max-height:600px) { .player-card-overlay { padding:10px 14px; } .player-card-header { margin-bottom:8px; } }
 @media(prefers-reduced-motion:reduce) { .player-card-revealing .player-passport { animation:none; transform:none; } .player-card-revealing .ultimate-card-foil,.player-card-fireworks { display:none; } }
+
+/* 0.2.14: next game and personal attendance in one place. */
+.next-game-card { border-color:#4c9070; background:linear-gradient(145deg,#12352b,#101c29 62%); }
+.next-game-status { display:inline-flex; padding:6px 11px; border:1px solid #6aaf90; background:#102b25; border-radius:999px; font-size:13px; color:#b9f4d4; margin-bottom:18px; overflow-wrap:anywhere; }
+.next-game-readiness { color:#c7d9d2; font-size:14px; margin:14px 0 0; }
+.next-game-card .game-card-footer { flex-wrap:wrap; gap:12px; }
+.next-game-response { border-top:1px solid #37574d; padding-top:16px; margin-top:16px; }
+.next-game-hint { font-size:14px; color:#c3d4d0; margin:10px 0; }
+.next-game-answer-buttons { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.next-game-answer-buttons button { min-height:50px; border:1px solid #74968b; border-radius:12px; padding:11px 8px; font-size:16px; font-weight:700; color:#effbf5; background:#172c2c; }
+.next-game-answer-buttons .next-game-going { background:#79efae; border-color:#a4ffc9; color:#10251c; }
+.next-game-answer-buttons button[aria-pressed="true"] { outline:2px solid #b6f7d4; outline-offset:3px; }
+.next-game-answer-buttons button:disabled { cursor:default; }
+.next-game-answer-buttons[aria-busy="true"] button { opacity:.55; }
+.next-game-answer-buttons button:disabled:not([aria-pressed="true"]) { opacity:.5; }
+.next-game-roster,.next-game-response-link { display:flex; align-items:center; min-height:44px; width:fit-content; max-width:100%; color:#b7e7d1; text-decoration:underline; text-underline-offset:4px; font-size:14px; margin-top:10px; }
+.next-game-confirm { padding:13px; margin-top:14px; background:#152524; border:1px solid #9eab74; border-radius:12px; font-size:14px; }
+.next-game-confirm button { min-height:44px; padding:9px 12px; margin:10px 8px 0 0; border:1px solid #8fa497; border-radius:10px; color:#f1fff6; }
+@media(max-width:360px) { .section-heading { align-items:flex-start; } .section-heading .text-link { font-size:13px; } .next-game-card .game-card-footer>.neon-button { width:100%; text-align:center; } }
+
+.home-profile-strip { padding:10px 0 16px; gap:12px; }
+.home-profile-strip .ballers-avatar { width:44px; height:44px; border-radius:13px; font-size:17px; flex-shrink:0; }
+.home-profile-strip h1 { font-size:20px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.home-profile-strip .ballers-muted { font-size:12px; }
+.next-game-count { font-size:14px; color:#d0e3db; margin-top:9px; }
+.next-game-card .game-card-footer { border-top:0; margin-top:12px; padding-top:0; }
+.next-game-card .game-card-footer .neon-button { background:#18332e; border:1px solid #6d9d88; color:#d6f6e5; box-shadow:none; width:100%; justify-content:center; }
+.next-game-card .next-game-response { padding-top:4px; margin-top:12px; }
+.next-game-status { margin-bottom:14px; }

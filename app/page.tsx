@@ -11,7 +11,8 @@ import WelcomeCard from "./components/WelcomeCard";
 import { useApp } from "./components/AppState";
 import { GuideInvite } from "./components/Coach";
 import Avatar from "./components/Avatar";
-import GameCard, { attendanceLabel } from "./components/GameCard";
+import GameCard from "./components/GameCard";
+import { nextPlayerGame } from "@/lib/player-home";
 import PlayerStats from "./components/PlayerStats";
 import Icon from "./components/Icon";
 import { MyTeams, FootballWelcome } from "./components/Network";
@@ -57,20 +58,18 @@ export default function Home() {
     );
   const profile = data.profile,
     name = profile.display_name || profile.first_name;
-  const game = [...data.games].sort(
-    (a, b) =>
-      Number(b.live) - Number(a.live) ||
-      a.game_date.localeCompare(b.game_date) ||
-      (a.start_time || "99:99").localeCompare(b.start_time || "99:99") ||
-      a.id.localeCompare(b.id),
-  )[0];
+  const game = nextPlayerGame(data.games);
   return (
     <main className="ballers-shell">
-      <Link href="/profile" className="profile-strip" data-coach="profile">
+      <Link
+        href="/profile"
+        className="profile-strip home-profile-strip"
+        data-coach="profile"
+      >
         <Avatar src={profile.avatar_url} name={name} />
         <div>
           <p className="ballers-muted">{tx("Хорошей игры,")}</p>
-          <h1>{name}</h1>
+          <h1 title={name}>{name}</h1>
           <p className="ballers-muted">
             Baller #{profile.baller_id} · {profile.city || tx("Твой город")} ·{" "}
             {positionLabel(profile.primary_position)}
@@ -85,11 +84,13 @@ export default function Home() {
         </p>
       )}
       <div className="section-heading">
-        <h2>{tx("Ближайший игровой день")}</h2>
-        {game && <span className="status-chip">{attendanceLabel(game)}</span>}
+        <h2>{tx("Ближайшая игра")}</h2>
+        <Link className="text-link" href="/my-game">
+          {tx("Все мои игры →")}
+        </Link>
       </div>
       {game ? (
-        <GameCard game={game} />
+        <GameCard game={game} featured />
       ) : (
         <section className="neon-panel">
           <h3 className="font-bold">

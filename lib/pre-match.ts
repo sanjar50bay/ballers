@@ -25,12 +25,14 @@ export async function setAttendance(
   gameId: string,
   playerId: string,
   status: "GOING" | "MAYBE" | "DECLINED" | "INVITED",
+  signal?: AbortSignal,
 ) {
-  return supabase.rpc("ballers_set_attendance", {
+  const request = supabase.rpc("ballers_set_attendance", {
     p_game_id: gameId,
     p_player_id: playerId,
     p_status: status,
   });
+  return signal ? request.abortSignal(signal) : request;
 }
 
 export function preMatchError(error: { message: string; code?: string }) {
