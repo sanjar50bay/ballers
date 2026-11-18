@@ -918,7 +918,12 @@ try {
   });
   assert.deepEqual(
     await card.locator(".player-card-stats dd").allTextContents(),
-    [actualStats.matches, actualStats.goals, actualStats.assists].map(String),
+    [
+      actualStats.matches,
+      actualStats.goals,
+      actualStats.assists,
+      actualStats.saves,
+    ].map(String),
   );
   await screenshot(planner, "passport-real-data-390.png");
   pass(
@@ -1010,7 +1015,7 @@ try {
   await planner.reload();
   await showCard.click();
   await card.getByRole("img", { name: "Sanzhar", exact: true }).waitFor();
-  await card.locator('.player-passport-art img').evaluate(el=>el.decode());
+  await card.locator(".player-passport-art img").evaluate((el) => el.decode());
   assert.equal(
     await card
       .locator(".player-passport-art img")

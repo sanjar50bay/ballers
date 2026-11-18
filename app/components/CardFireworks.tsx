@@ -48,7 +48,7 @@ export default function CardFireworks({ active }: { active: boolean }) {
             vx: Math.cos(a) * v,
             vy: Math.sin(a) * v,
             life: 1,
-            color: i % 3 ? "#70f1b0" : "#f7d78f",
+            color: i % 3 ? "#eeff35" : "#ff4a98",
           });
         }
         burst++;

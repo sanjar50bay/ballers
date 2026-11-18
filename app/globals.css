@@ -1304,44 +1304,54 @@ body{line-height:1.6} .ballers-muted{font-size:15px;line-height:1.55;color:#b6c2
 .community-calendar-tabs a { border: 1px solid #39465d; border-radius: 12px; padding: 10px 13px; min-height: 44px; text-align: center; }
 .community-calendar-tabs a.selected { border-color: #69edac; background: #0e3024; color: #8effc0; }
 
-/* Player passport: real profile data, optional short reveal. */
-.player-card-overlay { overflow-y:auto; align-items:flex-start; padding:20px 16px; }
-.player-card-dialog { position:relative; isolation:isolate; width:100%; max-width:560px; margin:auto; flex-shrink:0; }
-.player-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:16px; }
-.player-card-brand { font-size:24px; letter-spacing:-1px; font-weight:900; color:#f3f8f1; }
-.player-card-brand>span,.player-card-sign>span { color:#69efab; }
-.player-card-close { width:44px; height:44px; border:1px solid #53615f; border-radius:50%; background:#0b1518; color:#e3ebe4; font-size:28px; }
-.player-passport { position:relative; overflow:hidden; border-radius:20px; background:#e6e7d9; color:#122f29; border:1px solid #b7c9b1; box-shadow:0 28px 80px #0008; }
-.player-passport-body { display:grid; grid-template-columns:44% minmax(0,1fr); min-height:265px; }
-.player-passport-art { position:relative; overflow:hidden; background:repeating-linear-gradient(128deg,transparent 0 34px,#a8edc911 35px 36px),linear-gradient(145deg,#092f2d,#326f56); }
-.player-card-watermark { position:absolute; top:20px; left:4px; font-size:180px; font-weight:900; color:#b8f8d21c; letter-spacing:-16px; }
-.player-passport-art .ballers-avatar { position:absolute; inset:0; width:100%; height:100%; margin:0; border:0; border-radius:0; background:transparent; font-size:64px; color:#e0e6bc; }
-.player-passport-art .ballers-avatar img { width:100%; height:100%; object-fit:cover; object-position:50% 30%; }
-.player-card-art-label { position:absolute; bottom:16px; left:14px; right:14px; z-index:1; width:max-content; max-width:calc(100% - 28px); padding:5px 8px; font-size:11px; letter-spacing:2px; color:#e7edcd; background:#082d28db; border-radius:4px; }
-.player-passport-copy { min-width:0; padding:24px 22px; display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
-.player-card-caption { font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:#4d6859; }
-.player-card-id { font-size:13px; color:#496959; font-weight:700; }
-.player-passport-copy h2 { max-width:100%; font-size:clamp(23px,4.2vw,34px); font-weight:900; line-height:1.08; letter-spacing:-1px; text-transform:uppercase; overflow-wrap:anywhere; margin:10px 0 7px; }
-.player-card-position { font-size:14px; line-height:1.4; overflow-wrap:anywhere; }
-.player-card-city { font-size:13px; color:#496253; overflow-wrap:anywhere; }
-.player-card-sign { font-size:17px; letter-spacing:-1px; font-weight:900; margin-top:auto; padding-top:18px; }
-.player-card-sign>span { color:#2d8d5b; }
-.player-card-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding:17px 16px 6px; border-top:1px solid #8d9c875e; gap:8px; text-align:center; margin:0; }
-.player-card-stats>div { display:flex; flex-direction:column-reverse; justify-content:flex-end; gap:3px; }
-.player-card-stats dt { font-size:12px; line-height:1.4; color:#435e4e; overflow-wrap:anywhere; }
-.player-card-stats dd { font-size:30px; font-weight:800; line-height:1.2; margin:0; font-variant-numeric:tabular-nums; }
-.player-card-proof { padding:10px 16px 17px; font-size:12px; text-align:center; color:#46634e; }
-.player-card-status { font-size:12px; color:#b4cbbb; min-height:36px; display:flex; justify-content:center; align-items:center; text-align:center; padding:8px 0; }
+/* Vertical collectible player card. */
+.player-card-overlay { overflow-y:auto; align-items:flex-start; padding:20px 16px; background:radial-gradient(ellipse at 50% 40%,#28154a 0,#0c091c 52%,#050710 90%); }
+.player-card-dialog { position:relative; isolation:isolate; width:100%; max-width:360px; margin:auto; flex-shrink:0; }
+.player-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:16px; }
+.player-card-brand { font-size:22px; letter-spacing:-1px; font-weight:900; color:#f6f6ef; }
+.player-card-brand>span { color:#ebff29; }
+.player-card-close { width:44px; height:44px; border:1px solid #746389; border-radius:50%; background:#1c1231; color:#f3edfa; font-size:28px; }
+.ultimate-player-card { position:relative; width:100%; color:#efff39; padding:1px 0 33px; isolation:isolate; filter:drop-shadow(0 16px 26px #0009); }
+.ultimate-card-frame { position:absolute; inset:0; width:100%; height:100%; z-index:-1; overflow:visible; }
+.player-passport-body { position:relative; height:clamp(188px,62vw,235px); margin:56px 34px 0; }
+.ultimate-card-rating { position:relative; display:flex; flex-direction:column; align-items:flex-start; z-index:2; width:83px; color:#eeff2d; }
+.ultimate-rating-value { font-family:Arial,sans-serif; font-size:52px; line-height:1; font-weight:400; letter-spacing:-2px; }
+.ultimate-rating-label { font-size:11px; line-height:1.1; margin-top:2px; }
+.ultimate-position-code { font-family:Impact,'Arial Narrow',sans-serif; font-size:25px; line-height:1.3; margin-top:8px; letter-spacing:.4px; }
+.player-card-id { margin-top:8px; font-size:11px; color:#e1d5ee; letter-spacing:.5px; }
+.ultimate-club-mark { display:grid; place-items:center; margin-top:13px; width:39px; height:39px; border:2px solid #f34891; border-radius:50%; color:#f4ff54; background:#28164b; font-size:22px; font-weight:900; line-height:1; }
+.ultimate-club-mark>span { display:none; }
+.player-passport-art { position:absolute; top:-5px; bottom:0; left:24%; right:-8px; overflow:hidden; mask-image:linear-gradient(transparent 0,#000 13%,#000 73%,transparent 100%); }
+.player-card-watermark { position:absolute; inset:25px -5px 0; font-family:Impact,sans-serif; font-size:200px; line-height:1; color:#9e70d519; letter-spacing:-20px; }
+.player-passport-art:before { content:''; position:absolute; width:38%; height:35%; left:35%; top:8%; border-radius:45% 48% 44% 44%; background:linear-gradient(105deg,#bcce3260,#eeff4470 50%,#9b992e55); transform:rotate(-6deg); }
+.player-passport-art:after { content:''; position:absolute; left:6%; right:-12%; height:64%; bottom:-5px; background:linear-gradient(120deg,#a4a92d39,#eeff4480 55%,#a7af2a30); border-radius:50% 46% 0 0; transform:rotate(-5deg); }
+.player-passport-art:has(img):before,.player-passport-art:has(img):after { display:none; }
+.player-passport-art .ballers-avatar { position:absolute; z-index:1; inset:0; width:100%; height:100%; margin:0; border:0; border-radius:0; background:transparent; align-items:flex-end; justify-content:flex-end; padding:0 15px 50px 0; font-size:24px; color:#f1ff7a; }
+.player-passport-art .ballers-avatar img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:50% 25%; mask-image:linear-gradient(90deg,transparent,#000 12%,#000 90%,transparent); }
+.player-passport-copy { background:radial-gradient(ellipse,#1d123e 40%,#1d123edb 72%,transparent); box-shadow:0 0 18px 8px #1d123eaa; position:relative; z-index:2; margin:0 35px; text-align:center; }
+.player-passport-copy h2 { max-width:100%; font-family:Impact,'Arial Narrow',sans-serif; font-size:clamp(24px,7.6vw,31px); font-weight:400; line-height:1.08; letter-spacing:.6px; text-transform:uppercase; overflow-wrap:anywhere; margin:0; color:#f0ff2e; }
+.player-card-city { color:#c6b6db; font-size:11px; letter-spacing:1px; margin-top:6px; overflow-wrap:anywhere; }
+.player-card-stats { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin:12px 43px 0; padding:13px 0 10px; border-top:2px solid #ef438d; }
+.player-card-stats:before { content:''; position:absolute; top:12px; bottom:6px; left:50%; width:1px; background:#e8469066; }
+.player-card-stats>div { display:flex; align-items:center; gap:6px; min-width:0; }
+.player-card-stats dt { font-size:11px; line-height:1.2; color:#e6ed77; overflow-wrap:anywhere; }
+.player-card-stats dd { order:-1; font-family:Impact,'Arial Narrow',sans-serif; font-size:27px; font-weight:400; line-height:1.1; margin:0; min-width:22px; color:#efff37; font-variant-numeric:tabular-nums; }
+.player-card-position { position:relative; text-align:center; margin:3px 43px 0; color:#c6b9d8; font-size:11px; line-height:1.2; overflow-wrap:anywhere; }
+.ultimate-bottom-mark { position:relative; margin:13px auto 0; display:grid; place-items:center; width:23px; height:23px; border:1px solid #c8d83c; border-radius:50%; color:#eaff2e; font-size:14px; font-weight:900; }
+.ultimate-bottom-mark>span { display:none; }
+.player-card-proof { text-align:center; color:#b6a5c8; font-size:11px; margin:10px 0 0; }
+.player-card-status { font-size:12px; color:#d9d991; min-height:34px; display:flex; justify-content:center; align-items:center; text-align:center; padding:7px 0; }
 .player-card-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.player-card-actions button { min-width:0; white-space:normal; }
+.player-card-actions button { min-width:0; white-space:normal; font-size:13px; }
+.player-card-actions>button:first-child { background:#221637; border-color:#79618b; color:#e1d3ef; box-shadow:none; }
+.player-card-actions>.neon-button.green { background:#ddf526; color:#20123a; border-color:#efff69; box-shadow:0 0 22px #eaff1410; }
 .player-card-fireworks { position:absolute; z-index:3; inset:0; width:100%; height:100%; pointer-events:none; }
-.player-card-revealing .player-passport { animation:player-passport-arrival 2.8s cubic-bezier(.2,.7,.3,1) both; }
-.player-card-revealing .player-passport:after { content:""; position:absolute; inset:-70%; background:linear-gradient(115deg,transparent 43%,#fff4b681 50%,transparent 57%); pointer-events:none; animation:player-passport-foil 2.8s ease both; }
-@keyframes player-passport-arrival { 0% { opacity:0; transform:translateY(35px) rotateY(105deg) scale(.78); } 18% { opacity:.5; } 56% { opacity:1; transform:translateY(-6px) rotateY(-4deg) scale(1.01); } 80%,100% { opacity:1; transform:none; } }
-@keyframes player-passport-foil { 0%,42% { transform:translateX(-50%); opacity:0; } 58% { opacity:.9; } 96%,100% { transform:translateX(50%); opacity:0; } }
-@media(max-width:420px) { .player-passport-copy { padding:20px 14px; } .player-passport-body { min-height:235px; } .player-card-actions { grid-template-columns:1fr; } .player-card-stats { padding-left:10px; padding-right:10px; } .player-card-position { font-size:13px; } }
-@media(max-height:600px) { .player-card-overlay { padding:10px 14px; } .player-card-header { margin-bottom:8px; } .player-passport-body { min-height:190px; } .player-passport-copy { padding-top:16px; padding-bottom:16px; } .player-card-stats { padding-top:10px; } .player-card-proof { padding-bottom:12px; } }
-@media(prefers-reduced-motion:reduce) { .player-card-revealing .player-passport { animation:none; transform:none; } .player-card-revealing .player-passport:after { display:none; } .player-card-fireworks { display:none; } }
-.player-card-overlay { background:#050b10; }
-.player-card-actions>button:first-child { background:#11251f; border-color:#496356; color:#c2dfcb; box-shadow:none; }
-@media(max-width:360px) { .player-passport-body { grid-template-columns:38% minmax(0,1fr); } .player-passport-copy h2 { font-size:20px; letter-spacing:-.6px; } }
+.ultimate-card-foil { opacity:0; pointer-events:none; }
+.player-card-revealing .player-passport { animation:player-card-arrival 2.8s cubic-bezier(.2,.7,.3,1) both; }
+.player-card-revealing .ultimate-card-foil { animation:player-card-foil 2.8s ease both; }
+@keyframes player-card-arrival { 0% { opacity:0; transform:translateY(35px) rotateY(105deg) scale(.78); } 18% { opacity:.5; } 56% { opacity:1; transform:translateY(-6px) rotateY(-4deg) scale(1.01); } 80%,100% { opacity:1; transform:none; } }
+@keyframes player-card-foil { 0%,42% { transform:translateX(-50px); opacity:0; } 58% { opacity:.9; } 96%,100% { transform:translateX(550px); opacity:0; } }
+@media(max-width:420px) { .player-card-actions { grid-template-columns:1fr; } }
+@media(max-width:340px) { .player-passport-copy { margin-left:30px; margin-right:30px; } .player-card-stats { margin-left:35px; margin-right:35px; gap:8px 12px; } .player-card-stats dd { font-size:24px; } .player-passport-copy h2 { font-size:23px; } }
+@media(max-height:600px) { .player-card-overlay { padding:10px 14px; } .player-card-header { margin-bottom:8px; } }
+@media(prefers-reduced-motion:reduce) { .player-card-revealing .player-passport { animation:none; transform:none; } .player-card-revealing .ultimate-card-foil,.player-card-fireworks { display:none; } }

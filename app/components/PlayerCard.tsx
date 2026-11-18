@@ -5,6 +5,7 @@ import { useLocale } from "./Language";
 import type { Profile, Stats } from "./AppState";
 import Avatar from "./Avatar";
 import CardFireworks from "./CardFireworks";
+import PlayerCardFrame from "./PlayerCardFrame";
 function subscribeMotion(listener: () => void) {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
   mq.addEventListener("change", listener);
@@ -116,35 +117,45 @@ export function PlayerCard({
             ×
           </button>
         </header>
-        <section className="player-passport" aria-label={t("Паспорт игрока")}>
+        <section
+          className="player-passport ultimate-player-card"
+          aria-label={t("Карточка игрока")}
+        >
+          <PlayerCardFrame />
           <div className="player-passport-body">
+            <div
+              className="ultimate-card-rating"
+              aria-label={t("Рейтинг пока не рассчитан")}
+            >
+              <span className="ultimate-rating-value">—</span>
+              <span className="ultimate-rating-label">{t("Рейтинг")}</span>
+              <span className="ultimate-position-code">
+                {profile.primary_position}
+              </span>
+              <span className="player-card-id">ID {profile.baller_id}</span>
+              <span className="ultimate-club-mark" aria-hidden="true">
+                B<span>.</span>
+              </span>
+            </div>
             <div className="player-passport-art">
               <span className="player-card-watermark" aria-hidden="true">
                 B.
               </span>
               <Avatar src={profile.avatar_url} name={name} large />
-              <span className="player-card-art-label">BALLER ID</span>
             </div>
-            <div className="player-passport-copy">
-              <p className="player-card-caption">{t("Твой Baller ID")}</p>
-              <p className="player-card-id">#{profile.baller_id}</p>
-              <h2>{name}</h2>
-              <p className="player-card-position">
-                {positionLabel(profile.primary_position)}
-              </p>
-              <p className="player-card-city">
-                {profile.city || t("Твой футбол")}
-              </p>
-              <span className="player-card-sign" aria-hidden="true">
-                BALLERS<span>.</span>
-              </span>
-            </div>
+          </div>
+          <div className="player-passport-copy">
+            <h2>{name}</h2>
+            <p className="player-card-city">
+              {profile.city || t("Твой футбол")}
+            </p>
           </div>
           <dl className="player-card-stats">
             {[
               [t("Матчи в составе"), stats?.matches],
               [t("Голы"), stats?.goals],
               [t("Ассисты"), stats?.assists],
+              [t("Сейвы"), stats?.saves],
             ].map(([label, value]) => (
               <div key={String(label)}>
                 <dt>{label}</dt>
@@ -152,8 +163,14 @@ export function PlayerCard({
               </div>
             ))}
           </dl>
-          <p className="player-card-proof">{t("Только учтённые результаты")}</p>
+          <p className="player-card-position">
+            {positionLabel(profile.primary_position)}
+          </p>
+          <span className="ultimate-bottom-mark" aria-hidden="true">
+            B<span>.</span>
+          </span>
         </section>
+        <p className="player-card-proof">{t("Только учтённые результаты")}</p>
         <p className="player-card-status" role="status" aria-live="polite">
           {playing
             ? t("Твой выход!")
