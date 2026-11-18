@@ -524,7 +524,7 @@ function UnifiedGame() {
             </p>
           </div>
           {s.game.status === "OPEN" &&
-            s.participants.some((p) => p.player_id === s.my_player_id) &&
+            s.players.some((p) => p.id === s.my_player_id) &&
             !home?.games.find((g) => g.id === gameId)?.request_status && (
               <div className="neon-panel mb-4">
                 <h2>{tx("Будешь играть?")}</h2>

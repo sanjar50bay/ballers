@@ -876,6 +876,26 @@ try {
   pass(
     "ordinary creation starts empty and preserves the community's unlimited capacity",
   );
+  await planner.getByRole("button", { name: "✓ Иду", exact: true }).click();
+  await planner
+    .locator('button[aria-pressed="true"]')
+    .filter({ hasText: "✓ Иду" })
+    .waitFor();
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    assert.equal(
+      (
+        await db.query(
+          "SELECT attendance_status FROM game_participants WHERE game_day_id=$1 AND player_id=$2",
+          [plainId, pid(1)],
+        )
+      ).rows[0].attendance_status,
+      "GOING",
+    );
+  });
+  pass(
+    "a community member can personally join a newly created empty day without a pre-created invitation",
+  );
   await player.goto(base + "/discover");
   await player.getByLabel("Интерфейс тілі").selectOption("ru");
   await player.getByRole("heading", { name: "Найти", exact: true }).waitFor();
