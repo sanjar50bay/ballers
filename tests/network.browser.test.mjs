@@ -580,6 +580,13 @@ try {
   pass(
     "community people section opens the working consent-based invitation flow",
   );
+  await serial(async () => {
+    await db.exec("RESET ROLE");
+    await db.query("UPDATE communities SET default_capacity=NULL WHERE id=$1", [
+      communityId,
+    ]);
+  });
+  await planner.reload();
   await planner
     .getByRole("button", { name: "Управление", exact: true })
     .click();
@@ -607,6 +614,14 @@ try {
       (await db.query("SELECT title FROM game_days WHERE id=$1", [dayId]))
         .rows[0].title,
       "Team Friday #1",
+    );
+    assert.equal(
+      (
+        await db.query("SELECT default_capacity FROM communities WHERE id=$1", [
+          communityId,
+        ])
+      ).rows[0].default_capacity,
+      null,
     );
   });
   pass(

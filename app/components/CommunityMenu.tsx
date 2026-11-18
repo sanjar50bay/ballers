@@ -40,7 +40,7 @@ export default function CommunityMenu({
     [city, setCity] = useState(c.city || ""),
     [format, setFormat] = useState(c.default_format),
     [teams, setTeams] = useState(c.default_team_count),
-    [capacity, setCapacity] = useState(c.default_capacity || 15),
+    [capacity, setCapacity] = useState(c.default_capacity ?? 0),
     [mode, setMode] = useState(c.team_mode);
   async function action(type: string) {
     setBusy(true);
@@ -49,7 +49,9 @@ export default function CommunityMenu({
       p_community: c.id,
       p_action: type,
       p_payload:
-        type === "UPDATE" ? { name, city, format, teams, capacity, mode } : {},
+        type === "UPDATE"
+          ? { name, city, format, teams, capacity: capacity || null, mode }
+          : {},
     });
     setBusy(false);
     if (error) {
@@ -210,10 +212,17 @@ export default function CommunityMenu({
                         {tx(label as string)}
                         <input
                           type="number"
-                          required
+                          required={label !== "Мест"}
                           min={min as number}
                           max={max as number}
-                          value={value as number}
+                          value={
+                            label === "Мест" && value === 0
+                              ? ""
+                              : (value as number)
+                          }
+                          placeholder={
+                            label === "Мест" ? tx("Без ограничения") : undefined
+                          }
                           onChange={(e) =>
                             (setter as (v: number) => void)(
                               Number(e.target.value),
