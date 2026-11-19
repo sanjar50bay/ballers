@@ -1489,4 +1489,7 @@ body{line-height:1.6} .ballers-muted{font-size:15px;line-height:1.55;color:#b6c2
 .match-audio-popover [role=alert] { font-size:12px; color:#ffc0c8; margin-top:8px; }
 .next-match-panel .match-audio-control>summary { background:#112d42; border-color:#7ba9c0; }
 .next-match-panel .match-audio-popover { background:#0c2637; border-color:#7ba9c0; }
+.next-match-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; }
+.next-match-heading .match-audio-control { grid-column:2; grid-row:1; margin-left:0; }
+.next-match-heading>span { grid-column:1 / -1; justify-self:start; }
 @media(max-width:350px) { .profile-photo-picker { grid-template-columns:108px minmax(0,1fr); gap:12px; } .photo-card-preview { min-height:178px; padding:24px 13px 18px; } .photo-card-preview .ballers-avatar { width:68px; height:75px; } .photo-picker-actions h2 { font-size:15px; } }

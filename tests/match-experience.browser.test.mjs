@@ -59,6 +59,32 @@ try {
     };
   });
   await open(owner);
+  await owner.setViewportSize({ width: 320, height: 850 });
+  const initialSound = owner.getByLabel("Настроить звук матча", {
+    exact: true,
+  });
+  await initialSound.click();
+  const initialPopover = await owner
+    .locator(".match-audio-popover:visible")
+    .boundingBox();
+  assert.ok(
+    initialPopover &&
+      initialPopover.x >= 0 &&
+      initialPopover.x + initialPopover.width <= 320,
+  );
+  await shot(owner, "sound-settings-320.png");
+  await initialSound.press("Escape");
+  const endDay = owner.getByRole("button", {
+    name: "Завершить игровой день",
+    exact: true,
+  });
+  await endDay.scrollIntoViewIfNeeded();
+  assert.equal(
+    await endDay.evaluate((el) => getComputedStyle(el).backgroundColor),
+    "rgb(143, 38, 56)",
+  );
+  await shot(owner, "red-day-closure-320.png");
+  await owner.setViewportSize({ width: 390, height: 850 });
   await owner
     .getByRole("region", { name: "Следующий матч", exact: true })
     .getByText("Предварительная пара", { exact: true })
