@@ -26,7 +26,7 @@ export function PlayerCard({
 }) {
   useLocale();
   const reduced = useSyncExternalStore(subscribeMotion, readMotion, () => true);
-  const [revealing, setRevealing] = useState(!manual);
+  const [revealing, setRevealing] = useState(true);
   const playing = revealing && !reduced;
   const previousFocus = useRef(
     typeof document !== "undefined"
@@ -125,10 +125,8 @@ export function PlayerCard({
           <div className="player-passport-body">
             <div
               className="ultimate-card-rating"
-              aria-label={t("Рейтинг пока не рассчитан")}
+              aria-label={t("Позиция и Baller ID")}
             >
-              <span className="ultimate-rating-value">—</span>
-              <span className="ultimate-rating-label">{t("Рейтинг")}</span>
               <span className="ultimate-position-code">
                 {profile.primary_position}
               </span>

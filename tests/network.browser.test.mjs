@@ -921,7 +921,8 @@ try {
     exact: true,
   });
   await card.waitFor();
-  assert.equal(await planner.locator(".player-card-revealing").count(), 0);
+  await planner.locator(".player-card-revealing").waitFor();
+  await card.getByRole("button", {name:"Повторить выход",exact:true}).waitFor();
   await card.getByRole("heading", { name: "Sanzhar", exact: true }).click();
   assert.equal(await card.isVisible(), true);
   const actualStats = await serial(async () => {

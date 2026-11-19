@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { scheduledStart } from "@/lib/game-schedule";
 import { t } from "@/lib/i18n";
 import { gamePreparation, type PreparationInput } from "@/lib/game-preparation";
 
@@ -25,6 +27,17 @@ export default function GamePreparation({
   hasMatches: boolean;
 }) {
   const p = gamePreparation(snapshot);
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    const initial = setTimeout(() => setNow(Date.now()), 0);
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
+  }, []);
+  const startsAt = scheduledStart(snapshot.game);
+  const timeReady = startsAt !== null && now >= startsAt;
   const steps = [
     {
       key: "players",
@@ -75,8 +88,21 @@ export default function GamePreparation({
       className="neon-panel mb-4 game-preparation"
       aria-label={t("Подготовка игры")}
     >
-      <h2>{t(p.ready ? "Можно начинать" : "Подготовка игры")}</h2>
-      {p.ready && (
+      <h2>{t(p.ready && timeReady ? "Можно начинать" : "Подготовка игры")}</h2>
+      {!timeReady && (
+        <p id="start-time-reason" className="start-time-reason">
+          {startsAt === null
+            ? t("Начать матч можно после указания даты и времени игры.")
+            : t(
+                "Старт доступен {date} в {time} · время Казахстана. Пока можно собрать составы.",
+                {
+                  date: snapshot.game.game_date || "",
+                  time: snapshot.game.start_time?.slice(0, 5) || "00:00",
+                },
+              )}
+        </p>
+      )}
+      {p.ready && timeReady && (
         <p className="ballers-muted mt-1">
           {t("Все условия для следующего матча выполнены.")}
         </p>
@@ -175,7 +201,8 @@ export default function GamePreparation({
       {snapshot.control?.is_leader && !pending ? (
         <button
           className="neon-button mt-4 w-full"
-          disabled={busy || !p.ready}
+          disabled={busy || !p.ready || !timeReady}
+          aria-describedby={!timeReady ? "start-time-reason" : undefined}
           onClick={start}
         >
           {t(hasMatches ? "Начать следующий матч" : "Начать первый матч")}

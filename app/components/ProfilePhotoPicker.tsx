@@ -31,6 +31,9 @@ export default function ProfilePhotoPicker({
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [preparing, setPreparing] = useState(false);
+  const [cutout, setCutout] = useState(false);
+  const [cutting, setCutting] = useState(false);
+  const original = useRef<Blob | null>(null);
   const generation = useRef(0);
   const src =
     choice.kind === "custom"
@@ -39,6 +42,56 @@ export default function ProfilePhotoPicker({
         ? null
         : initialUrl;
   const preview = choice.kind === "custom" ? choice.preview : null;
+  async function removeBackground() {
+    if (!src || preparing || disabled) return;
+    const seq = ++generation.current;
+    setPreparing(true);
+    setCutting(true);
+    onPreparing(true);
+    setError("");
+    let prepared: Awaited<ReturnType<typeof prepareProfilePhoto>> | undefined;
+    try {
+      let source: Blob;
+      if (choice.kind === "custom") source = choice.file;
+      else {
+        const response = await fetch(src, {
+          credentials: "omit",
+          referrerPolicy: "no-referrer",
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!response.ok) throw new Error("PHOTO_CUTOUT");
+        const blob = await response.blob();
+        const resized = await prepareProfilePhoto(
+          new File([blob], "profile-photo", { type: blob.type }),
+        );
+        prepared = resized;
+        source = resized.file;
+      }
+      const { removePortraitBackground } =
+        await import("@/lib/portrait-cutout");
+      const result = await removePortraitBackground(source);
+      if (seq === generation.current) {
+        original.current = source;
+        setCutout(true);
+        onChange(result);
+      } else URL.revokeObjectURL(result.preview);
+    } catch (err) {
+      if (seq === generation.current)
+        setError(
+          photoError(err) ||
+            t(
+              "Не удалось убрать фон на этом устройстве. Попробуй ещё раз или оставь обычное фото.",
+            ),
+        );
+    } finally {
+      if (prepared) URL.revokeObjectURL(prepared.preview);
+      if (seq === generation.current) {
+        setPreparing(false);
+        setCutting(false);
+        onPreparing(false);
+      }
+    }
+  }
   useEffect(
     () => () => {
       if (preview) URL.revokeObjectURL(preview);
@@ -75,7 +128,7 @@ export default function ProfilePhotoPicker({
           disabled={disabled || preparing}
           onClick={() => input.current?.click()}
         >
-          {t(src ? "Сменить фото или аватар" : "Добавить фото или аватар")}
+          {t(src ? "Сменить фото профиля" : "Добавить фото профиля")}
         </button>
         <input
           ref={input}
@@ -84,7 +137,7 @@ export default function ProfilePhotoPicker({
           className="photo-file-input"
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          aria-label={t("Выбрать фото или аватар")}
+          aria-label={t("Выбрать фото профиля")}
           disabled={disabled || preparing}
           onChange={async (e) => {
             const file = e.currentTarget.files?.[0];
@@ -96,8 +149,11 @@ export default function ProfilePhotoPicker({
             onPreparing(true);
             try {
               const prepared = await prepareProfilePhoto(file);
-              if (seq === generation.current) onChange(prepared);
-              else URL.revokeObjectURL(prepared.preview);
+              if (seq === generation.current) {
+                setCutout(false);
+                original.current = null;
+                onChange(prepared);
+              } else URL.revokeObjectURL(prepared.preview);
             } catch (err) {
               if (seq === generation.current)
                 setError(
@@ -112,12 +168,43 @@ export default function ProfilePhotoPicker({
             }
           }}
         />
+        {src && (
+          <button
+            type="button"
+            className="photo-cutout-button"
+            disabled={disabled || preparing}
+            onClick={() => {
+              if (cutout && original.current) {
+                const file = original.current;
+                onChange({
+                  kind: "custom",
+                  file,
+                  preview: URL.createObjectURL(file),
+                  operation: crypto.randomUUID(),
+                });
+                setCutout(false);
+                original.current = null;
+              } else void removeBackground();
+            }}
+          >
+            {t(cutout ? "Вернуть фон" : "Убрать фон")}
+          </button>
+        )}
+        {src && (
+          <small>
+            {t(
+              "Фон убирается на твоём устройстве. Результат можно отменить до сохранения.",
+            )}
+          </small>
+        )}
         <div className="photo-picker-secondary">
           <button
             type="button"
             disabled={disabled || preparing || (!src && choice.kind === "none")}
             onClick={() => {
               setError("");
+              setCutout(false);
+              original.current = null;
               onChange({ kind: "none" });
             }}
           >
@@ -129,6 +216,8 @@ export default function ProfilePhotoPicker({
               disabled={disabled || preparing}
               onClick={() => {
                 setError("");
+                setCutout(false);
+                original.current = null;
                 onChange({ kind: "keep" });
               }}
             >
@@ -137,7 +226,15 @@ export default function ProfilePhotoPicker({
           )}
         </div>
         <small>{t("Необязательно · JPG, PNG, WebP до 8 МБ")}</small>
-        {preparing && <p role="status">{t("Готовим фото…")}</p>}
+        {preparing && (
+          <p role="status">
+            {t(
+              cutting
+                ? "Убираем фон… Первый запуск может занять несколько секунд."
+                : "Готовим фото…",
+            )}
+          </p>
+        )}
         {error && (
           <p role="alert" className="photo-picker-error">
             {error}

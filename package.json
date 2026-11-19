@@ -1,6 +1,6 @@
 {
   "name": "ballers",
-  "version": "0.2.16-alpha",
+  "version": "0.2.17-alpha",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test:db": "node tests/database.test.mjs",
     "test:alpha": "node tests/alpha.test.mjs",
-    "test": "npm run test:db && npm run test:alpha && npm run test:nav && node tests/relationship.test.mjs && npm run test:mobile && node tests/mobile-legacy.test.mjs && npm run test:i18n && npm run test:network && npm run test:release027 && npm run test:reliability && npm run test:trusted && npm run test:leader && node tests/game-preparation.test.mjs && node tests/team-calendar.test.mjs && node tests/community-workspace.test.mjs && node tests/community-schedule.test.mjs && node tests/player-home.test.mjs && node tests/photo-storage.test.mjs",
+    "test": "npm run test:db && npm run test:alpha && npm run test:nav && node tests/relationship.test.mjs && npm run test:mobile && node tests/mobile-legacy.test.mjs && npm run test:i18n && npm run test:network && npm run test:release027 && npm run test:reliability && npm run test:trusted && npm run test:leader && node tests/game-preparation.test.mjs && node tests/team-calendar.test.mjs && node tests/community-workspace.test.mjs && node tests/community-schedule.test.mjs && node tests/player-home.test.mjs && node tests/photo-storage.test.mjs && node tests/match-schedule.test.mjs",
     "test:nav": "node tests/navigation.test.mjs",
     "test:mobile": "node tests/mobile.test.mjs",
     "test:registration:browser": "node tests/registration.browser.test.mjs",
@@ -28,9 +28,12 @@
     "test:leader": "node tests/leader.test.mjs",
     "test:leader:browser": "node tests/leader.browser.test.mjs",
     "test:match-ui:browser": "node tests/match-experience.browser.test.mjs",
-    "test:photo:browser": "node tests/registration.browser.test.mjs"
+    "test:photo:browser": "node tests/registration.browser.test.mjs",
+    "prebuild": "node scripts/prepare-portrait-assets.mjs",
+    "predev": "node scripts/prepare-portrait-assets.mjs"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.2.3",
     "@supabase/supabase-js": "^2.117.2",
     "next": "16.4.6",
     "react": "19.2.8",

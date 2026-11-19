@@ -197,6 +197,8 @@ async function scenario(options = {}) {
       });
     if (req.method() === "OPTIONS")
       return route.fulfill({ status: 204, headers });
+    if (url.pathname === "/auth/v1/logout")
+      return route.fulfill({ status: 204, headers });
     if (url.pathname === "/auth/v1/user") return respond(200, user);
     try {
       if (
@@ -210,7 +212,7 @@ async function scenario(options = {}) {
           ? route.fulfill({
               status: 200,
               headers,
-              contentType: "image/jpeg",
+              contentType: key.endsWith(".png") ? "image/png" : "image/jpeg",
               body: file,
             })
           : route.fulfill({ status: 404, headers, body: "Not found" });
@@ -222,7 +224,7 @@ async function scenario(options = {}) {
         if (req.method() === "POST") {
           state.uploads++;
           assert.ok(key.startsWith(uid + "/"));
-          assert.match(key, new RegExp("^[a-f0-9-]+/[a-f0-9-]+\\.jpg$"));
+          assert.match(key, new RegExp("^[a-f0-9-]+/[a-f0-9-]+\\.(jpg|png)$"));
           if (state.uploadFail)
             return respond(403, {
               statusCode: "403",
@@ -232,7 +234,10 @@ async function scenario(options = {}) {
             headers: { "content-type": req.headers()["content-type"] },
           }).formData();
           const file = form.get("");
-          assert.equal(file.type, "image/jpeg");
+          assert.equal(
+            file.type,
+            key.endsWith(".png") ? "image/png" : "image/jpeg",
+          );
           assert.ok(file.size <= 1048576);
           state.files.set(key, Buffer.from(await file.arrayBuffer()));
           if (state.lostUpload) {
@@ -836,7 +841,7 @@ try {
     );
     await s.page.goto(base + "/profile");
     await s.page
-      .getByRole("link", { name: text("Сменить фото или аватар"), exact: true })
+      .getByRole("link", { name: text("Сменить фото профиля"), exact: true })
       .click();
     await choose(s);
     await s.page
@@ -991,6 +996,140 @@ try {
     );
   }
 
+  {
+    const s = await scenario({ existing: true });
+    const engineRequests = [];
+    s.page.on("request", (r) => {
+      if (/portrait-engine|selfie_segmenter/.test(r.url()))
+        engineRequests.push(r.url());
+    });
+    await s.page.goto(base + "/profile/edit");
+    await picker(s)
+      .locator("input[type=file]")
+      .setInputFiles(
+        new URL("./fixtures/portrait.jpg", import.meta.url).pathname.replace(
+          /^\/([A-Z]:)/,
+          "$1",
+        ),
+      );
+    await picker(s).locator('img[src^="blob:"]').waitFor();
+    assert.equal(engineRequests.length, 0);
+    await picker(s)
+      .getByRole("button", { name: text("Убрать фон"), exact: true })
+      .click();
+    await picker(s)
+      .getByRole("button", { name: text("Вернуть фон"), exact: true })
+      .waitFor({ timeout: 60000 });
+    const alpha = await picker(s)
+      .locator("img")
+      .evaluate(async (img) => {
+        const bitmap = await createImageBitmap(
+          await (await fetch(img.src)).blob(),
+        );
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(bitmap, 0, 0);
+        bitmap.close();
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        let transparent = 0,
+          opaque = 0;
+        for (let i = 3; i < data.length; i += 4) {
+          if (data[i] < 10) transparent++;
+          if (data[i] > 245) opaque++;
+        }
+        return {
+          transparent,
+          opaque,
+          width: canvas.width,
+          height: canvas.height,
+          corner: data[3],
+        };
+      });
+    assert.equal(alpha.corner, 0);
+    assert.ok(alpha.transparent > 1000 && alpha.opaque > 1000);
+    assert.equal(alpha.width, 512);
+    assert.equal(alpha.height, 640);
+    assert.ok(engineRequests.length >= 3);
+    assert.ok(engineRequests.every((url) => url.startsWith(base + "/")));
+    await picker(s)
+      .getByRole("button", { name: text("Вернуть фон"), exact: true })
+      .click();
+    await picker(s)
+      .getByRole("button", { name: text("Убрать фон"), exact: true })
+      .click();
+    await picker(s)
+      .getByRole("button", { name: text("Вернуть фон"), exact: true })
+      .waitFor({ timeout: 60000 });
+    await s.page
+      .getByRole("button", { name: text("Save changes"), exact: true })
+      .click();
+    await s.page.waitForURL(base + "/profile");
+    assert.ok((await s.profile()).avatar_url.endsWith(".png"));
+    assert.equal(s.state.uploads, 1);
+    const logout = s.page.getByRole("button", {
+      name: text("Выйти из аккаунта"),
+      exact: true,
+    });
+    assert.ok((await logout.boundingBox()).y < 740);
+    await s.page
+      .getByRole("button", { name: text("Показать мою карточку"), exact: true })
+      .click();
+    await s.page.locator(".player-card-revealing").waitFor();
+    await s.page
+      .getByRole("button", { name: text("Повторить выход"), exact: true })
+      .waitFor();
+    const card = s.page.getByRole("region", {
+      name: text("Карточка игрока"),
+      exact: true,
+    });
+    const portrait = await card.locator("img").boundingBox(),
+      frame = await card.boundingBox();
+    assert.ok(
+      Math.abs(portrait.x + portrait.width / 2 - frame.x - frame.width / 2) < 2,
+    );
+    await s.page.screenshot({
+      path: screenshotPath(
+        new URL("../docs/" + testLocale + "-cutout-card.png", import.meta.url),
+      ),
+    });
+    await s.page.keyboard.press("Escape");
+    await logout.click();
+    await s.page
+      .getByRole("button", { name: text("Продолжить с Google"), exact: true })
+      .waitFor();
+    await s.ctx.close();
+    pass(
+      "real local portrait segmentation preserves transparency, is undoable, saves PNG, animates on open and exposes working logout",
+    );
+  }
+  {
+    const s = await scenario();
+    await s.open();
+    await s.fill();
+    await choose(s);
+    await s.ctx.route("**/models/selfie_segmenter.tflite", (route) =>
+      route.abort("failed"),
+    );
+    await picker(s)
+      .getByRole("button", { name: text("Убрать фон"), exact: true })
+      .click();
+    await picker(s).getByRole("alert").waitFor({ timeout: 60000 });
+    assert.equal(
+      await picker(s)
+        .getByRole("button", { name: text("Вернуть фон"), exact: true })
+        .count(),
+      0,
+    );
+    await s.submit().click();
+    await s.home();
+    assert.ok((await s.profile()).avatar_url.endsWith(".jpg"));
+    await s.ctx.close();
+    pass(
+      "failed local model load keeps the original photo usable and registration can finish",
+    );
+  }
   console.log(
     `RESULT: ${passed} registration browser checks passed. Isolated PostgreSQL/RLS; simulated OAuth/HTTP, not live Supabase.`,
   );

@@ -1492,4 +1492,22 @@ body{line-height:1.6} .ballers-muted{font-size:15px;line-height:1.55;color:#b6c2
 .next-match-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; }
 .next-match-heading .match-audio-control { grid-column:2; grid-row:1; margin-left:0; }
 .next-match-heading>span { grid-column:1 / -1; justify-self:start; }
+/* 0.2.17: centered portrait, quiet foil and visible account controls. */
+.profile-account-actions { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin:0 0 24px; }
+.profile-account-actions button { border-color:#925969; color:#f2bdc7; min-height:44px; padding:8px 13px; }
+.photo-cutout-button { display:block; margin:10px 0 6px; min-height:44px; padding:9px 13px; border:1px solid #b6d983; border-radius:12px; color:#dcffa1; background:#25331c; font-weight:700; }
+.photo-cutout-button:disabled { opacity:.5; }
+.open-games-help { border:1px solid #385b72; border-radius:14px; padding:12px 16px; margin-bottom:18px; color:#bbd2e4; }
+.open-games-help summary { min-height:32px; cursor:pointer; color:#d9f3ff; }
+.open-games-help p { font-size:14px; line-height:1.5; margin-top:10px; }
+.start-time-reason { margin:12px 0; padding:12px; border-radius:12px; border:1px solid #7f7341; color:#e9d994; background:#39301940; font-size:14px; line-height:1.5; }
+.player-passport-body { height:clamp(190px,58vw,225px); margin-top:50px; }
+.player-passport-art { left:18%; right:18%; top:0; mask-image:linear-gradient(#000 0,#000 80%,transparent 100%); }
+.player-passport-art .ballers-avatar { justify-content:center; align-items:center; padding:0; }
+.player-passport-art .ballers-avatar img { object-fit:contain; object-position:center bottom; mask-image:radial-gradient(ellipse at 50% 42%,#000 44%,#000 55%,transparent 78%); }
+.ultimate-card-rating { width:64px; padding-top:28px; }
+.ultimate-position-code { font-size:22px; }
+.ultimate-club-mark { width:30px; height:30px; font-size:18px; }
+.ultimate-card-foil { animation:player-card-foil 8s ease-in-out infinite; }
+@media(prefers-reduced-motion:reduce) { .ultimate-card-foil { animation:none; display:none; } }
 @media(max-width:350px) { .profile-photo-picker { grid-template-columns:108px minmax(0,1fr); gap:12px; } .photo-card-preview { min-height:178px; padding:24px 13px 18px; } .photo-card-preview .ballers-avatar { width:68px; height:75px; } .photo-picker-actions h2 { font-size:15px; } }

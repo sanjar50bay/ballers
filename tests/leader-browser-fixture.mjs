@@ -60,6 +60,20 @@ await db.exec(
     "utf8",
   ),
 );
+for (const name of fs
+  .readdirSync(new URL("../supabase/migrations/", import.meta.url))
+  .filter((x) => Number(x.match(/_(\d+)_/)?.[1]) >= 11)
+  .sort())
+  await db.exec(
+    fs.readFileSync(
+      new URL("../supabase/migrations/" + name, import.meta.url),
+      "utf8",
+    ),
+  );
+await db.query(
+  "UPDATE game_days SET game_date=(statement_timestamp() AT TIME ZONE 'Asia/Almaty')::date,start_time='00:00' WHERE id=$1",
+  [game],
+);
 // Mirror a day created in the real UI: no saved rules and no lineup before its first start.
 await db.query("DELETE FROM ballers_game_settings WHERE game_day_id=$1", [
   game,

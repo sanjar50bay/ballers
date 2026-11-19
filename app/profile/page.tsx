@@ -20,21 +20,44 @@ export default function ProfilePage() {
   const [preview, setPreview] = useState(false);
   const router = useRouter();
   async function logout() {
+    if (busy) return;
     setBusy(true);
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      setSignError(tx("Не удалось выйти. Попробуй снова."));
+    setSignError("");
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      await refresh();
+      router.replace("/");
+    } catch {
+      setSignError("Не удалось выйти. Попробуй снова.");
+    } finally {
       setBusy(false);
-      return;
     }
-    await refresh();
-    router.replace("/");
   }
   const p = data?.profile;
   return (
     <main className="ballers-shell">
       <h1 className="page-title">{tx("Твой Baller ID")}</h1>
       <p className="ballers-muted mb-6">{tx("Карьера и настройки")}</p>
+      {session && (
+        <div className="profile-account-actions">
+          <Link className="text-link" href="/profile/edit">
+            {tx("Настройки профиля →")}
+          </Link>
+          <button
+            className="network-secondary"
+            disabled={busy}
+            onClick={() => void logout()}
+          >
+            {tx("Выйти из аккаунта")}
+          </button>
+        </div>
+      )}
+      {signError && (
+        <p role="alert" className="error-panel">
+          {uiError(signError)}
+        </p>
+      )}
       {loading ? (
         <p className="inline-loading">{tx("Загружаем профиль…")}</p>
       ) : p ? (
@@ -52,7 +75,7 @@ export default function ProfilePage() {
             </div>
           </div>
           <Link className="text-link profile-photo-link" href="/profile/edit">
-            {tx("Сменить фото или аватар")}
+            {tx("Сменить фото профиля")}
           </Link>
           <button
             className="neon-button w-full mt-4"
@@ -81,26 +104,11 @@ export default function ProfilePage() {
           <Link className="neon-button blue w-full" href="/career">
             {tx("Моя история матчей →")}
           </Link>
-          <Link className="community-row text-[#cbaaff]" href="/profile/edit">
-            {tx("Настройки профиля →")}
-          </Link>
           <p className="ballers-muted mt-3">
             {tx(
               "Карточка доступна здесь в любое время. При повторном входе она не открывается автоматически.",
             )}
           </p>
-          <button
-            className="text-link mt-5"
-            disabled={busy}
-            onClick={() => void logout()}
-          >
-            {tx("Выйти из аккаунта")}
-          </button>
-          {signError && (
-            <p role="alert" className="error-panel">
-              {uiError(signError)}
-            </p>
-          )}
         </>
       ) : (
         <div className="error-panel">
