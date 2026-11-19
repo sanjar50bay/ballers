@@ -1,24 +1,26 @@
 "use client";
-import {
-  uiError,
-  t as tx,
-  getLocale,
-  setLocale,
-  type Locale,
-} from "@/lib/i18n";
+import { t as tx, getLocale, setLocale, type Locale } from "@/lib/i18n";
 
 import { useLocale } from "@/app/components/Language";
 
+import ProfilePhotoPicker from "@/app/components/ProfilePhotoPicker";
+import {
+  resolveProfilePhoto,
+  removePreviousPhoto,
+  photoError,
+  type PhotoChoice,
+} from "@/lib/profile-photo";
 import { CitySelect } from "@/app/components/Network";
 import Link from "next/link";
 import { useApp } from "@/app/components/AppState";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 type Profile = {
   id: string;
+  user_id: string;
   identity_first_name: string | null;
   identity_last_name: string | null;
   display_name: string | null;
@@ -38,6 +40,10 @@ export default function EditProfilePage() {
   const router = useRouter();
   const { refresh } = useApp();
 
+  const saveLock = useRef(false);
+  const [photo, setPhoto] = useState<PhotoChoice>({ kind: "keep" });
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const [displayName, setDisplayName] = useState("");
@@ -92,30 +98,78 @@ export default function EditProfilePage() {
   }, [router]);
 
   const saveProfile = async () => {
-    if (!profile) return;
-
+    if (!profile || saveLock.current || photoBusy) return;
+    saveLock.current = true;
     setSaving(true);
-
-    const { error } = await supabase
-      .from("player_profiles")
-      .update({
-        display_name: displayName,
-        city,
-        primary_position: primaryPosition,
-        secondary_position: secondaryPosition || null,
-        dominant_foot: dominantFoot,
-        preferred_language: getLocale(),
-      })
-      .eq("id", profile.id);
-
-    if (error) {
-      alert(uiError(error.message));
+    setSaveError("");
+    try {
+      const {
+        data: { session },
+        error: authError,
+      } = await supabase.auth.getSession();
+      if (authError || session?.user.id !== profile.user_id)
+        throw new Error("PHOTO_ACCOUNT");
+      const avatar = await resolveProfilePhoto(
+        supabase,
+        profile.user_id,
+        photo,
+        profile.avatar_url,
+      );
+      const { error } = await supabase
+        .from("player_profiles")
+        .update({
+          display_name: displayName,
+          city,
+          primary_position: primaryPosition,
+          secondary_position: secondaryPosition || null,
+          dominant_foot: dominantFoot,
+          preferred_language: getLocale(),
+          avatar_url: avatar,
+        })
+        .eq("id", profile.id)
+        .eq("user_id", profile.user_id)
+        .abortSignal(AbortSignal.timeout(15000));
+      // A lost response can still mean a committed photo update. Read before retrying.
+      const { data: confirmed, error: readError } = await supabase
+        .from("player_profiles")
+        .select(
+          "id,avatar_url,display_name,city,primary_position,secondary_position,dominant_foot,preferred_language",
+        )
+        .eq("id", profile.id)
+        .eq("user_id", profile.user_id)
+        .abortSignal(AbortSignal.timeout(15000))
+        .maybeSingle();
+      if (
+        readError ||
+        !confirmed ||
+        confirmed.avatar_url !== avatar ||
+        confirmed.display_name !== displayName ||
+        confirmed.city !== city ||
+        confirmed.primary_position !== primaryPosition ||
+        confirmed.secondary_position !== (secondaryPosition || null) ||
+        confirmed.dominant_foot !== dominantFoot ||
+        confirmed.preferred_language !== getLocale()
+      )
+        throw error || new Error("PROFILE_SAVE_UNCONFIRMED");
+      void removePreviousPhoto(
+        supabase,
+        profile.user_id,
+        profile.avatar_url,
+        avatar,
+      );
+      await refresh();
+      router.push("/profile");
+    } catch (e) {
+      setSaveError(
+        photoError(e) ||
+          tx(
+            "Не удалось подтвердить сохранение. Проверь соединение и повтори.",
+          ),
+      );
+    } finally {
+      saveLock.current = false;
       setSaving(false);
-      return;
     }
-
-    await refresh();
-    router.push("/profile");
   };
 
   if (loading) {
@@ -150,25 +204,15 @@ export default function EditProfilePage() {
           {tx("Update your football profile.")}
         </p>
 
-        {/* PHOTO */}
-        <section className="flex flex-col items-center mb-8">
-          <div className="w-28 h-28 rounded-full bg-neutral-800 overflow-hidden flex items-center justify-center text-4xl">
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={tx("Profile")}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              "👤"
-            )}
-          </div>
-
-          <p className="mt-3 text-sm text-gray-400">
-            {tx("Загрузка своего фото пока недоступна.")}
-          </p>
-        </section>
-
+        <ProfilePhotoPicker
+          choice={photo}
+          onChange={setPhoto}
+          initialUrl={profile.avatar_url}
+          name={displayName}
+          position={primaryPosition}
+          onPreparing={setPhotoBusy}
+          disabled={saving}
+        />
         <div className="space-y-5">
           {/* PROTECTED IDENTITY */}
           <div>
@@ -289,11 +333,16 @@ export default function EditProfilePage() {
 
           <button
             onClick={saveProfile}
-            disabled={saving}
+            disabled={saving || photoBusy}
             className="w-full bg-white text-black rounded-2xl py-4 font-semibold cursor-pointer hover:bg-neutral-200 disabled:opacity-50"
           >
             {saving ? tx("Saving...") : tx("Save changes")}
           </button>
+          {saveError && (
+            <p role="alert" className="error-panel">
+              {saveError}
+            </p>
+          )}
         </div>
       </div>
     </main>

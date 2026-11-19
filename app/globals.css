@@ -1454,3 +1454,42 @@ body{line-height:1.6} .ballers-muted{font-size:15px;line-height:1.55;color:#b6c2
 
 .live-match-state { font-weight:700; color:#f2ffcf; }
 .live-match-pitch:focus { outline:2px solid #c6f5d8; outline-offset:3px; }
+/* 0.2.16: photo choice and compact pitch audio. */
+.profile-photo-link { display:inline-flex; align-items:center; min-height:44px; margin-top:2px; }
+.profile-photo-picker { display:grid; grid-template-columns:130px minmax(0,1fr); align-items:center; gap:18px; padding:16px 0 22px; margin-bottom:15px; border-bottom:1px solid #39475d; }
+.photo-card-preview { position:relative; isolation:isolate; min-height:194px; padding:26px 16px 20px; display:flex; flex-direction:column; align-items:center; text-align:center; color:#ecff50; }
+.photo-card-preview .ultimate-card-frame { z-index:-1; }
+.photo-card-brand { font-size:10px; font-weight:900; letter-spacing:.8px; margin:2px 0 8px; }
+.photo-card-preview .ballers-avatar { width:80px; height:85px; font-size:25px; border:0; border-radius:10px 10px 0 0; background:#ffffff0b; margin-bottom:8px; }
+.photo-card-preview .ballers-avatar img { object-fit:cover; object-position:center 25%; }
+.photo-card-preview>strong { font-size:13px; line-height:1.2; text-transform:uppercase; overflow-wrap:anywhere; max-width:100%; }
+.photo-card-preview>small { font-size:10px; color:#d6c9e8; margin-top:4px; }
+.photo-picker-actions { min-width:0; }
+.photo-picker-actions h2 { font-size:17px; font-weight:750; line-height:1.3; }
+.photo-picker-actions>p { font-size:13px; color:#c0cee0; line-height:1.4; margin:7px 0 10px; }
+.photo-picker-actions>.neon-button { font-size:13px; min-height:44px; width:100%; justify-content:center; padding:10px 9px; text-align:center; white-space:normal; }
+.photo-picker-secondary { display:flex; flex-wrap:wrap; gap:6px 12px; margin:5px 0; }
+.photo-picker-secondary button { min-height:40px; font-size:12px; color:#c9d6e6; text-decoration:underline; text-underline-offset:4px; }
+.photo-picker-actions>small { display:block; font-size:11px; color:#acbcd0; line-height:1.4; }
+.photo-picker-error { color:#ffb3bc!important; }
+.game-day-closure .game-day-close-button { background:#8f2638; color:#fff3f4; border-color:#e88192; font-weight:700; }
+.game-day-closure .game-day-close-button:disabled { opacity:.45; }
+.game-day-closure[data-closed='true'] { border-left:4px solid #b85f70; }
+.game-day-closure[data-closed='true'] h2 { color:#e6b7bf; }
+.pitch-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
+.pitch-heading .live-match-eyebrow { margin:0; }
+.match-audio-control { position:relative; z-index:5; margin-left:auto; flex-shrink:0; }
+.match-audio-control>summary { display:grid; place-items:center; list-style:none; width:44px; height:44px; cursor:pointer; border:1px solid #94bfaa; border-radius:12px; color:#f2fff5; background:#0c3125; }
+.match-audio-control>summary::-webkit-details-marker { display:none; }
+.match-audio-popover { position:absolute; right:0; top:calc(100% + 8px); width:min(260px,calc(100vw - 74px)); padding:14px; background:#0b231b; border:1px solid #8cb49e; border-radius:14px; box-shadow:0 10px 24px #0009; color:#ecfff3; }
+.match-audio-popover>button { display:block; width:100%; min-height:44px; padding:8px; border:1px solid #90c1a4; border-radius:10px; background:#174331; color:#ecfff3; font-size:14px; }
+.match-audio-popover>label { display:block; font-size:13px; margin:14px 0 10px; }
+.match-audio-popover input { display:block; width:100%; min-height:32px; accent-color:#8af1b3; }
+.match-audio-popover>small { display:block; font-size:12px; color:#bfdbca; line-height:1.4; }
+.match-audio-popover [role=alert] { font-size:12px; color:#ffc0c8; margin-top:8px; }
+.next-match-panel .match-audio-control>summary { background:#112d42; border-color:#7ba9c0; }
+.next-match-panel .match-audio-popover { background:#0c2637; border-color:#7ba9c0; }
+.next-match-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; }
+.next-match-heading .match-audio-control { grid-column:2; grid-row:1; margin-left:0; }
+.next-match-heading>span { grid-column:1 / -1; justify-self:start; }
+@media(max-width:350px) { .profile-photo-picker { grid-template-columns:108px minmax(0,1fr); gap:12px; } .photo-card-preview { min-height:178px; padding:24px 13px 18px; } .photo-card-preview .ballers-avatar { width:68px; height:75px; } .photo-picker-actions h2 { font-size:15px; } }

@@ -3,6 +3,12 @@ import { uiError, t as tx } from "@/lib/i18n";
 
 import { useLocale } from "@/app/components/Language";
 
+import ProfilePhotoPicker from "@/app/components/ProfilePhotoPicker";
+import {
+  resolveProfilePhoto,
+  photoError,
+  type PhotoChoice,
+} from "@/lib/profile-photo";
 import Link from "next/link";
 import { CitySelect } from "@/app/components/Network";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -29,6 +35,10 @@ export default function OnboardingPage() {
       "checking" | "ready" | "saving" | "login" | "error"
     >("checking"),
     [error, setError] = useState("");
+  const [photo, setPhoto] = useState<PhotoChoice>({ kind: "keep" });
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [providerAvatar, setProviderAvatar] = useState<string | null>(null);
+  const checkedUser = useRef<string | null>(null);
   const busy = useRef(false),
     generation = useRef(0),
     errorRef = useRef<HTMLParagraphElement>(null);
@@ -43,6 +53,10 @@ export default function OnboardingPage() {
         setPhase("login");
         return;
       }
+      checkedUser.current = user.id;
+      setProviderAvatar(
+        user.user_metadata?.avatar_url ?? user.user_metadata?.picture ?? null,
+      );
       const profile = await ownRegistrationProfile(supabase, user.id);
       if (seq !== generation.current) return;
       if (profile) {
@@ -53,7 +67,7 @@ export default function OnboardingPage() {
       setPhase("ready");
     } catch (e) {
       if (seq === generation.current) {
-        setError(registrationError(e));
+        setError(photoError(e) || registrationError(e));
         setPhase("error");
       }
     }
@@ -78,7 +92,7 @@ export default function OnboardingPage() {
 
   async function saveProfile(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy.current || phase !== "ready") return;
+    if (busy.current || phase !== "ready" || photoBusy) return;
     const input = {
       first_name: firstName,
       last_name: lastName,
@@ -102,11 +116,15 @@ export default function OnboardingPage() {
         setPhase("login");
         return;
       }
-      const savedProfile = await ensureRegistrationProfile(
-        supabase,
-        user,
-        input,
-      );
+      if (checkedUser.current !== user.id) throw new Error("PHOTO_ACCOUNT");
+      const chosenAvatar =
+        photo.kind === "keep"
+          ? undefined
+          : await resolveProfilePhoto(supabase, user.id, photo, providerAvatar);
+      const savedProfile = await ensureRegistrationProfile(supabase, user, {
+        ...input,
+        ...(chosenAvatar !== undefined ? { avatar_url: chosenAvatar } : {}),
+      });
       const current = await registrationUser(supabase);
       if (current?.id !== user.id) {
         setPhase("login");
@@ -123,7 +141,7 @@ export default function OnboardingPage() {
       }
       window.location.replace("/");
     } catch (e) {
-      setError(registrationError(e));
+      setError(photoError(e) || registrationError(e));
       setPhase("ready");
     } finally {
       busy.current = false;
@@ -200,6 +218,15 @@ export default function OnboardingPage() {
                 <option value="ATT">{tx("Нападающий")}</option>
               </select>
             </label>
+            <ProfilePhotoPicker
+              choice={photo}
+              onChange={setPhoto}
+              initialUrl={providerAvatar}
+              name={[firstName, lastName].filter(Boolean).join(" ")}
+              position={primaryPosition}
+              onPreparing={setPhotoBusy}
+              disabled={phase === "saving"}
+            />
             <details className="profile-optional">
               <summary>{tx("Дополнить профиль")}</summary>
               <div className="space-y-4 mt-4">
@@ -259,7 +286,12 @@ export default function OnboardingPage() {
             <button
               className="neon-button w-full"
               type="submit"
-              disabled={phase === "saving" || !firstName.trim() || !city.trim()}
+              disabled={
+                phase === "saving" ||
+                photoBusy ||
+                !firstName.trim() ||
+                !city.trim()
+              }
             >
               {phase === "saving"
                 ? tx("Сохраняем и открываем профиль…")

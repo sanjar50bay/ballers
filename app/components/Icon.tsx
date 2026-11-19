@@ -21,7 +21,19 @@ export default function Icon({
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      {name === "home" ? (
+      {name === "volume" || name === "volume-off" ? (
+        <>
+          <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+          {name === "volume" ? (
+            <>
+              <path d="M15 8a6 6 0 0 1 0 8" />
+              <path d="M18 5a10 10 0 0 1 0 14" />
+            </>
+          ) : (
+            <path d="m16 9 5 6m0-6-5 6" />
+          )}
+        </>
+      ) : name === "home" ? (
         <path d="M3 10 12 3 21 10v11h-6v-7H9v7H3Z" />
       ) : name === "ball" ? (
         <>

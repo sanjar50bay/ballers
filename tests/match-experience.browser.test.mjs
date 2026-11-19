@@ -39,7 +39,52 @@ try {
   const { page: owner } = await context(1),
     { page: leader } = await context(3),
     { page: viewer } = await context(6);
+  await leader.addInitScript(() => {
+    const Native = window.AudioContext;
+    window.__matchAudioTest = { contexts: 0, tones: 0, master: null };
+    window.AudioContext = class extends Native {
+      constructor(...args) {
+        super(...args);
+        window.__matchAudioTest.contexts++;
+      }
+      createGain() {
+        const node = super.createGain();
+        window.__matchAudioTest.master ??= node;
+        return node;
+      }
+      createOscillator() {
+        window.__matchAudioTest.tones++;
+        return super.createOscillator();
+      }
+    };
+  });
   await open(owner);
+  await owner.setViewportSize({ width: 320, height: 850 });
+  const initialSound = owner.getByLabel("Настроить звук матча", {
+    exact: true,
+  });
+  await initialSound.click();
+  const initialPopover = await owner
+    .locator(".match-audio-popover:visible")
+    .boundingBox();
+  assert.ok(
+    initialPopover &&
+      initialPopover.x >= 0 &&
+      initialPopover.x + initialPopover.width <= 320,
+  );
+  await shot(owner, "sound-settings-320.png");
+  await initialSound.press("Escape");
+  const endDay = owner.getByRole("button", {
+    name: "Завершить игровой день",
+    exact: true,
+  });
+  await endDay.scrollIntoViewIfNeeded();
+  assert.equal(
+    await endDay.evaluate((el) => getComputedStyle(el).backgroundColor),
+    "rgb(143, 38, 56)",
+  );
+  await shot(owner, "red-day-closure-320.png");
+  await owner.setViewportSize({ width: 390, height: 850 });
   await owner
     .getByRole("region", { name: "Следующий матч", exact: true })
     .getByText("Предварительная пара", { exact: true })
@@ -79,6 +124,69 @@ try {
   assert.match(
     await pitch.evaluate((el) => getComputedStyle(el).backgroundImage),
     /repeating-linear-gradient/,
+  );
+  assert.equal(
+    await leader.evaluate(() => window.__matchAudioTest.contexts),
+    0,
+  );
+  await pitch.getByLabel("Настроить звук матча", { exact: true }).click();
+  await pitch
+    .getByRole("button", { name: "Включить звук", exact: true })
+    .click();
+  await pitch
+    .getByRole("button", { name: "Выключить звук", exact: true })
+    .waitFor();
+  const volume = pitch.getByLabel("Громкость матча", { exact: true });
+  await volume.press("Home");
+  for (let i = 0; i < 5; i++) await volume.press("ArrowRight");
+  assert.equal(await volume.inputValue(), "25");
+  await leader.waitForFunction(
+    () => Math.round(window.__matchAudioTest.master.gain.value * 100) === 25,
+  );
+  await pitch.getByLabel("Событие", { exact: true }).selectOption("GOAL");
+  await pitch.getByLabel("Игрок", { exact: true }).selectOption(pid(1));
+  await pitch
+    .getByRole("button", { name: "Записать событие", exact: true })
+    .click();
+  await pitch
+    .locator(".live-match-scoreboard>strong")
+    .getByText("1:0", { exact: true })
+    .waitFor();
+  const tones = await leader.evaluate(() => window.__matchAudioTest.tones);
+  assert.ok(tones >= 4);
+  await pitch
+    .getByRole("button", { name: "Выключить звук", exact: true })
+    .click();
+  assert.equal(
+    await leader.evaluate(() => window.__matchAudioTest.master.gain.value),
+    0,
+  );
+  await leader.waitForTimeout(5500);
+  assert.equal(
+    await leader.evaluate(() => window.__matchAudioTest.tones),
+    tones,
+  );
+  await pitch
+    .getByRole("button", { name: "Включить звук", exact: true })
+    .click();
+  await pitch
+    .getByRole("button", { name: "Выключить звук", exact: true })
+    .waitFor();
+  assert.equal(
+    await leader.evaluate(() => window.__matchAudioTest.contexts),
+    1,
+  );
+  assert.equal(
+    await leader.evaluate(() => window.__matchAudioTest.tones),
+    tones + 1,
+  );
+  await pitch
+    .getByRole("button", { name: "Выключить звук", exact: true })
+    .click();
+  await volume.press("Escape");
+  assert.equal(await pitch.locator(".match-audio-control[open]").count(), 0);
+  pass(
+    "pitch audio starts only on click, volume reaches the master gain, mute is immediate and polling/re-enable never replay old goal sounds",
   );
   await shot(leader, "pitch-leader-390.png");
   pass(
@@ -143,7 +251,7 @@ try {
   await pitch.waitFor({ state: "detached" });
   await next
     .locator(".next-match-pair")
-    .getByText("Red", { exact: false })
+    .getByText("Blue", { exact: false })
     .waitFor();
   assert.match(await next.locator(".next-match-pair").innerText(), /Yellow/);
   await closed(leader);
