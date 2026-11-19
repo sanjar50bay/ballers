@@ -98,9 +98,10 @@ try {
     p_reason: null,
   });
   await open(leader);
-  await admin("UPDATE game_days SET game_date=current_date+1 WHERE id=$1", [
-    game,
-  ]);
+  await admin(
+    "UPDATE game_days SET game_date=(statement_timestamp() AT TIME ZONE 'Asia/Almaty')::date+1 WHERE id=$1",
+    [game],
+  );
   await open(leader);
   assert.equal(
     await leader
