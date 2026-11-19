@@ -2,6 +2,7 @@
 import { t as tx, dateLocale } from "@/lib/i18n";
 
 import { useLocale } from "@/app/components/Language";
+import GameDayBadge from "./GameDayBadge";
 import GameAttendanceActions from "./GameAttendanceActions";
 import { playersNeeded } from "@/lib/player-home";
 import Link from "next/link";
@@ -31,10 +32,12 @@ export default function GameCard({
   game,
   compact = false,
   featured = false,
+  next = false,
 }: {
   game: GameDay;
   compact?: boolean;
   featured?: boolean;
+  next?: boolean;
 }) {
   useLocale();
 
@@ -44,6 +47,7 @@ export default function GameCard({
       className={"game-card" + (featured ? " next-game-card" : "")}
       aria-label={featured ? tx("Твоя ближайшая игра") : undefined}
     >
+      {!featured && <GameDayBadge day={game} next={next} />}
       {featured && (
         <p className="next-game-status" role="status">
           {attendanceLabel(game)}

@@ -1,6 +1,6 @@
 {
   "name": "ballers",
-  "version": "0.2.14-alpha",
+  "version": "0.2.15-alpha",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -26,7 +26,8 @@
     "test:landing:browser": "node tests/landing.browser.test.mjs",
     "test:signin:browser": "node tests/signin.browser.test.mjs",
     "test:leader": "node tests/leader.test.mjs",
-    "test:leader:browser": "node tests/leader.browser.test.mjs"
+    "test:leader:browser": "node tests/leader.browser.test.mjs",
+    "test:match-ui:browser": "node tests/match-experience.browser.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

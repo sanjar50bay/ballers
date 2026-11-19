@@ -45,3 +45,4 @@ jobs:
           done
           TEST_BASE_URL=http://127.0.0.1:3014 npm run test:leader:browser
           TEST_BASE_URL=http://127.0.0.1:3014 npm run test:network:browser
+          TEST_BASE_URL=http://127.0.0.1:3014 npm run test:match-ui:browser

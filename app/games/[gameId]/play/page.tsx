@@ -20,6 +20,8 @@ import { readStart, saveStart, type StartOperation } from "@/lib/game-start";
 import MatchCorrections from "@/app/components/MatchCorrections";
 import DayResults, { eventLabel } from "@/app/components/DayResults";
 import DayRequests from "@/app/components/DayRequests";
+import MatchResultsDisclosure from "@/app/components/MatchResultsDisclosure";
+import GameDayClosure from "@/app/components/GameDayClosure";
 import MatchSound from "@/app/components/MatchSound";
 import { setAttendance } from "@/lib/pre-match";
 
@@ -167,6 +169,7 @@ function UnifiedGame() {
   }, [path, router]);
   const [pendingStart, setPendingStart] = useState<StartOperation | null>(null);
   const actionLock = useRef(false);
+  const revealStarted = useRef(false);
 
   const [s, setS] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
@@ -323,6 +326,7 @@ function UnifiedGame() {
       } else {
         saveStart(gameId, s.my_player_id, null);
         setPendingStart(null);
+        revealStarted.current = true;
         chooseTab("matches");
         window.dispatchEvent(new Event("ballers:data-changed"));
       }
@@ -350,6 +354,16 @@ function UnifiedGame() {
       }),
     );
   const live = s?.matches.find((m) => ["LIVE", "PAUSED"].includes(m.status));
+  useEffect(() => {
+    if (!live || tab !== "matches" || !revealStarted.current) return;
+    const frame = requestAnimationFrame(() => {
+      const pitch = document.getElementById(`match-${live.id}`);
+      pitch?.focus({ preventScroll: true });
+      pitch?.scrollIntoView({ block: "start" });
+      revealStarted.current = false;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [live, tab]);
   const elapsed = live
     ? live.elapsed_seconds +
       (live.running_since
@@ -418,6 +432,18 @@ function UnifiedGame() {
   const pending = s.matches.filter((m) =>
     ["PENDING", "DISPUTED"].includes(m.status),
   );
+  const completed = s.matches
+    .filter((match) => !["LIVE", "PAUSED"].includes(match.status))
+    .sort((a, b) => b.sequence - a.sequence);
+  const attention = completed.filter(
+    (match) =>
+      (match.status === "PENDING" &&
+        ((match.captain_a === s.my_player_id && !match.confirmed_a) ||
+          (match.captain_b === s.my_player_id && !match.confirmed_b))) ||
+      (s.manager &&
+        (match.status === "DISPUTED" ||
+          (match.is_test && match.status === "PENDING"))),
+  ).length;
   const preparation =
     !live && s.game.status === "OPEN" && (s.manager || s.control?.is_leader) ? (
       <GamePreparation
@@ -435,6 +461,146 @@ function UnifiedGame() {
         }}
       />
     ) : null;
+  const waitingTeams =
+    s.session?.queue ?? (live ? [] : s.teams.slice(2).map((team) => team.id));
+  const nextMatch =
+    s.game.status === "OPEN" ? (
+      <section className="next-match-panel" aria-label={tx("Следующий матч")}>
+        <div className="next-match-heading">
+          <h2>{tx("Следующий матч")}</h2>
+          <span>
+            {tx(
+              live
+                ? "После текущего матча"
+                : s.session
+                  ? "Пара сохранена"
+                  : "Предварительная пара",
+            )}
+          </span>
+        </div>
+        {live ? (
+          <p className="next-match-explanation">
+            {tx(
+              "Пара определится после завершения текущего матча по правилам ротации.",
+            )}
+          </p>
+        ) : s.session ? (
+          <p className="next-match-pair">
+            {teamName(s.session.team_a)} <span>{tx("против")}</span>{" "}
+            {teamName(s.session.team_b)}
+          </p>
+        ) : s.teams.length >= 2 ? (
+          <>
+            <p className="next-match-pair">
+              {teamName(s.teams[0].id)} <span>{tx("против")}</span>{" "}
+              {teamName(s.teams[1].id)}
+            </p>
+            <p className="next-match-explanation">
+              {tx(
+                "Предложены первые две команды. Пара сохранится при запуске или после выбора организатора.",
+              )}
+            </p>
+          </>
+        ) : (
+          <p className="next-match-explanation">
+            {tx("Сначала создайте команды")}
+          </p>
+        )}
+        <div className="match-team-queue">
+          <h3>{tx("Очередь команд")}</h3>
+          {waitingTeams.length ? (
+            <ol>
+              {waitingTeams.map((id, index) => (
+                <li key={id}>
+                  {index + 1}. {teamName(id)}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p>{tx("В очереди нет команд")}</p>
+          )}
+        </div>
+        {s.manager && !s.matches.length && (
+          <details className="mt-3">
+            <summary className="min-h-11 py-2 text-sm text-[#7bd9ff]">
+              {tx("Изменить стартовую пару ↓")}
+            </summary>
+            <form
+              className="mt-4 space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                void gameAction("LINEUP", {
+                  team_a: fd.get("a"),
+                  team_b: fd.get("b"),
+                  first_draw_out: fd.get("draw"),
+                });
+              }}
+            >
+              <label className="block text-sm">
+                {tx("Первая команда")}
+                <select name="a" className={field}>
+                  {s.teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm">
+                {tx("Вторая команда")}
+                <select
+                  name="b"
+                  className={field}
+                  defaultValue={s.teams[1]?.id}
+                >
+                  {s.teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm">
+                {tx("Кто отдыхает при первой ничьей")}
+                <select name="draw" className={field}>
+                  {s.teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                className={secondary}
+                disabled={busy || s.teams.length < 2}
+              >
+                {tx("Сохранить стартовую пару")}
+              </button>
+            </form>
+          </details>
+        )}
+      </section>
+    ) : null;
+  const leaderPanel = (
+    <div id="game-leader">
+      <GameLeader
+        gameId={gameId}
+        control={s.control}
+        manager={s.manager}
+        open={s.game.status === "OPEN"}
+        players={s.players.filter(
+          (p) =>
+            p.user_id &&
+            (s.participants.some(
+              (a) => a.player_id === p.id && a.attendance_status === "GOING",
+            ) ||
+              (s.manager && p.id === s.my_player_id)),
+        )}
+        refresh={refresh}
+      />
+    </div>
+  );
   return (
     <main className="min-h-screen bg-[#050710] text-white pb-24">
       <div className="max-w-3xl mx-auto px-4 pt-6 pb-16">
@@ -479,24 +645,7 @@ function UnifiedGame() {
           </div>
         )}
         {tab === "overview" && preparation}
-        <div id="game-leader">
-          <GameLeader
-            gameId={gameId}
-            control={s.control}
-            manager={s.manager}
-            open={s.game.status === "OPEN"}
-            players={s.players.filter(
-              (p) =>
-                p.user_id &&
-                (s.participants.some(
-                  (a) =>
-                    a.player_id === p.id && a.attendance_status === "GOING",
-                ) ||
-                  (s.manager && p.id === s.my_player_id)),
-            )}
-            refresh={refresh}
-          />
-        </div>
+        {tab !== "matches" && leaderPanel}
         {pendingStart && (
           <button
             disabled={busy}
@@ -590,9 +739,16 @@ function UnifiedGame() {
           />
         )}
         <section hidden={tab !== "matches"} aria-labelledby="tab-matches">
+          {!live && nextMatch}
           {tab === "matches" && preparation}
           {live && (
-            <section className="rounded-3xl border border-violet-500 bg-gradient-to-br from-violet-950 to-[#09131d] p-5 mb-5">
+            <section
+              id={`match-${live.id}`}
+              tabIndex={-1}
+              className="live-match-pitch"
+              aria-label={tx("Сейчас на поле")}
+            >
+              <h2 className="live-match-eyebrow">{tx("Сейчас на поле")}</h2>
               <div className="flex justify-between gap-2 text-sm text-gray-300">
                 <span>
                   {live.status === "LIVE" && (
@@ -605,11 +761,14 @@ function UnifiedGame() {
                     </span>
                   )}{" "}
                   {tx("Матч #")}
-                  {live.sequence} · {tx(statuses[live.status])}
+                  {live.sequence} ·{" "}
+                  <span className="live-match-state">
+                    {tx(statuses[live.status])}
+                  </span>
                 </span>
                 <span>{live.is_test ? tx("ТЕСТОВЫЙ") : ""}</span>
               </div>
-              <div className="grid grid-cols-3 items-center text-center my-6">
+              <div className="live-match-scoreboard">
                 <b>{teamName(live.team_a)}</b>
                 <strong className="text-5xl">
                   {live.score_a}:{live.score_b}
@@ -621,9 +780,12 @@ function UnifiedGame() {
                 {String(elapsed % 60).padStart(2, "0")}
               </p>
               <p className="text-center text-sm text-gray-400 mb-5">
-                {live.duration_seconds / 60} {tx("мин · до")} {live.goal_limit}
-                {tx("голов · ведущий:")}
-                {playerName(live.operator_id)}
+                {tx("{minutes} мин · до {goals} голов", {
+                  minutes: live.duration_seconds / 60,
+                  goals: live.goal_limit,
+                })}
+                <br />
+                <span>{tx("Матч ведёт:")}</span> {playerName(live.operator_id)}
               </p>
               {canOperate && (
                 <>
@@ -730,121 +892,39 @@ function UnifiedGame() {
               )}
             </section>
           )}
-          {s.game.status === "OPEN" && (
-            <section className={section}>
-              <h2 className="text-xl font-bold mb-3">{tx("Пара и очередь")}</h2>
-              {s.session ? (
-                <>
-                  <p className="text-lg font-bold">
-                    {teamName(s.session.team_a)} {tx("против")}{" "}
-                    {teamName(s.session.team_b)}
-                  </p>
-                  <p className="text-sm text-gray-400 mt-2">
-                    {tx("Дольше на поле:")}
-                    {teamName(s.session.older_team)} {tx("· Ждут:")}{" "}
-                    {s.session.queue.map(teamName).join(" → ") || tx("никто")}
-                  </p>
-                </>
-              ) : (
-                <p className="text-gray-400">
-                  {tx(
-                    "По умолчанию начнут первые две команды; при первой ничьей отдыхает первая. Можно изменить ниже.",
-                  )}
-                </p>
-              )}
-              {s.manager && !s.matches.length && (
-                <details className="mt-3">
-                  <summary className="min-h-11 py-2 text-sm text-[#7bd9ff]">
-                    {tx("Изменить стартовую пару ↓")}
-                  </summary>
-                  <form
-                    className="mt-4 space-y-3"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const fd = new FormData(e.currentTarget);
-                      void gameAction("LINEUP", {
-                        team_a: fd.get("a"),
-                        team_b: fd.get("b"),
-                        first_draw_out: fd.get("draw"),
-                      });
-                    }}
-                  >
-                    <label className="block text-sm">
-                      {tx("Первая команда")}
-                      <select name="a" className={field}>
-                        {s.teams.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block text-sm">
-                      {tx("Вторая команда")}
-                      <select
-                        name="b"
-                        className={field}
-                        defaultValue={s.teams[1]?.id}
-                      >
-                        {s.teams.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block text-sm">
-                      {tx("Кто отдыхает при первой ничьей")}
-                      <select name="draw" className={field}>
-                        {s.teams.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button
-                      className={secondary}
-                      disabled={busy || s.teams.length < 2}
-                    >
-                      {tx("Сохранить стартовую пару")}
-                    </button>
-                  </form>
-                </details>
-              )}
-            </section>
-          )}
-          <DayResults
-            matches={s.matches}
-            events={s.events}
-            teams={s.teams}
-            rosters={s.rosters}
-            players={s.players}
-          />
+          {live && nextMatch}
+          {tab === "matches" && leaderPanel}
           <MatchSound
             gameId={gameId}
             matches={s.matches}
             events={s.events}
             ready={true}
           />
-          <section
-            id="results"
-            style={{ scrollMarginTop: 20 }}
-            className={section}
+          <MatchResultsDisclosure
+            key={gameId}
+            active={tab === "matches"}
+            count={completed.length}
+            waiting={pending.length}
+            attention={attention}
           >
-            <h2 className="text-xl font-bold mb-4">
-              {tx("Результаты и исправления")}{" "}
-              {pending.length > 0 && `· ${pending.length} ${tx("Ожидание")}`}
-            </h2>
-            {!s.matches.length && (
-              <p className="text-gray-400">{tx("Первый матч ещё не начат.")}</p>
+            <DayResults
+              matches={s.matches}
+              events={s.events}
+              teams={s.teams}
+              rosters={s.rosters}
+              players={s.players}
+            />
+            {!completed.length && (
+              <p className="text-gray-400">
+                {tx("Завершённых матчей пока нет.")}
+              </p>
             )}
-            {s.matches.map((m) => (
+            {completed.map((m) => (
               <article
                 id={`match-${m.id}`}
                 style={{ scrollMarginTop: 20 }}
                 key={m.id}
-                className="border border-white/10 rounded-2xl p-4 mb-3"
+                className="match-history-card"
               >
                 <div className="flex flex-wrap justify-between gap-2">
                   <b>
@@ -1010,7 +1090,14 @@ function UnifiedGame() {
                 )}
               </article>
             ))}
-          </section>
+          </MatchResultsDisclosure>
+          <GameDayClosure
+            manager={s.manager}
+            active={!!live}
+            open={s.game.status === "OPEN"}
+            busy={busy}
+            close={() => void gameAction("CLOSE")}
+          />
           <details
             id="game-organizer"
             className="organizer-settings"
@@ -1040,18 +1127,6 @@ function UnifiedGame() {
                 }}
               >
                 {tx("Тестовые игроки +14")}
-              </button>
-            )}
-            {s.manager && s.game.status === "OPEN" && (
-              <button
-                className="network-secondary my-3"
-                disabled={busy || !!live}
-                onClick={() => {
-                  if (confirm(tx("Завершить игровой день?")))
-                    void gameAction("CLOSE");
-                }}
-              >
-                {tx("Завершить игровой день")}
               </button>
             )}
             {s.manager && s.game.status === "OPEN" && (

@@ -460,6 +460,7 @@ try {
   await owner
     .getByRole("button", { name: "Завершить матч", exact: true })
     .click();
+  await owner.locator("#results > summary").click();
   await owner.getByText("Учтён ведущим", { exact: true }).waitFor();
   const stats = await rpc(owner, "ballers_player_stats", { p_player: pid(1) });
   assert.equal(stats.status, 200);

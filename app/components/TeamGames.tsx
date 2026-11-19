@@ -1,4 +1,5 @@
 "use client";
+import GameDayBadge from "./GameDayBadge";
 import Link from "next/link";
 import { dateLocale, t } from "@/lib/i18n";
 import type { TeamCalendar } from "@/lib/team-calendar";
@@ -61,39 +62,42 @@ export default function TeamGames({
           )}
         </p>
       )}
-      {(compact ? games.slice(0, 1) : games).map((g) => (
-        <article
-          className={compact ? "team-next-game" : "network-card"}
-          key={g.id}
-        >
-          <p className="eyebrow">
-            {new Date(g.game_date + "T12:00:00").toLocaleDateString(
-              dateLocale(),
-              { day: "numeric", month: "long" },
-            )}{" "}
-            · {g.start_time?.slice(0, 5) || t("Время уточняется")}
-            {g.live ? " · " + t("Матч идёт") : ""}
-          </p>
-          <h3 className="font-bold mt-2">{g.title}</h3>
-          <p>{g.venue || t("Место уточняется")}</p>
-          <p className="ballers-muted text-sm my-2">
-            {t("Из команды подтвердились: {count}", { count: g.going })}
-            {g.invited > 0
-              ? " · " + t("Ждём ответа: {count}", { count: g.invited })
-              : ""}
-          </p>
-          <Link
-            className="neon-button green"
-            href={`/games/${g.id}/play?tab=overview`}
+      <div className={compact ? undefined : "game-day-list"}>
+        {(compact ? games.slice(0, 1) : games).map((g, index) => (
+          <article
+            className={compact ? "team-next-game" : "network-card"}
+            key={g.id}
           >
-            {t(
-              g.upcoming && g.attendance_status === "INVITED"
-                ? "Ответить на приглашение"
-                : "К игре →",
-            )}
-          </Link>
-        </article>
-      ))}
+            <GameDayBadge day={g} next={!history && index === 0} />
+            <p className="eyebrow">
+              {new Date(g.game_date + "T12:00:00").toLocaleDateString(
+                dateLocale(),
+                { day: "numeric", month: "long" },
+              )}{" "}
+              · {g.start_time?.slice(0, 5) || t("Время уточняется")}
+              {g.live ? " · " + t("Матч идёт") : ""}
+            </p>
+            <h3 className="font-bold mt-2">{g.title}</h3>
+            <p>{g.venue || t("Место уточняется")}</p>
+            <p className="ballers-muted text-sm my-2">
+              {t("Из команды подтвердились: {count}", { count: g.going })}
+              {g.invited > 0
+                ? " · " + t("Ждём ответа: {count}", { count: g.invited })
+                : ""}
+            </p>
+            <Link
+              className="neon-button green"
+              href={`/games/${g.id}/play?tab=${g.upcoming ? "overview" : "matches#results"}`}
+            >
+              {t(
+                g.upcoming && g.attendance_status === "INVITED"
+                  ? "Ответить на приглашение"
+                  : "К игре →",
+              )}
+            </Link>
+          </article>
+        ))}
+      </div>
       {!compact && data?.member && (
         <p className="ballers-muted text-sm mt-4">
           {t(
