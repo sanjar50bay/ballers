@@ -413,6 +413,15 @@ try {
     .getByRole("navigation", { name: "Разделы игры" })
     .getByRole("link", { name: "Участники", exact: true })
     .click();
+  // Next may briefly retain both route trees during a client navigation.
+  // Wait for a single visible heading; a persistent duplicate still fails.
+  await owner.waitForFunction(
+    () =>
+      [...document.querySelectorAll("h2")].filter(
+        (heading) =>
+          heading.textContent === "Команды" && heading.checkVisibility(),
+      ).length === 1,
+  );
   await owner.getByRole("heading", { name: "Команды", exact: true }).waitFor();
   await owner
     .getByRole("status")
