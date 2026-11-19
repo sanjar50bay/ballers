@@ -3,6 +3,7 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 export type RegistrationInput = {
   first_name: string;
+  avatar_url?: string | null;
   last_name?: string | null;
   city: string;
   birth_year?: number | null;
@@ -102,7 +103,11 @@ export async function ensureRegistrationProfile(
       secondary_position: input.secondary_position || null,
       dominant_foot: input.dominant_foot,
       avatar_url:
-        user.user_metadata?.avatar_url ?? user.user_metadata?.picture ?? null,
+        input.avatar_url !== undefined
+          ? input.avatar_url
+          : (user.user_metadata?.avatar_url ??
+            user.user_metadata?.picture ??
+            null),
     })
     .select("id,user_id")
     .abortSignal(AbortSignal.timeout(REQUEST_TIMEOUT))

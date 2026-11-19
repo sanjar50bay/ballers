@@ -68,7 +68,7 @@ await db.query("DELETE FROM ballers_sessions WHERE game_day_id=$1", [game]);
 export const browser = await chromium.launch({
   headless: true,
   executablePath: process.env.CHROMIUM_PATH,
-  args: ["--no-sandbox"],
+  args: ["--no-sandbox", "--mute-audio"],
 });
 export const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3014";
 export const errors = [],

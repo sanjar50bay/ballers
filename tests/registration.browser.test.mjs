@@ -84,7 +84,9 @@ async function scenario(options = {}) {
     role: "authenticated",
     email: "registration-test@example.invalid",
     app_metadata: { provider: "google" },
-    user_metadata: {},
+    user_metadata: options.providerAvatar
+      ? { avatar_url: options.providerAvatar }
+      : {},
     created_at: "2026-10-01T00:00:00Z",
   };
   const b64 = (x) => Buffer.from(JSON.stringify(x)).toString("base64url");
@@ -122,6 +124,12 @@ async function scenario(options = {}) {
     testLocale,
   );
   const state = {
+    uploads: 0,
+    patches: 0,
+    files: new Map(),
+    uploadFail: !!options.uploadFail,
+    lostUpload: !!options.lostUpload,
+    lostPatch: !!options.lostPatch,
     posts: 0,
     reads: 0,
     homes: 0,
@@ -151,7 +159,17 @@ async function scenario(options = {}) {
         )
       ).rows[0];
     });
-  if (options.existing) await insert("Original");
+  if (options.existing) {
+    await insert("Original");
+    if (options.providerAvatar)
+      await serial(async () => {
+        await db.exec("RESET ROLE");
+        await db.query(
+          "UPDATE player_profiles SET avatar_url=$1 WHERE user_id=$2",
+          [options.providerAvatar, uid],
+        );
+      });
+  }
   await ctx.route("**/*", async (route) => {
     const req = route.request(),
       url = new URL(req.url());
@@ -181,7 +199,90 @@ async function scenario(options = {}) {
       return route.fulfill({ status: 204, headers });
     if (url.pathname === "/auth/v1/user") return respond(200, user);
     try {
+      if (
+        url.pathname.startsWith("/storage/v1/object/public/ballers-avatars/")
+      ) {
+        const key = decodeURIComponent(
+          url.pathname.split("/public/ballers-avatars/")[1],
+        );
+        const file = state.files.get(key);
+        return file
+          ? route.fulfill({
+              status: 200,
+              headers,
+              contentType: "image/jpeg",
+              body: file,
+            })
+          : route.fulfill({ status: 404, headers, body: "Not found" });
+      }
+      if (url.pathname.startsWith("/storage/v1/object/ballers-avatars")) {
+        const key = decodeURIComponent(
+          url.pathname.split("/object/ballers-avatars/")[1] || "",
+        );
+        if (req.method() === "POST") {
+          state.uploads++;
+          assert.ok(key.startsWith(uid + "/"));
+          assert.match(key, new RegExp("^[a-f0-9-]+/[a-f0-9-]+\\.jpg$"));
+          if (state.uploadFail)
+            return respond(403, {
+              statusCode: "403",
+              message: "Storage unavailable",
+            });
+          const form = await new Response(req.postDataBuffer(), {
+            headers: { "content-type": req.headers()["content-type"] },
+          }).formData();
+          const file = form.get("");
+          assert.equal(file.type, "image/jpeg");
+          assert.ok(file.size <= 1048576);
+          state.files.set(key, Buffer.from(await file.arrayBuffer()));
+          if (state.lostUpload) {
+            state.lostUpload = false;
+            return route.abort("failed");
+          }
+          return respond(200, {
+            Key: "ballers-avatars/" + key,
+            Id: id(15000 + sequence),
+          });
+        }
+        if (req.method() === "DELETE") {
+          const keys = req.postDataJSON().prefixes;
+          assert.ok(keys.every((key) => key.startsWith(uid + "/")));
+          keys.forEach((key) => state.files.delete(key));
+          return respond(
+            200,
+            keys.map((name) => ({ name })),
+          );
+        }
+      }
       if (url.pathname === "/rest/v1/player_profiles") {
+        if (req.method() === "PATCH") {
+          state.patches++;
+          assert.equal(url.searchParams.get("user_id"), "eq." + uid);
+          const input = req.postDataJSON();
+          const keys = Object.keys(input);
+          assert.ok(keys.every((key) => /^[a-z_]+$/.test(key)));
+          await serial(async () => {
+            await db.exec("RESET ROLE");
+            await db.query(
+              "SELECT set_config('request.jwt.claim.sub',$1,false)",
+              [uid],
+            );
+            await db.exec("SET ROLE authenticated");
+            await db.query(
+              "UPDATE player_profiles SET " +
+                keys.map((key, i) => key + "=$" + (i + 1)).join(",") +
+                " WHERE user_id=$" +
+                (keys.length + 1),
+              [...Object.values(input), uid],
+            );
+          });
+          if (state.lostPatch) {
+            state.lostPatch = false;
+            return route.abort("failed");
+          }
+          return route.fulfill({ status: 204, headers });
+        }
+
         if (req.method() === "POST") {
           state.posts++;
           const input = req.postDataJSON();
@@ -353,310 +454,543 @@ async function scenario(options = {}) {
   };
 }
 try {
-  if (buggy) {
-    const s = await scenario();
-    await s.page.goto(base);
-    await s.page.waitForURL("**/onboarding");
-    await s.fill();
-    await s.submit().click();
-    await s.page.waitForTimeout(1800);
-    assert.ok(await s.profile(), "profile committed");
-    assert.ok(
-      s.page.url().endsWith("/onboarding"),
-      "stale home state returned to onboarding",
-    );
-    await s.fill();
-    await s.submit().click();
-    await s.page.waitForTimeout(600);
-    assert.ok(
-      s.state.dialogs.some((x) => x.includes("player_profiles_user_id_key")),
-    );
-    pass(
-      "REPRODUCED 0.2.3: successful INSERT -> stale home -> onboarding -> duplicate user_id on retry",
-    );
-    await s.ctx.close();
-  } else {
-    for (const mode of ["normal", "slow", "lost", "timeout", "race"]) {
-      const s = await scenario({ mode });
+  if (!process.env.TEST_PHOTO_ONLY) {
+    if (buggy) {
+      const s = await scenario();
       await s.page.goto(base);
       await s.page.waitForURL("**/onboarding");
-      if (mode === "normal")
-        await s.page.evaluate(() =>
-          localStorage.setItem("ballers:welcome:disabled", "false"),
-        );
       await s.fill();
-      // Two synchronous submit events also exercise the ref lock, not just disabled rendering.
-      await s.page.locator("form").evaluate((form) => {
-        form.requestSubmit();
-        form.requestSubmit();
-      });
-      await s.home();
-      assert.equal(s.state.posts, 1);
-      assert.equal(s.state.dialogs.length, 0);
-      assert.equal(s.state.pageErrors.length, 0);
-      const p = await s.profile();
-      assert.ok(p.baller_id);
-      assert.equal(p.first_name, mode === "race" ? "Other tab" : "New Player");
-      await s.page.waitForTimeout(800);
-      assert.equal(new URL(s.page.url()).pathname, "/");
-      if (mode === "normal") {
-        await s.page
-          .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
-          .waitFor();
-        await s.page
-          .getByRole("button", { name: text("Продолжить"), exact: true })
-          .click();
-        await s.page.reload();
+      await s.submit().click();
+      await s.page.waitForTimeout(1800);
+      assert.ok(await s.profile(), "profile committed");
+      assert.ok(
+        s.page.url().endsWith("/onboarding"),
+        "stale home state returned to onboarding",
+      );
+      await s.fill();
+      await s.submit().click();
+      await s.page.waitForTimeout(600);
+      assert.ok(
+        s.state.dialogs.some((x) => x.includes("player_profiles_user_id_key")),
+      );
+      pass(
+        "REPRODUCED 0.2.3: successful INSERT -> stale home -> onboarding -> duplicate user_id on retry",
+      );
+      await s.ctx.close();
+    } else {
+      for (const mode of ["normal", "slow", "lost", "timeout", "race"]) {
+        const s = await scenario({ mode });
+        await s.page.goto(base);
+        await s.page.waitForURL("**/onboarding");
+        if (mode === "normal")
+          await s.page.evaluate(() =>
+            localStorage.setItem("ballers:welcome:disabled", "false"),
+          );
+        await s.fill();
+        // Two synchronous submit events also exercise the ref lock, not just disabled rendering.
+        await s.page.locator("form").evaluate((form) => {
+          form.requestSubmit();
+          form.requestSubmit();
+        });
         await s.home();
-        assert.equal(await s.page.locator(".welcome-backdrop").count(), 0);
-        pass(
-          "fresh registration offers card exactly once; reload does not reopen it",
+        assert.equal(s.state.posts, 1);
+        assert.equal(s.state.dialogs.length, 0);
+        assert.equal(s.state.pageErrors.length, 0);
+        const p = await s.profile();
+        assert.ok(p.baller_id);
+        assert.equal(
+          p.first_name,
+          mode === "race" ? "Other tab" : "New Player",
         );
+        await s.page.waitForTimeout(800);
+        assert.equal(new URL(s.page.url()).pathname, "/");
+        if (mode === "normal") {
+          await s.page
+            .getByRole("dialog", { name: text("Твой Baller ID"), exact: true })
+            .waitFor();
+          await s.page
+            .getByRole("button", { name: text("Продолжить"), exact: true })
+            .click();
+          await s.page.reload();
+          await s.home();
+          assert.equal(await s.page.locator(".welcome-backdrop").count(), 0);
+          pass(
+            "fresh registration offers card exactly once; reload does not reopen it",
+          );
+          await s.page.screenshot({
+            path: screenshotPath(
+              new URL(
+                `../docs/${testLocale}-registration-home.png`,
+                import.meta.url,
+              ),
+            ),
+          });
+          await s.page.reload();
+          await s.home();
+          assert.equal((await s.profile()).baller_id, p.baller_id);
+          pass("reload keeps session and Baller ID");
+        }
+        pass(
+          mode + ": one profile, no duplicate alert, no return to onboarding",
+        );
+        await s.ctx.close();
+      }
+      {
+        const s = await scenario({ existing: true });
+        await s.open();
+        await s.home();
+        assert.equal(s.state.posts, 0);
+        assert.equal((await s.profile()).first_name, "Original");
+        pass("existing profile bypasses onboarding without overwrite");
+        await s.ctx.close();
+      }
+      {
+        const s = await scenario();
+        s.state.failReads = true;
+        await s.open();
+        await s.page
+          .getByRole("button", { name: text("Повторить проверку") })
+          .waitFor();
+        assert.equal(s.state.posts, 0);
         await s.page.screenshot({
           path: screenshotPath(
             new URL(
-              `../docs/${testLocale}-registration-home.png`,
+              `../docs/${testLocale}-registration-error.png`,
               import.meta.url,
             ),
           ),
         });
-        await s.page.reload();
-        await s.home();
-        assert.equal((await s.profile()).baller_id, p.baller_id);
-        pass("reload keeps session and Baller ID");
-      }
-      pass(mode + ": one profile, no duplicate alert, no return to onboarding");
-      await s.ctx.close();
-    }
-    {
-      const s = await scenario({ existing: true });
-      await s.open();
-      await s.home();
-      assert.equal(s.state.posts, 0);
-      assert.equal((await s.profile()).first_name, "Original");
-      pass("existing profile bypasses onboarding without overwrite");
-      await s.ctx.close();
-    }
-    {
-      const s = await scenario();
-      s.state.failReads = true;
-      await s.open();
-      await s.page
-        .getByRole("button", { name: text("Повторить проверку") })
-        .waitFor();
-      assert.equal(s.state.posts, 0);
-      await s.page.screenshot({
-        path: screenshotPath(
-          new URL(
-            `../docs/${testLocale}-registration-error.png`,
-            import.meta.url,
-          ),
-        ),
-      });
-      s.state.failReads = false;
-      await s.page
-        .getByRole("button", { name: text("Повторить проверку") })
-        .click();
-      await s.fill();
-      await s.submit().click();
-      await s.home();
-      pass(
-        "failed initial read does not mean no profile; explicit retry recovers",
-      );
-      await s.ctx.close();
-    }
-    {
-      const s = await scenario({ mode: "forbidden" });
-      await s.open();
-      await s.fill();
-      await s.submit().click();
-      await s.page
-        .getByRole("alert")
-        .filter({ hasText: testLocale === "kk" ? "рұқсат жоқ" : "Нет доступа" })
-        .waitFor();
-      assert.equal(await s.profile(), undefined);
-      await s
-        .submit()
-        .isEnabled()
-        .then((x) => assert.equal(x, true));
-      await s.page.screenshot({
-        path: screenshotPath(
-          new URL(
-            `../docs/${testLocale}-registration-submit-error.png`,
-            import.meta.url,
-          ),
-        ),
-      });
-      s.state.mode = "normal";
-      await s.submit().click();
-      await s.home();
-      pass("rejected INSERT is not treated as success; controls recover");
-      await s.ctx.close();
-    }
-    {
-      const s = await scenario({ anonymous: true });
-      await s.open();
-      await s.page.getByRole("link", { name: text("Войти") }).waitFor();
-      assert.equal(s.state.posts, 0);
-      pass("unauthenticated onboarding cannot create a profile");
-      await s.ctx.close();
-    }
-    {
-      const s = await scenario();
-      await s.open();
-      await s.fill();
-      await s.page
-        .getByText(text("Дополнить профиль"), { exact: true })
-        .click();
-      await s.page.getByLabel(text("Год рождения")).fill("1");
-      await s.submit().click();
-      assert.equal(s.state.posts, 0);
-      pass("invalid year blocked before write");
-      await s.page.getByLabel(text("Год рождения")).fill("2000");
-      await s.page.getByLabel(text("Основная позиция")).selectOption("ATT");
-      await s.page
-        .getByLabel(text("Дополнительная позиция"))
-        .selectOption("ATT");
-      await s.submit().click();
-      await s.page
-        .getByRole("alert")
-        .filter({ hasText: text("Дополнительная позиция") })
-        .waitFor();
-      assert.equal(s.state.posts, 0);
-      pass("same primary and secondary position rejected clearly");
-      await s.page.getByLabel(text("Дополнительная позиция")).selectOption("");
-      await s.page.getByLabel(text("Год рождения")).fill("");
-      await s.page.screenshot({
-        path: screenshotPath(
-          new URL(
-            `../docs/${testLocale}-registration-form.png`,
-            import.meta.url,
-          ),
-        ),
-        fullPage: true,
-      });
-      assert.ok(
-        await s.page.evaluate(
-          () => document.documentElement.scrollWidth <= innerWidth,
-        ),
-      );
-      await s.ctx.close();
-    }
-  }
-  if (!buggy) {
-    {
-      const s = await scenario({ mode: "lost-unread" });
-      await s.open();
-      await s.fill();
-      await s.submit().click();
-      await s.page
-        .getByRole("alert")
-        .filter({
-          hasText:
-            testLocale === "kk" ? "тексеру не сақтау" : "Не удалось проверить",
-        })
-        .waitFor();
-      assert.equal(s.state.posts, 1);
-      assert.ok(await s.profile());
-      s.state.failReads = false;
-      await s.submit().click();
-      await s.home();
-      assert.equal(s.state.posts, 1);
-      pass(
-        "write committed but response and verification failed: manual retry reads existing row, no second INSERT",
-      );
-      await s.ctx.close();
-    }
-    {
-      const s = await scenario({ mode: "foreign-conflict" });
-      await s.open();
-      await s.fill();
-      await s.submit().click();
-      await s.page
-        .getByRole("alert")
-        .filter({
-          hasText:
-            testLocale === "kk" ? "құру аяқталмады" : "Не удалось завершить",
-        })
-        .waitFor();
-      assert.equal(await s.profile(), undefined);
-      assert.ok(s.page.url().endsWith("/onboarding"));
-      pass("unrelated unique violation is not accepted as a saved profile");
-      await s.ctx.close();
-    }
-    {
-      const s = await scenario();
-      await s.open();
-      await s.fill();
-      assert.equal(
-        await s.page.getByRole("button", { name: /Уведомления/ }).count(),
-        0,
-      );
-      await s.page.screenshot({
-        path: screenshotPath(
-          new URL(
-            `../docs/${testLocale}-registration-form.png`,
-            import.meta.url,
-          ),
-        ),
-        fullPage: true,
-      });
-      await s.page.setViewportSize({ width: 320, height: 740 });
-      assert.ok(
-        await s.page.evaluate(
-          () => document.documentElement.scrollWidth <= innerWidth,
-        ),
-      );
-      pass(
-        "onboarding at 320px: no horizontal overflow or floating bell over fields",
-      );
-      await s.ctx.close();
-    }
-    for (const existing of [false, true]) {
-      const s = await scenario({
-        invite: true,
-        existing,
-        mode: existing ? "normal" : "lost",
-      });
-      await s.page.goto(base + "/join/" + s.inviteToken);
-      if (!existing) {
-        const section = s.page.locator("section").filter({
-          has: s.page.getByRole("heading", {
-            name: text("Complete your Baller profile"),
-          }),
-        });
-        await section.locator("input").fill("Invited Player");
+        s.state.failReads = false;
         await s.page
-          .getByRole("button", { name: text("Join Game"), exact: true })
+          .getByRole("button", { name: text("Повторить проверку") })
           .click();
+        await s.fill();
+        await s.submit().click();
+        await s.home();
+        pass(
+          "failed initial read does not mean no profile; explicit retry recovers",
+        );
+        await s.ctx.close();
       }
-      await s.page
-        .getByRole("heading", { name: "Invite destination" })
-        .waitFor();
-      assert.equal(
-        new URL(s.page.url()).pathname,
-        "/communities/" + s.communityId,
-      );
-      assert.equal(s.state.posts, existing ? 0 : 1);
-      assert.equal(s.state.dialogs.length, 0);
-      const row = await serial(async () => {
-        await db.exec("RESET ROLE");
-        return (
-          await db.query(
-            "SELECT cm.role,i.uses_count FROM community_members cm JOIN player_profiles p ON p.id=cm.player_id JOIN invites i ON i.community_id=cm.community_id WHERE p.user_id=$1 AND cm.community_id=$2",
-            [s.uid, s.communityId],
-          )
-        ).rows[0];
-      });
-      assert.equal(row.role, "MEMBER");
-      assert.equal(row.uses_count, 1);
-      pass(
-        (existing ? "existing" : "new, lost INSERT response") +
-          ": invite preserved; one membership and one use, no elevated role",
-      );
-      await s.ctx.close();
+      {
+        const s = await scenario({ mode: "forbidden" });
+        await s.open();
+        await s.fill();
+        await s.submit().click();
+        await s.page
+          .getByRole("alert")
+          .filter({
+            hasText: testLocale === "kk" ? "рұқсат жоқ" : "Нет доступа",
+          })
+          .waitFor();
+        assert.equal(await s.profile(), undefined);
+        await s
+          .submit()
+          .isEnabled()
+          .then((x) => assert.equal(x, true));
+        await s.page.screenshot({
+          path: screenshotPath(
+            new URL(
+              `../docs/${testLocale}-registration-submit-error.png`,
+              import.meta.url,
+            ),
+          ),
+        });
+        s.state.mode = "normal";
+        await s.submit().click();
+        await s.home();
+        pass("rejected INSERT is not treated as success; controls recover");
+        await s.ctx.close();
+      }
+      {
+        const s = await scenario({ anonymous: true });
+        await s.open();
+        await s.page.getByRole("link", { name: text("Войти") }).waitFor();
+        assert.equal(s.state.posts, 0);
+        pass("unauthenticated onboarding cannot create a profile");
+        await s.ctx.close();
+      }
+      {
+        const s = await scenario();
+        await s.open();
+        await s.fill();
+        await s.page
+          .getByText(text("Дополнить профиль"), { exact: true })
+          .click();
+        await s.page.getByLabel(text("Год рождения")).fill("1");
+        await s.submit().click();
+        assert.equal(s.state.posts, 0);
+        pass("invalid year blocked before write");
+        await s.page.getByLabel(text("Год рождения")).fill("2000");
+        await s.page.getByLabel(text("Основная позиция")).selectOption("ATT");
+        await s.page
+          .getByLabel(text("Дополнительная позиция"))
+          .selectOption("ATT");
+        await s.submit().click();
+        await s.page
+          .getByRole("alert")
+          .filter({ hasText: text("Дополнительная позиция") })
+          .waitFor();
+        assert.equal(s.state.posts, 0);
+        pass("same primary and secondary position rejected clearly");
+        await s.page
+          .getByLabel(text("Дополнительная позиция"))
+          .selectOption("");
+        await s.page.getByLabel(text("Год рождения")).fill("");
+        await s.page.screenshot({
+          path: screenshotPath(
+            new URL(
+              `../docs/${testLocale}-registration-form.png`,
+              import.meta.url,
+            ),
+          ),
+          fullPage: true,
+        });
+        assert.ok(
+          await s.page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        );
+        await s.ctx.close();
+      }
+    }
+    if (!buggy) {
+      {
+        const s = await scenario({ mode: "lost-unread" });
+        await s.open();
+        await s.fill();
+        await s.submit().click();
+        await s.page
+          .getByRole("alert")
+          .filter({
+            hasText:
+              testLocale === "kk"
+                ? "тексеру не сақтау"
+                : "Не удалось проверить",
+          })
+          .waitFor();
+        assert.equal(s.state.posts, 1);
+        assert.ok(await s.profile());
+        s.state.failReads = false;
+        await s.submit().click();
+        await s.home();
+        assert.equal(s.state.posts, 1);
+        pass(
+          "write committed but response and verification failed: manual retry reads existing row, no second INSERT",
+        );
+        await s.ctx.close();
+      }
+      {
+        const s = await scenario({ mode: "foreign-conflict" });
+        await s.open();
+        await s.fill();
+        await s.submit().click();
+        await s.page
+          .getByRole("alert")
+          .filter({
+            hasText:
+              testLocale === "kk" ? "құру аяқталмады" : "Не удалось завершить",
+          })
+          .waitFor();
+        assert.equal(await s.profile(), undefined);
+        assert.ok(s.page.url().endsWith("/onboarding"));
+        pass("unrelated unique violation is not accepted as a saved profile");
+        await s.ctx.close();
+      }
+      {
+        const s = await scenario();
+        await s.open();
+        await s.fill();
+        assert.equal(
+          await s.page.getByRole("button", { name: /Уведомления/ }).count(),
+          0,
+        );
+        await s.page.screenshot({
+          path: screenshotPath(
+            new URL(
+              `../docs/${testLocale}-registration-form.png`,
+              import.meta.url,
+            ),
+          ),
+          fullPage: true,
+        });
+        await s.page.setViewportSize({ width: 320, height: 740 });
+        assert.ok(
+          await s.page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        );
+        pass(
+          "onboarding at 320px: no horizontal overflow or floating bell over fields",
+        );
+        await s.ctx.close();
+      }
+      for (const existing of [false, true]) {
+        const s = await scenario({
+          invite: true,
+          existing,
+          mode: existing ? "normal" : "lost",
+        });
+        await s.page.goto(base + "/join/" + s.inviteToken);
+        if (!existing) {
+          const section = s.page.locator("section").filter({
+            has: s.page.getByRole("heading", {
+              name: text("Complete your Baller profile"),
+            }),
+          });
+          await section.locator("input").fill("Invited Player");
+          await s.page
+            .getByRole("button", { name: text("Join Game"), exact: true })
+            .click();
+        }
+        await s.page
+          .getByRole("heading", { name: "Invite destination" })
+          .waitFor();
+        assert.equal(
+          new URL(s.page.url()).pathname,
+          "/communities/" + s.communityId,
+        );
+        assert.equal(s.state.posts, existing ? 0 : 1);
+        assert.equal(s.state.dialogs.length, 0);
+        const row = await serial(async () => {
+          await db.exec("RESET ROLE");
+          return (
+            await db.query(
+              "SELECT cm.role,i.uses_count FROM community_members cm JOIN player_profiles p ON p.id=cm.player_id JOIN invites i ON i.community_id=cm.community_id WHERE p.user_id=$1 AND cm.community_id=$2",
+              [s.uid, s.communityId],
+            )
+          ).rows[0];
+        });
+        assert.equal(row.role, "MEMBER");
+        assert.equal(row.uses_count, 1);
+        pass(
+          (existing ? "existing" : "new, lost INSERT response") +
+            ": invite preserved; one membership and one use, no elevated role",
+        );
+        await s.ctx.close();
+      }
     }
   }
+  const make = await browser.newPage();
+  const photoData = await make.evaluate(() => {
+    const c = document.createElement("canvas");
+    c.width = 900;
+    c.height = 1200;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#204038";
+    ctx.fillRect(0, 0, 900, 1200);
+    ctx.fillStyle = "#b6f2bd";
+    ctx.beginPath();
+    ctx.arc(450, 370, 180, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(200, 620, 500, 580);
+    return c.toDataURL("image/png");
+  });
+  await make.close();
+  const image = {
+    name: "player.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(photoData.split(",")[1], "base64"),
+  };
+  const picker = (s) =>
+    s.page.getByRole("region", {
+      name: text("Фото для карточки"),
+      exact: true,
+    });
+  const choose = async (s) => {
+    await picker(s).locator("input[type=file]").setInputFiles(image);
+    await picker(s).locator('img[src^="blob:"]').waitFor();
+    await picker(s)
+      .locator("img")
+      .evaluate((el) => el.decode());
+  };
+  {
+    const s = await scenario({ providerAvatar: photoData });
+    await s.open();
+    await s.fill();
+    await choose(s);
+    await s.page.evaluate(() =>
+      localStorage.setItem("ballers:welcome:disabled", "false"),
+    );
+    await s.submit().dblclick();
+    await s.home();
+    const profile = await s.profile();
+    assert.equal(s.state.uploads, 1);
+    assert.equal(s.state.posts, 1);
+    assert.ok(profile.avatar_url.includes("/ballers-avatars/" + s.uid + "/"));
+    const idBefore = profile.baller_id;
+    const welcome = s.page.getByRole("dialog", {
+      name: text("Твой Baller ID"),
+      exact: true,
+    });
+    await welcome.waitFor();
+    assert.equal(
+      await welcome.locator("img").getAttribute("src"),
+      profile.avatar_url,
+    );
+    await welcome
+      .getByRole("button", { name: text("Продолжить"), exact: true })
+      .click();
+    pass(
+      "own photo is compressed/uploaded once, saved in the new Baller ID and shown in the first card",
+    );
+    await s.page.goto(base + "/profile");
+    await s.page
+      .getByRole("link", { name: text("Сменить фото или аватар"), exact: true })
+      .click();
+    await choose(s);
+    await s.page
+      .getByRole("button", { name: text("Save changes"), exact: true })
+      .click();
+    await s.page.waitForURL(base + "/profile");
+    const changed = await s.profile();
+    assert.equal(changed.baller_id, idBefore);
+    assert.equal(changed.id, profile.id);
+    assert.notEqual(changed.avatar_url, profile.avatar_url);
+    await s.page.reload();
+    assert.equal((await s.profile()).avatar_url, changed.avatar_url);
+    pass(
+      "profile photo can be replaced without changing identity, and replacement survives reload",
+    );
+    await s.page.goto(base + "/profile/edit");
+    await picker(s)
+      .getByRole("button", { name: text("Без фото"), exact: true })
+      .click();
+    await s.page
+      .getByRole("button", { name: text("Save changes"), exact: true })
+      .click();
+    await s.page.waitForURL(base + "/profile");
+    assert.equal((await s.profile()).avatar_url, null);
+    await s.page.reload();
+    assert.equal((await s.profile()).avatar_url, null);
+    assert.equal(s.state.posts, 1);
+    assert.deepEqual(s.state.pageErrors, []);
+    await s.ctx.close();
+    pass(
+      "no-photo choice is preserved instead of restoring the Google image and never creates a second profile",
+    );
+  }
+  {
+    const s = await scenario({ uploadFail: true });
+    await s.open();
+    await s.fill();
+    await choose(s);
+    await s.submit().click();
+    await s.page
+      .getByRole("alert")
+      .filter({
+        hasText: text(
+          "Фото не загрузилось. Повтори сохранение или выбери «Без фото».",
+        ),
+      })
+      .waitFor();
+    assert.equal(s.state.posts, 0);
+    await picker(s)
+      .getByRole("button", { name: text("Без фото"), exact: true })
+      .click();
+    await s.submit().click();
+    await s.home();
+    assert.equal(s.state.posts, 1);
+    assert.equal((await s.profile()).avatar_url, null);
+    await s.ctx.close();
+    pass(
+      "failed upload is explicit and optional photo can be skipped to complete registration",
+    );
+  }
+  {
+    const s = await scenario({ lostUpload: true });
+    await s.open();
+    await s.fill();
+    await choose(s);
+    await s.submit().click();
+    await s.page
+      .getByRole("alert")
+      .filter({
+        hasText: text(
+          "Фото не загрузилось. Повтори сохранение или выбери «Без фото».",
+        ),
+      })
+      .waitFor();
+    assert.equal(s.state.posts, 0);
+    await s.submit().click();
+    await s.home();
+    assert.equal(s.state.posts, 1);
+    assert.equal(s.state.uploads, 2);
+    assert.equal(s.state.files.size, 1);
+    await s.ctx.close();
+    pass(
+      "lost upload response retries the same owner path without duplicate files or profiles",
+    );
+  }
+  {
+    const s = await scenario({ existing: true, lostPatch: true });
+    await s.page.goto(base + "/profile/edit");
+    await choose(s);
+    await s.page
+      .getByRole("button", { name: text("Save changes"), exact: true })
+      .click();
+    await s.page.waitForURL(base + "/profile");
+    assert.equal(s.state.patches, 1);
+    assert.ok((await s.profile()).avatar_url);
+    assert.equal(s.state.posts, 0);
+    await s.ctx.close();
+    pass(
+      "lost profile update response is verified by reading the persisted profile, without another write",
+    );
+  }
+  {
+    const s = await scenario();
+    await s.open();
+    await s.fill();
+    await picker(s)
+      .locator("input[type=file]")
+      .setInputFiles({
+        name: "bad.svg",
+        mimeType: "image/svg+xml",
+        buffer: Buffer.from("<svg/>"),
+      });
+    await picker(s)
+      .getByRole("alert")
+      .getByText(text("Выбери фото в формате JPG, PNG или WebP."), {
+        exact: true,
+      })
+      .waitFor();
+    await picker(s)
+      .locator("input[type=file]")
+      .setInputFiles({
+        name: "large.png",
+        mimeType: "image/png",
+        buffer: Buffer.alloc(8 * 1024 * 1024 + 1),
+      });
+    await picker(s)
+      .getByRole("alert")
+      .getByText(text("Выбери фото размером до 8 МБ."), { exact: true })
+      .waitFor();
+    assert.equal(s.state.uploads, 0);
+    assert.equal(s.state.posts, 0);
+    await s.page.setViewportSize({ width: 320, height: 740 });
+    await choose(s);
+    await picker(s).scrollIntoViewIfNeeded();
+    assert.ok(
+      await s.page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    );
+    await s.page.screenshot({
+      path: screenshotPath(
+        new URL(
+          "../docs/" + testLocale + "-photo-card-320.png",
+          import.meta.url,
+        ),
+      ),
+    });
+    assert.deepEqual(s.state.pageErrors, []);
+    await s.ctx.close();
+    pass(
+      "unsupported/oversize files never upload and the photo/card choice fits 320px in the selected locale",
+    );
+  }
+
   console.log(
     `RESULT: ${passed} registration browser checks passed. Isolated PostgreSQL/RLS; simulated OAuth/HTTP, not live Supabase.`,
   );

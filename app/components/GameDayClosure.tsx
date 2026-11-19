@@ -17,6 +17,7 @@ export default function GameDayClosure({
   return (
     <section
       className="game-day-closure"
+      data-closed={!open}
       aria-label={t("Завершение игрового дня")}
     >
       <h2>{t(open ? "Игровой день" : "Игровой день закрыт")}</h2>
@@ -34,7 +35,7 @@ export default function GameDayClosure({
           {manager && (
             <button
               type="button"
-              className="network-secondary"
+              className="network-secondary game-day-close-button"
               aria-describedby="close-day-reason"
               disabled={busy || active}
               onClick={() => {

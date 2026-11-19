@@ -51,6 +51,9 @@ export default function ProfilePage() {
               </p>
             </div>
           </div>
+          <Link className="text-link profile-photo-link" href="/profile/edit">
+            {tx("Сменить фото или аватар")}
+          </Link>
           <button
             className="neon-button w-full mt-4"
             onClick={() => setPreview(true)}
