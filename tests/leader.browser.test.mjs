@@ -94,7 +94,7 @@ try {
   await owner.getByLabel("Интерфейс тілі", { exact: true }).selectOption("ru");
   await owner.setViewportSize({ width: 390, height: 844 });
   await admin(
-    "UPDATE game_days SET start_time='20:00',venue='Купол · тестовая площадка' WHERE id=$1",
+    "UPDATE game_days SET start_time='00:00',venue='Купол · тестовая площадка' WHERE id=$1",
     [game],
   );
   await admin(

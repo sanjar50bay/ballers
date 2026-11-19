@@ -368,6 +368,8 @@ await test("standings count only confirmed selected type; scorer assists and own
   assert.equal(dayResults(matches, events, teams, []).confirmed, 0);
 });
 await test("yellow/red events use operator/version checks and undo does not change score", async () => {
+  await db.exec("RESET ROLE");await db.query("UPDATE game_days SET game_date=current_date-1,start_time='00:00' WHERE id=$1",[g]);
+
   await db.exec("RESET ROLE");
   const ga = id(4100),
     gb = id(4101),

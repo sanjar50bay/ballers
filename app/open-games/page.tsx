@@ -76,8 +76,21 @@ export default function OpenGames() {
         <h1 className="page-title">{tx("Открытые игры")}</h1>
         <SearchCategories active="games" />
         <p className="text-gray-400 text-sm mb-5">
-          {tx("Выбери игру и подай заявку. Команда не нужна.")}
+          {tx("Выбери игру. Команда не нужна.")}
         </p>
+        <details className="open-games-help">
+          <summary>{tx("Что такое открытые игры?")}</summary>
+          <p>
+            {tx(
+              "Это игры с добором игроков. Можно вступить сразу или подать заявку — способ входа выбирает организатор. При нехватке мест доступен резерв.",
+            )}
+          </p>
+          <p>
+            {tx(
+              "Организатору: игровой день → Матчи → Настройки организатора → Правила новых матчей. Включи «Открыть добор в списке публичных игр» и нажми «Сохранить правила».",
+            )}
+          </p>
+        </details>
         <div data-coach="game-city">
           <CitySelect value={city} onChange={setCity} all id="games-city" />
         </div>

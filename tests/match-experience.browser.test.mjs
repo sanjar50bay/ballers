@@ -98,6 +98,38 @@ try {
     p_reason: null,
   });
   await open(leader);
+  await admin("UPDATE game_days SET game_date=current_date+1 WHERE id=$1", [
+    game,
+  ]);
+  await open(leader);
+  assert.equal(
+    await leader
+      .getByRole("button", { name: "Начать первый матч", exact: true })
+      .isEnabled(),
+    false,
+  );
+  await leader
+    .locator("#start-time-reason")
+    .getByText(/Старт доступен/)
+    .waitFor();
+  const scheduledSnapshot = await rpc(leader, "ballers_alpha_snapshot", {
+    p_game: game,
+  });
+  const earlyStart = await rpc(leader, "ballers_start_game_match", {
+    p_game: game,
+    p_operation: id(9500),
+    p_expected_sequence: 0,
+    p_leader_version: scheduledSnapshot.body.control.version,
+  });
+  assert.equal(earlyStart.status, 400);
+  assert.match(earlyStart.body.message, /GAME_NOT_STARTED_YET/);
+  await admin("UPDATE game_days SET game_date=current_date-1 WHERE id=$1", [
+    game,
+  ]);
+  await open(leader);
+  pass(
+    "scheduled start is visibly blocked and a direct early-start request is rejected by SQL",
+  );
   await leader
     .getByRole("button", { name: "Начать первый матч", exact: true })
     .click();

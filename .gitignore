@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Netlify build output is never source.
 /.netlify/
+
+# Generated, lazy-loaded MediaPipe runtime assets.
+/public/portrait-engine/

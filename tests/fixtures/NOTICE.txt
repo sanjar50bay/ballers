@@ -1,0 +1,7 @@
+portrait.jpg: unmodified public MediaPipe test image.
+Source: https://storage.googleapis.com/mediapipe-assets/portrait.jpg
+Official MediaPipe tests reference this fixture:
+https://github.com/google-ai-edge/mediapipe/blob/master/mediapipe/python/solutions/selfie_segmentation_test.py
+Image: official White House portrait of President Barack Obama, Pete Souza, 2012.
+US federal government work, public domain. Used only as an image-segmentation test fixture,
+not as a BALLERS player, endorsement, or production profile.

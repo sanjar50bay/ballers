@@ -1,4 +1,22 @@
-# BALLERS — Football Network Alpha 0.2.11
+# BALLERS — Football Network Alpha 0.2.17
+
+## Текущий релиз 0.2.17
+
+После миграции013 применить `supabase/migrations/20261119_014_match_schedule_guard.sql`:
+сервер блокирует старт раньше даты и времени игры по Казахстану (UTC+5).
+Для прозрачных портретов после `supabase/setup_profile_photos.sql` выполнить
+`supabase/upgrade_profile_photos_png.sql`. Изображения доступны в карточках;
+запись остаётся ограничена собственной UID-папкой.
+`npm run build` копирует runtime MediaPipe в `public/portrait-engine`;
+он загружается пользователю только при нажатии «Убрать фон».
+Подробности и ограничения: [RELEASE_00217.txt](docs/RELEASE_00217.txt).
+
+
+На новой базе: baseline, затем миграции001–014 по порядку. На рабочей
+базе baseline и уже установленные миграции не запускать повторно.
+
+## Исторические инструкции предыдущих версий
+
 
 Концепция продукта, шесть ролей, интерфейсы и рекламные гипотезы:
 [Концепция BALLERS](docs/PRODUCT_CONCEPT_RU.txt).

@@ -27,14 +27,19 @@ export async function prepareProfilePhoto(
     canvas.height = Math.max(1, Math.round(image.height * scale));
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("PHOTO_DECODE");
-    ctx.fillStyle = "#101827";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let transparent = false;
+    for (let i = 3; i < pixels.length; i += 4)
+      if (pixels[i] < 255) {
+        transparent = true;
+        break;
+      }
     const blob = await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob(
         (result) =>
           result ? resolve(result) : reject(new Error("PHOTO_DECODE")),
-        "image/jpeg",
+        transparent ? "image/png" : "image/jpeg",
         0.85,
       ),
     );
@@ -57,17 +62,16 @@ export async function resolveProfilePhoto(
 ) {
   if (choice.kind === "keep") return current;
   if (choice.kind === "none") return null;
-  const path = `${userId}/${choice.operation}.jpg`;
+  const path = `${userId}/${choice.operation}.${choice.file.type === "image/png" ? "png" : "jpg"}`;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const result = await Promise.race([
-      client.storage
-        .from(PHOTO_BUCKET)
-        .upload(path, choice.file, {
-          contentType: "image/jpeg",
-          upsert: true,
-          cacheControl: "3600",
-        }),
+      client.storage.from(PHOTO_BUCKET).upload(path, choice.file, {
+        contentType:
+          choice.file.type === "image/png" ? "image/png" : "image/jpeg",
+        upsert: true,
+        cacheControl: "3600",
+      }),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error("PHOTO_UPLOAD")), 20000);
       }),
@@ -97,7 +101,7 @@ export function ownPhotoPath(
     const parts = path.split("/");
     return parts.length === 2 &&
       parts[0] === userId &&
-      /^[0-9a-f-]{36}\.jpg$/i.test(parts[1])
+      /^[0-9a-f-]{36}\.(jpg|png)$/i.test(parts[1])
       ? path
       : null;
   } catch {
@@ -127,6 +131,10 @@ export async function removePreviousPhoto(
 export function photoError(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   const messages: Record<string, string> = {
+    PHOTO_CUTOUT:
+      "Не удалось убрать фон на этом устройстве. Попробуй ещё раз или оставь обычное фото.",
+    PHOTO_NO_PERSON:
+      "Не удалось выделить человека. Выбери портрет с одним человеком и хорошо различимым фоном.",
     PHOTO_TYPE: "Выбери фото в формате JPG, PNG или WebP.",
     PHOTO_SIZE: "Выбери фото размером до 8 МБ.",
     PHOTO_DECODE: "Не удалось прочитать фото. Попробуй другой файл.",
