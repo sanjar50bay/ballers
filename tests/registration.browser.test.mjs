@@ -1097,7 +1097,7 @@ try {
     await s.page.keyboard.press("Escape");
     await logout.click();
     await s.page
-      .getByRole("button", { name: text("Получить код"), exact: true })
+      .getByRole("button", { name: text("Продолжить с Google"), exact: true })
       .waitFor();
     await s.ctx.close();
     pass(
