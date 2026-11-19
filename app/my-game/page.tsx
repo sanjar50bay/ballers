@@ -5,6 +5,7 @@ import Link from "next/link";
 import { t, dateLocale } from "@/lib/i18n";
 import { useLocale } from "@/app/components/Language";
 import { useApp } from "@/app/components/AppState";
+import GameDayBadge from "@/app/components/GameDayBadge";
 import GameCard from "@/app/components/GameCard";
 export default function Page() {
   return (
@@ -79,10 +80,14 @@ function MyGames() {
               )}
             </section>
           )}
-          <div className="space-y-4">
-            {games?.map((g) =>
+          <div className="space-y-4 game-day-list">
+            {games?.map((g, index) =>
               history ? (
-                <section key={g.id} className="neon-panel">
+                <section
+                  key={g.id}
+                  className="neon-panel game-day-history-card"
+                >
+                  <GameDayBadge day={g} />
                   <h2>{g.title}</h2>
                   <p className="ballers-muted mt-2">
                     {new Date(g.game_date + "T12:00:00").toLocaleDateString(
@@ -92,13 +97,13 @@ function MyGames() {
                   </p>
                   <Link
                     className="text-link mt-3"
-                    href={`/games/${g.id}/play?tab=matches`}
+                    href={`/games/${g.id}/play?tab=matches#results`}
                   >
                     {t("Результаты матчей →")}
                   </Link>
                 </section>
               ) : (
-                <GameCard game={g} key={g.id} />
+                <GameCard game={g} key={g.id} next={index === 0} />
               ),
             )}
           </div>

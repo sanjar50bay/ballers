@@ -341,7 +341,7 @@ export default function Notifications({
                     className="text-link"
                     href={
                       n.kind === "CONFIRM"
-                        ? `/games/${n.game_day_id}/play#match-${n.match_id || "results"}`
+                        ? `/games/${n.game_day_id}/play?tab=matches${n.match_id ? "#match-" + n.match_id : "#results"}`
                         : n.kind === "JOIN_REQUEST"
                           ? `/games/${n.game_day_id}/play`
                           : `/my-game?game=${n.game_day_id}`

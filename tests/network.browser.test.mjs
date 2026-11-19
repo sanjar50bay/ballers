@@ -591,7 +591,7 @@ try {
     await planner
       .getByRole("link", { name: "К игре →", exact: true })
       .getAttribute("href"),
-    "/games/" + dayId + "/play?tab=overview",
+    "/games/" + dayId + "/play?tab=matches#results",
   );
   pass(
     "community has one creation action and persistent history with canonical game links",

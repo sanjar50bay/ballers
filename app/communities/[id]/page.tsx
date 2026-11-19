@@ -6,6 +6,7 @@ import {
   useRouter,
   usePathname,
 } from "next/navigation";
+import GameDayBadge from "@/app/components/GameDayBadge";
 import Link from "next/link";
 import { useApp } from "@/app/components/AppState";
 import { useLocale } from "@/app/components/Language";
@@ -150,47 +151,54 @@ function Workspace({ id }: { id: string }) {
                         : "Ближайшие игры сообщества",
                     )}
                   </h2>
-                  {d.games
-                    .filter((g) => g.upcoming !== history)
-                    .map((g) => (
-                      <article className="network-card" key={g.id}>
-                        <p className="eyebrow">
-                          {new Date(
-                            g.game_date + "T12:00:00",
-                          ).toLocaleDateString(dateLocale(), {
-                            day: "numeric",
-                            month: "long",
-                          })}{" "}
-                          · {g.start_time?.slice(0, 5) || t("Время уточняется")}
-                          {g.live ? " · " + t("Матч идёт") : ""}
-                        </p>
-                        <h3 className="font-bold mt-2">{g.title}</h3>
-                        <p>{g.venue || t("Место уточняется")}</p>
-                        <p className="ballers-muted text-sm my-3">
-                          {g.format}×{g.format} ·{" "}
-                          {t("Подтвердились: {count}", { count: g.going })}
-                          {g.capacity ? " / " + g.capacity : ""}
-                        </p>
-                        <Link
-                          className="neon-button green"
-                          href={`/games/${g.id}/play?tab=overview`}
-                        >
-                          {t(
-                            g.upcoming && g.attendance_status !== "GOING"
-                              ? "Открыть и ответить"
-                              : "К игре →",
-                          )}
-                        </Link>
-                        {d.can_manage && (
+                  <div className="game-day-list">
+                    {d.games
+                      .filter((g) => g.upcoming !== history)
+                      .map((g, index) => (
+                        <article className="network-card" key={g.id}>
+                          <GameDayBadge
+                            day={g}
+                            next={!history && index === 0}
+                          />
+                          <p className="eyebrow">
+                            {new Date(
+                              g.game_date + "T12:00:00",
+                            ).toLocaleDateString(dateLocale(), {
+                              day: "numeric",
+                              month: "long",
+                            })}{" "}
+                            ·{" "}
+                            {g.start_time?.slice(0, 5) || t("Время уточняется")}
+                            {g.live ? " · " + t("Матч идёт") : ""}
+                          </p>
+                          <h3 className="font-bold mt-2">{g.title}</h3>
+                          <p>{g.venue || t("Место уточняется")}</p>
+                          <p className="ballers-muted text-sm my-3">
+                            {g.format}×{g.format} ·{" "}
+                            {t("Подтвердились: {count}", { count: g.going })}
+                            {g.capacity ? " / " + g.capacity : ""}
+                          </p>
                           <Link
-                            className="text-link block mt-3"
-                            href={`/communities/${id}/game-days/create?from=${g.id}`}
+                            className="neon-button green"
+                            href={`/games/${g.id}/play?tab=${g.upcoming ? "overview" : "matches#results"}`}
                           >
-                            {t("На следующую неделю")}
+                            {t(
+                              g.upcoming && g.attendance_status !== "GOING"
+                                ? "Открыть и ответить"
+                                : "К игре →",
+                            )}
                           </Link>
-                        )}
-                      </article>
-                    ))}
+                          {d.can_manage && (
+                            <Link
+                              className="text-link block mt-3"
+                              href={`/communities/${id}/game-days/create?from=${g.id}`}
+                            >
+                              {t("На следующую неделю")}
+                            </Link>
+                          )}
+                        </article>
+                      ))}
+                  </div>
                   {!d.games.some((g) => g.upcoming !== history) && (
                     <p className="network-card ballers-muted">
                       {t(
