@@ -96,7 +96,7 @@ export default function CareerPage() {
             <div className="space-y-3">
               {data.matches.map((m) => (
                 <Link
-                  href={`/games/${m.game_id}/play`}
+                  href={`/games/${m.game_id}/play?tab=matches#match-${m.id}`}
                   key={m.id}
                   className="block rounded-xl border border-white/20 bg-[#0d1120] p-4 min-h-11 focus-visible:outline-2 focus-visible:outline-violet-400"
                 >
