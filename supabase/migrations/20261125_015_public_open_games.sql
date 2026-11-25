@@ -1,4 +1,8 @@
 BEGIN;
+DO $$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.ballers_migration_history WHERE version='20261119_014') THEN RAISE EXCEPTION 'Apply migration 014 first'; END IF;
+ IF EXISTS(SELECT 1 FROM public.ballers_migration_history WHERE version='20261125_015') THEN RAISE EXCEPTION 'Migration 015 already applied'; END IF;
+END $$;
 
 -- Public cards contain only information an organizer has opened for recruitment.
 -- Keep the existing authenticated RPC and all table/mutation permissions intact.
