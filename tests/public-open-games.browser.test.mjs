@@ -201,6 +201,7 @@ try {
   await guest.page
     .getByRole("link", { name: "Посмотреть игры →", exact: true })
     .click();
+  await guest.page.waitForURL("**/open-games?city=Astana");
   await guest.page
     .getByRole("heading", { name: "Open game 1", exact: true })
     .waitFor();
