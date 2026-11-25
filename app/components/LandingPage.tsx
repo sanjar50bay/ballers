@@ -3,6 +3,7 @@ import SignIn from "./SignIn";
 import { t, uiError } from "@/lib/i18n";
 import { useLocale } from "./Language";
 import IntroVideo from "./IntroVideo";
+import PublicGamesPreview from "./PublicGamesPreview";
 export default function LandingPage({ error }: { error: string }) {
   useLocale();
   return (
@@ -28,6 +29,7 @@ export default function LandingPage({ error }: { error: string }) {
               "Найди свою команду или присоединяйся к играм. Уже есть команда? Собери её в BALLERS и организуй свою игру.",
             )}
           </p>
+          <PublicGamesPreview />
           <div id="signin" className="landing-signin">
             <SignIn />
             <p className="return">

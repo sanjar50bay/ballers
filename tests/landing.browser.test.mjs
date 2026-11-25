@@ -123,6 +123,7 @@ async function context({
       });
     const name = url.pathname.split("/").at(-1);
     const data = {
+      ballers_public_open_games: [],
       ballers_home: { profile, stats, communities: [], games: [], history: [] },
       ballers_network: {
         preferences: { search_status: "READY", available: true },

@@ -33,9 +33,17 @@ export default function SignIn({ returnTo = "/" }: { returnTo?: string }) {
   const emailInput = useRef<HTMLInputElement>(null);
   // Only local application routes may be used as a post-login destination.
   const destination =
-    returnTo === "/" || /^\/join\/[a-zA-Z0-9_-]+$/.test(returnTo)
+    returnTo === "/" ||
+    /^\/join\/[a-zA-Z0-9_-]+$/.test(returnTo) ||
+    /^\/open-games\?game=[a-f0-9-]{36}$/i.test(returnTo)
       ? returnTo
       : "/";
+  function rememberGame() {
+    if (!destination.startsWith("/open-games?game=")) return;
+    try {
+      localStorage.setItem("ballers:network-return", destination);
+    } catch {}
+  }
   useEffect(() => {
     if (!cooldown) return;
     const timer = setTimeout(
@@ -50,6 +58,7 @@ export default function SignIn({ returnTo = "/" }: { returnTo?: string }) {
 
   async function sendCode() {
     if (lock.current || cooldown) return;
+    rememberGame();
     lock.current = true;
     setBusy(true);
     setError("");
@@ -99,6 +108,7 @@ export default function SignIn({ returnTo = "/" }: { returnTo?: string }) {
   }
   async function oauth(provider: Provider) {
     if (lock.current) return;
+    rememberGame();
     lock.current = true;
     setBusy(true);
     setError("");
