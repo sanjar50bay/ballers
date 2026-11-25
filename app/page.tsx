@@ -31,7 +31,8 @@ export default function Home() {
       if (
         destination &&
         (/^\/teams\/[a-f0-9-]{36}$/.test(destination) ||
-          destination === "/discover")
+          destination === "/discover" ||
+          /^\/open-games\?game=[a-f0-9-]{36}$/i.test(destination))
       ) {
         localStorage.removeItem("ballers:network-return");
         router.replace(destination);

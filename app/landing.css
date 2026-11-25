@@ -46,6 +46,35 @@
   position: relative;
   padding-top: 14px;
 }
+.public-games-preview {
+  margin: 0 0 28px;
+  padding: 20px;
+  border: 1px solid #335c50;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #102c25, #0d1522);
+}
+.public-games-preview h2 {
+  font-size: 21px;
+  margin: 0 0 16px;
+}
+.public-games-preview .network-field {
+  margin-bottom: 16px;
+}
+.public-game-preview-card {
+  display: block;
+  padding: 16px 0;
+  border-top: 1px solid #ffffff20;
+}
+.public-game-preview-card h3 {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.public-games-caption {
+  color: #afbdd0;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 12px;
+}
 .landing-page .eyebrow {
   font-size: 10px;
   font-weight: bold;
@@ -689,9 +718,26 @@
   }
 }
 
-.landing-page .landing-signin { max-width: 420px; scroll-margin-top: 24px; }
-.landing-page .signin-options .network-field { margin: 0; }
-.landing-page .signin-options .ballers-muted { font-size: 14px; }
-.landing-page .landing-more { border-top: 1px solid #344952; margin-top: 24px; }
-.landing-page .landing-more summary { min-height: 48px; padding: 14px 0; cursor: pointer; font-weight: 700; }
-.landing-page .last a.google { text-decoration: none; }
+.landing-page .landing-signin {
+  max-width: 420px;
+  scroll-margin-top: 24px;
+}
+.landing-page .signin-options .network-field {
+  margin: 0;
+}
+.landing-page .signin-options .ballers-muted {
+  font-size: 14px;
+}
+.landing-page .landing-more {
+  border-top: 1px solid #344952;
+  margin-top: 24px;
+}
+.landing-page .landing-more summary {
+  min-height: 48px;
+  padding: 14px 0;
+  cursor: pointer;
+  font-weight: 700;
+}
+.landing-page .last a.google {
+  text-decoration: none;
+}
