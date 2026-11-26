@@ -39,6 +39,48 @@ try {
   const { page: owner } = await context(1),
     { page: leader } = await context(3),
     { page: viewer } = await context(6);
+  let releaseAuth;
+  const authGate = new Promise((resolve) => {
+    releaseAuth = resolve;
+  });
+  const delayedAuth = async (route) => {
+    await authGate;
+    await route.fallback();
+  };
+  await owner.route("**/auth/v1/user", delayedAuth);
+  await open(owner, "?tab=participants");
+  const participantsLoading = owner
+    .getByRole("status")
+    .filter({ hasText: "Загружаем игровой день…" });
+  await participantsLoading.waitFor();
+  await owner.waitForTimeout(6200);
+  assert.equal(await participantsLoading.count(), 1);
+  assert.ok(
+    (await participantsLoading.locator("..").boundingBox()).height < 200,
+  );
+  await owner
+    .getByRole("alert")
+    .filter({ hasText: "Не удалось загрузить участников" })
+    .waitFor({ timeout: 20000 });
+  assert.equal(await participantsLoading.count(), 0);
+  releaseAuth();
+  await owner.unroute("**/auth/v1/user", delayedAuth);
+  await owner
+    .getByRole("button", { name: "Повторить загрузку", exact: true })
+    .click();
+  await owner
+    .getByRole("button", { name: "Пригласить участников", exact: true })
+    .waitFor();
+  await owner
+    .getByRole("button", { name: "Пригласить участников", exact: true })
+    .click();
+  await owner
+    .getByRole("heading", { name: "Пригласить участников", exact: true })
+    .waitFor();
+  await owner.getByRole("button", { name: "×", exact: true }).click();
+  pass(
+    "participant loading stays compact and singular during polling; a hung auth request times out and retry opens invitations",
+  );
   await leader.addInitScript(() => {
     const Native = window.AudioContext;
     window.__matchAudioTest = { contexts: 0, tones: 0, master: null };

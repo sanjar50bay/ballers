@@ -15,6 +15,20 @@ import {
   type TeamAction,
 } from "@/lib/pre-match";
 
+async function boundedAuth<T>(request: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      request,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("NETWORK_ERROR")), 15000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 type GameDay = {
   id: string;
   community_id: string;
@@ -112,6 +126,7 @@ export default function GameParticipants({
   const [myRole, setMyRole] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [updating, setUpdating] = useState(false);
 
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -137,11 +152,12 @@ export default function GameParticipants({
   const [teamsError, setTeamsError] = useState<string | null>(null);
   const [expandedTeamIds, setExpandedTeamIds] = useState<string[]>([]);
 
-  const loadTeams = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("game_day_teams")
-      .select(
-        `
+  const loadTeams = useCallback(
+    async (signal?: AbortSignal) => {
+      const { data, error } = await supabase
+        .from("game_day_teams")
+        .select(
+          `
         id,
         name,
         color_key,
@@ -162,71 +178,81 @@ export default function GameParticipants({
           )
         )
       `,
-      )
-      .eq("game_day_id", gameId)
-      .order("sort_order", { ascending: true });
+        )
+        .eq("game_day_id", gameId)
+        .order("sort_order", { ascending: true })
+        .abortSignal(signal || AbortSignal.timeout(15000));
 
-    if (error) {
-      console.error(
-        "Teams error:",
-        JSON.stringify({
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        }),
-      );
-      setTeamsError(error.message);
-      return;
-    }
+      if (error) {
+        console.error(
+          "Teams error:",
+          JSON.stringify({
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+          }),
+        );
+        setTeamsError(error.message);
+        return;
+      }
 
-    setTeamsError(null);
-    setTeams((data || []) as unknown as GameTeam[]);
-  }, [gameId]);
+      setTeamsError(null);
+      setTeams((data || []) as unknown as GameTeam[]);
+    },
+    [gameId],
+  );
 
   const loadGame = useCallback(async () => {
-    setMyRole(null);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    setLoadError(false);
+    const signal = AbortSignal.timeout(15000);
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await boundedAuth(supabase.auth.getUser());
+      signal.throwIfAborted();
+      if (authError) throw authError;
 
-    if (!user) {
-      router.push("/");
-      return;
-    }
+      if (!user) {
+        router.push("/");
+        return;
+      }
 
-    const { data: profile } = await supabase
-      .from("player_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+      const { data: profile, error: profileError } = await supabase
+        .from("player_profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .abortSignal(signal)
+        .single();
 
-    if (!profile) {
-      router.push("/onboarding");
-      return;
-    }
+      if (profileError && profileError.code !== "PGRST116") throw profileError;
 
-    setMyPlayerId(profile.id);
+      if (!profile) {
+        router.push("/onboarding");
+        return;
+      }
 
-    const { data: gameData, error: gameError } = await supabase
-      .from("game_days")
-      .select("*")
-      .eq("id", gameId)
-      .eq("community_id", communityId)
-      .single();
+      setMyPlayerId(profile.id);
 
-    if (gameError || !gameData) {
-      console.error(gameError);
-      setLoading(false);
-      return;
-    }
+      const { data: gameData, error: gameError } = await supabase
+        .from("game_days")
+        .select("*")
+        .eq("id", gameId)
+        .eq("community_id", communityId)
+        .abortSignal(signal)
+        .single();
 
-    setGame(gameData);
+      if (gameError || !gameData) {
+        throw gameError || new Error("GAME_NOT_FOUND");
+      }
 
-    const { data: participantData, error: participantError } = await supabase
-      .from("game_participants")
-      .select(
-        `
+      setGame(gameData);
+
+      const { data: participantData, error: participantError } = await supabase
+        .from("game_participants")
+        .select(
+          `
         id,
         attendance_status,
         participant_type,
@@ -240,40 +266,43 @@ export default function GameParticipants({
           avatar_url
         )
       `,
-      )
-      .eq("game_day_id", gameId);
+        )
+        .eq("game_day_id", gameId)
+        .abortSignal(signal);
 
-    if (participantError) {
-      console.error(participantError);
-    }
+      if (participantError) {
+        throw participantError;
+      }
 
-    const { data: waiting } = await supabase
-      .from("ballers_waitlist")
-      .select("player_id")
-      .eq("game_day_id", gameId);
-    const waitingIds = new Set(
-      (waiting || []).map((item) => item.player_id as string),
-    );
-    const cleanParticipants = (
-      (participantData || []) as unknown as Participant[]
-    ).map((item) =>
-      waitingIds.has(item.player_profiles?.id || "")
-        ? { ...item, attendance_status: "WAITING" }
-        : item,
-    );
+      const { data: waiting, error: waitingError } = await supabase
+        .from("ballers_waitlist")
+        .select("player_id")
+        .eq("game_day_id", gameId)
+        .abortSignal(signal);
+      if (waitingError) throw waitingError;
+      const waitingIds = new Set(
+        (waiting || []).map((item) => item.player_id as string),
+      );
+      const cleanParticipants = (
+        (participantData || []) as unknown as Participant[]
+      ).map((item) =>
+        waitingIds.has(item.player_profiles?.id || "")
+          ? { ...item, attendance_status: "WAITING" }
+          : item,
+      );
 
-    setParticipants(cleanParticipants);
+      setParticipants(cleanParticipants);
 
-    const mine = cleanParticipants.find(
-      (item) => item.player_profiles?.id === profile.id,
-    );
+      const mine = cleanParticipants.find(
+        (item) => item.player_profiles?.id === profile.id,
+      );
 
-    setMyStatus(mine?.attendance_status ?? null);
+      setMyStatus(mine?.attendance_status ?? null);
 
-    const { data: memberData, error: memberError } = await supabase
-      .from("community_members")
-      .select(
-        `
+      const { data: memberData, error: memberError } = await supabase
+        .from("community_members")
+        .select(
+          `
         id,
         role,
         member_status,
@@ -287,26 +316,30 @@ export default function GameParticipants({
           avatar_url
         )
       `,
-      )
-      .eq("community_id", communityId);
+        )
+        .eq("community_id", communityId)
+        .abortSignal(signal);
 
-    if (memberError) {
-      console.error(memberError);
+      if (memberError) {
+        throw memberError;
+      }
+
+      const cleanMembers = (memberData || []) as unknown as CommunityMember[];
+
+      setCommunityMembers(cleanMembers);
+
+      const myMembership = cleanMembers.find(
+        (member) => member.player_profiles?.id === profile.id,
+      );
+
+      setMyRole(myMembership?.role ?? null);
+
+      await loadTeams(signal);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
-
-    const cleanMembers = (memberData || []) as unknown as CommunityMember[];
-
-    setCommunityMembers(cleanMembers);
-
-    const myMembership = cleanMembers.find(
-      (member) => member.player_profiles?.id === profile.id,
-    );
-
-    setMyRole(myMembership?.role ?? null);
-
-    await loadTeams();
-
-    setLoading(false);
   }, [gameId, communityId, router, loadTeams]);
 
   useEffect(() => {
@@ -590,10 +623,30 @@ export default function GameParticipants({
     }
   };
 
+  if (loadError) {
+    return (
+      <section className="neon-panel" role="alert">
+        <p>
+          {tx(
+            "Не удалось загрузить участников. Проверь соединение и повтори попытку.",
+          )}
+        </p>
+        <button className="text-link mt-3" onClick={() => void loadGame()}>
+          {tx("Повторить загрузку")}
+        </button>
+      </section>
+    );
+  }
   if (loading) {
     return (
-      <section className="min-h-screen bg-[#02030a] text-white flex items-center justify-center">
-        <p className="text-violet-400 animate-pulse">
+      <section
+        className={
+          embedded
+            ? "neon-panel"
+            : "min-h-screen bg-[#02030a] text-white flex items-center justify-center"
+        }
+      >
+        <p role="status" className="text-violet-400 animate-pulse">
           {tx("Loading Game Day...")}
         </p>
       </section>
@@ -602,7 +655,13 @@ export default function GameParticipants({
 
   if (!game) {
     return (
-      <section className="min-h-screen bg-[#02030a] text-white flex items-center justify-center">
+      <section
+        className={
+          embedded
+            ? "neon-panel"
+            : "min-h-screen bg-[#02030a] text-white flex items-center justify-center"
+        }
+      >
         {tx("Game Day not found")}
       </section>
     );
@@ -708,7 +767,13 @@ export default function GameParticipants({
   });
 
   return (
-    <section className="min-h-screen bg-[#02030a] text-white pb-24">
+    <section
+      className={
+        embedded
+          ? "bg-[#02030a] text-white"
+          : "min-h-screen bg-[#02030a] text-white pb-24"
+      }
+    >
       {rosterLocked && (
         <p role="status" className="neon-panel mb-4">
           {tx(

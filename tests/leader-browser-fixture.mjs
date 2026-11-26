@@ -179,6 +179,13 @@ async function request(req, n) {
           [game],
         )
       ).rows;
+    else if (table === "ballers_waitlist")
+      rows = (
+        await db.query(
+          "SELECT player_id FROM ballers_waitlist WHERE game_day_id=$1",
+          [game],
+        )
+      ).rows;
     else if (table === "game_day_teams") {
       rows = (
         await db.query(
