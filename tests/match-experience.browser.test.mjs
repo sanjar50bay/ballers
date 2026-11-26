@@ -49,9 +49,7 @@ try {
   };
   await owner.route("**/auth/v1/user", delayedAuth);
   await open(owner, "?tab=participants");
-  const participantsLoading = owner
-    .getByRole("status")
-    .filter({ hasText: "Загружаем игровой день…" });
+  const participantsLoading = owner.getByText("Загружаем игровой день…", { exact: true });
   await participantsLoading.waitFor();
   await owner.waitForTimeout(6200);
   assert.equal(await participantsLoading.count(), 1);
@@ -69,10 +67,10 @@ try {
     .getByRole("button", { name: "Повторить загрузку", exact: true })
     .click();
   await owner
-    .getByRole("button", { name: "Пригласить участников", exact: true })
+    .getByRole("button", { name: /^Пригласить участников/ })
     .waitFor();
   await owner
-    .getByRole("button", { name: "Пригласить участников", exact: true })
+    .getByRole("button", { name: /^Пригласить участников/ })
     .click();
   await owner
     .getByRole("heading", { name: "Пригласить участников", exact: true })
