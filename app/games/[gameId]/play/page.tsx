@@ -15,7 +15,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import GameLeader, { type GameControl } from "@/app/components/GameLeader";
 import GamePreparation from "@/app/components/GamePreparation";
-import GameParticipants from "@/app/components/GameParticipants";
+import dynamic from "next/dynamic";
 import { readStart, saveStart, type StartOperation } from "@/lib/game-start";
 import MatchCorrections from "@/app/components/MatchCorrections";
 import DayResults, { eventLabel } from "@/app/components/DayResults";
@@ -129,6 +129,11 @@ const field =
   "w-full rounded-xl border border-white/15 bg-[#161b2c] p-3 text-white";
 const secondary =
   "rounded-xl border border-white/15 px-4 py-3 text-sm font-bold disabled:opacity-40 cursor-pointer";
+
+const GameParticipants = dynamic(
+  () => import("@/app/components/GameParticipants"),
+  { loading: () => <p role="status">{tx("Загружаем…")}</p> },
+);
 
 export default function PlayPage() {
   return (
@@ -729,14 +734,14 @@ function UnifiedGame() {
         </section>
         {tab === "participants" && (
           <GameParticipants
-            key={gameId}
+            key={`participants-${gameId}`}
             gameId={gameId}
             communityId={s.game.community_id}
             rosterLocked={!!live}
           />
         )}
         <MatchSound
-          key={gameId}
+          key={`sound-${gameId}`}
           gameId={gameId}
           matches={s.matches}
           events={s.events}
@@ -906,7 +911,7 @@ function UnifiedGame() {
             {live && nextMatch}
             {tab === "matches" && leaderPanel}
             <MatchResultsDisclosure
-              key={gameId}
+              key={`results-${gameId}`}
               active={tab === "matches"}
               count={completed.length}
               waiting={pending.length}
