@@ -350,6 +350,20 @@ try {
   pass(
     "legacy result and match links reveal the archive and correct tab; polling respects a manual collapse",
   );
+  await owner.goto(base + "/career");
+  const careerResult = owner.locator(
+    `a[href="/games/${game}/play?tab=matches#match-${match.id}"]`,
+  );
+  await careerResult.waitFor();
+  await careerResult.click();
+  await owner.locator("#results[open]").waitFor();
+  await owner.locator(`#results #match-${match.id}`).waitFor();
+  await owner
+    .getByRole("navigation", { name: "Разделы игры", exact: true })
+    .locator('[aria-current="page"]')
+    .filter({ hasText: "Матчи" })
+    .waitFor();
+  pass("a career result opens the matching score in the expanded archive");
   await admin(
     "UPDATE ballers_matches SET status='PENDING',result_mode='CAPTAINS',confirmed_a=false,confirmed_b=false WHERE id=$1",
     [match.id],
