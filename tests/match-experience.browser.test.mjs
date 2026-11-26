@@ -36,18 +36,13 @@ async function shot(page, name) {
   );
 }
 try {
-  const { page: owner } = await context(1),
-    { page: leader } = await context(3),
-    { page: viewer } = await context(6);
   let releaseAuth;
   const authGate = new Promise((resolve) => {
     releaseAuth = resolve;
   });
-  const delayedAuth = async (route) => {
-    await authGate;
-    await route.fallback();
-  };
-  await owner.route("**/auth/v1/user", delayedAuth);
+  const { page: owner } = await context(1, { authGate }),
+    { page: leader } = await context(3),
+    { page: viewer } = await context(6);
   await open(owner, "?tab=participants");
   const participantsLoading = owner.getByText("Загружаем игровой день…", { exact: true });
   await participantsLoading.waitFor();
@@ -62,7 +57,6 @@ try {
     .waitFor({ timeout: 20000 });
   assert.equal(await participantsLoading.count(), 0);
   releaseAuth();
-  await owner.unroute("**/auth/v1/user", delayedAuth);
   await owner
     .getByRole("button", { name: "Повторить загрузку", exact: true })
     .click();

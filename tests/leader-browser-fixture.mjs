@@ -206,7 +206,7 @@ async function request(req, n) {
 }
 export async function context(
   n,
-  { width = 390, locale = "ru", loseStart = false } = {},
+  { width = 390, locale = "ru", loseStart = false, authGate = null } = {},
 ) {
   const ctx = await browser.newContext({ viewport: { width, height: 844 } });
   contexts.push(ctx);
@@ -263,6 +263,7 @@ export async function context(
     };
     if (req.method() === "OPTIONS")
       return route.fulfill({ status: 204, headers });
+    if (url.pathname === "/auth/v1/user" && authGate) await authGate;
     try {
       const result = await request(req, n);
       if (
