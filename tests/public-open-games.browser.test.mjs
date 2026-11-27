@@ -212,11 +212,32 @@ try {
     .click();
   await guest.page
     .getByRole("heading", {
-      name: "Войди, чтобы записаться на эту игру",
+      name: "Вход для записи",
       exact: true,
     })
     .waitFor();
   assert.equal(await guest.page.locator("main article").count(), 1);
+  await guest.page
+    .getByRole("heading", { name: "Запись на игру", exact: true })
+    .waitFor();
+  assert.equal(
+    await guest.page
+      .getByRole("navigation", { name: "Что ищем?", exact: true })
+      .count(),
+    0,
+  );
+  assert.equal(
+    await guest.page.getByLabel("Город игры", { exact: true }).count(),
+    0,
+  );
+  await guest.page
+    .getByText("Сначала войди, затем подтверди участие.", { exact: true })
+    .waitFor();
+  assert.ok(
+    await guest.page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
   await guest.page
     .getByRole("button", { name: "Продолжить с Google", exact: true })
     .click();
@@ -298,6 +319,18 @@ try {
     ),
   );
   pass("the public preview supports Kazakh without horizontal overflow");
+  await kk.page.goto(base + "/open-games?game=" + games[0].id);
+  await kk.page
+    .getByRole("heading", { name: "Ойынға жазылу", exact: true })
+    .waitFor();
+  await kk.page
+    .getByRole("heading", { name: "Жазылу үшін кіру", exact: true })
+    .waitFor();
+  assert.ok(
+    await kk.page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
   assert.deepEqual(errors, []);
   console.log(
     `RESULT: ${passed} public-games browser checks passed; simulated auth/RPC, no live data.`,

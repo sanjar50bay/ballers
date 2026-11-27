@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Provider } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { t } from "@/lib/i18n";
@@ -31,6 +31,7 @@ export default function SignIn({ returnTo = "/" }: { returnTo?: string }) {
   const lock = useRef(false);
   const codeInput = useRef<HTMLInputElement>(null);
   const emailInput = useRef<HTMLInputElement>(null);
+  const emailHint = useId();
   // Only local application routes may be used as a post-login destination.
   const destination =
     returnTo === "/" ||
@@ -149,16 +150,25 @@ export default function SignIn({ returnTo = "/" }: { returnTo?: string }) {
               disabled={busy}
               required
               maxLength={254}
+              placeholder="you@example.com"
+              aria-describedby={!sent ? emailHint : undefined}
               onChange={(e) => setEmail(e.target.value)}
             />
           </label>
           {!sent && (
-            <p className="ballers-muted">{t("Любая почта. Без пароля.")}</p>
+            <p id={emailHint} className="signin-help">
+              {t(
+                "Укажи любую почту — отправим код для входа. Пароль не нужен.",
+              )}
+            </p>
           )}
           {sent && (
             <>
               <p role="status" className="ballers-muted">
                 {t("Код отправлен на {email}", { email: email.trim() })}
+              </p>
+              <p className="signin-help">
+                {t("Открой почту и введи одноразовый код из письма.")}
               </p>
               <label className="network-field">
                 <span>{t("Код из письма")}</span>
@@ -180,7 +190,7 @@ export default function SignIn({ returnTo = "/" }: { returnTo?: string }) {
             </>
           )}
           <button
-            className="neon-button green w-full"
+            className="neon-button signin-submit w-full"
             type="submit"
             disabled={busy || (!sent && cooldown > 0)}
           >
@@ -190,7 +200,7 @@ export default function SignIn({ returnTo = "/" }: { returnTo?: string }) {
                 ? t("Войти")
                 : cooldown
                   ? t("Повторить через {seconds} с", { seconds: cooldown })
-                  : t("Получить код")}
+                  : t("Отправить код на почту")}
           </button>
           {sent && (
             <div className="signin-secondary">
@@ -220,6 +230,11 @@ export default function SignIn({ returnTo = "/" }: { returnTo?: string }) {
             </div>
           )}
         </form>
+      )}
+      {process.env.NEXT_PUBLIC_AUTH_EMAIL_ENABLED === "true" && (
+        <div className="signin-divider">
+          <span>{t("или")}</span>
+        </div>
       )}
       <button
         className="provider-button"

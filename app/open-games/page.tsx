@@ -87,43 +87,60 @@ function OpenGamesContent() {
       (!city || cityKey(g.city).toLowerCase() === cityKey(city).toLowerCase()),
   );
   return (
-    <main className="ballers-shell">
+    <main className={`ballers-shell${selected ? " game-enrollment-page" : ""}`}>
       <div>
-        <h1 className="page-title">{tx("Открытые игры")}</h1>
-        <SearchCategories active="games" />
-        <p className="text-gray-400 text-sm mb-5">
-          {tx("Выбери игру. Команда не нужна.")}
-        </p>
-        <details className="open-games-help">
-          <summary>{tx("Что такое открытые игры?")}</summary>
-          <p>
-            {tx(
-              "Это игры с добором игроков. Можно вступить сразу или подать заявку — способ входа выбирает организатор. При нехватке мест доступен резерв.",
-            )}
-          </p>
-          <p>
-            {tx(
-              "Организатору: игровой день → Матчи → Настройки организатора → Правила новых матчей. Включи «Открыть добор в списке публичных игр» и нажми «Сохранить правила».",
-            )}
-          </p>
-        </details>
-        <div data-coach="game-city">
-          <CitySelect
-            value={city}
-            onChange={(value) => {
-              initialCity.current = true;
-              setCity(value);
-              if (selected)
-                router.replace(`/open-games?city=${encodeURIComponent(value)}`);
-            }}
-            all
-            id="games-city"
-          />
-        </div>
-        {selected && (
-          <Link className="text-link mb-4" href="/open-games">
-            {tx("Все открытые игры →")}
-          </Link>
+        {selected ? (
+          <>
+            <Link className="text-link enrollment-back" href="/open-games">
+              {tx("← Все открытые игры")}
+            </Link>
+            <h1 className="page-title">{tx("Запись на игру")}</h1>
+            <p className="enrollment-intro">
+              {tx(
+                !session
+                  ? "Сначала войди, затем подтверди участие."
+                  : home && !home.profile
+                    ? "Создай профиль, чтобы продолжить запись."
+                    : "Подтверди участие в выбранной игре.",
+              )}
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="page-title">{tx("Открытые игры")}</h1>
+            <SearchCategories active="games" />
+            <p className="text-gray-400 text-sm mb-5">
+              {tx("Выбери игру. Команда не нужна.")}
+            </p>
+            <details className="open-games-help">
+              <summary>{tx("Что такое открытые игры?")}</summary>
+              <p>
+                {tx(
+                  "Это игры с добором игроков. Можно вступить сразу или подать заявку — способ входа выбирает организатор. При нехватке мест доступен резерв.",
+                )}
+              </p>
+              <p>
+                {tx(
+                  "Организатору: игровой день → Матчи → Настройки организатора → Правила новых матчей. Включи «Открыть добор в списке публичных игр» и нажми «Сохранить правила».",
+                )}
+              </p>
+            </details>
+            <div data-coach="game-city">
+              <CitySelect
+                value={city}
+                onChange={(value) => {
+                  initialCity.current = true;
+                  setCity(value);
+                  if (selected)
+                    router.replace(
+                      `/open-games?city=${encodeURIComponent(value)}`,
+                    );
+                }}
+                all
+                id="games-city"
+              />
+            </div>
+          </>
         )}
         {error && (
           <p role="alert" className="text-red-300">
@@ -136,20 +153,24 @@ function OpenGamesContent() {
           visibleGames.map((g) => (
             <article
               key={g.id}
-              className="rounded-3xl bg-[#0d1120] border border-white/10 p-5 mb-4"
+              className={
+                selected
+                  ? "game-enrollment"
+                  : "rounded-3xl bg-[#0d1120] border border-white/10 p-5 mb-4"
+              }
             >
-              <h2 className="text-xl font-bold">{g.title}</h2>
-              <OpenGameFacts game={g} />
+              <div className={selected ? "enrollment-game-summary" : undefined}>
+                <h2 className="text-xl font-bold">{g.title}</h2>
+                <OpenGameFacts game={g} />
+              </div>
               {!session ? (
                 selected === g.id ? (
                   <section
                     id="signin"
-                    className="mt-4"
+                    className="game-signin"
                     aria-label={tx("Вход для участия")}
                   >
-                    <h3 className="font-bold mb-3">
-                      {tx("Войди, чтобы записаться на эту игру")}
-                    </h3>
+                    <h3>{tx("Вход для записи")}</h3>
                     <SignIn returnTo={`/open-games?game=${g.id}`} />
                   </section>
                 ) : (
@@ -162,7 +183,7 @@ function OpenGamesContent() {
                 )
               ) : home && !home.profile ? (
                 <button
-                  className="neon-button"
+                  className="neon-button enrollment-action"
                   onClick={() => {
                     try {
                       localStorage.setItem(
@@ -177,7 +198,7 @@ function OpenGamesContent() {
                 </button>
               ) : (
                 <button
-                  className="bg-violet-600 rounded-xl px-4 py-3 font-bold disabled:opacity-40"
+                  className="neon-button enrollment-action disabled:opacity-40"
                   data-coach="join-game"
                   disabled={busy || authLoading || !home?.profile}
                   onClick={() => {

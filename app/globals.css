@@ -8,6 +8,30 @@
 .signin-options p { overflow-wrap: anywhere; }
 .signin-code { letter-spacing: .16em; font-variant-numeric: tabular-nums; }
 .signin-secondary { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.signin-options form { gap:12px; }
+.signin-options .network-field { margin:0; }
+.signin-options input::placeholder { color:#9fb2ca; opacity:1; }
+.signin-help { margin:0; color:#d3deeb; font-size:14px; line-height:1.5; }
+.signin-options .signin-submit { min-height:52px; font-size:17px; font-weight:800; background:#7af1b0; border-color:#a0f7c6; color:#042213; box-shadow:none; }
+.signin-submit:disabled { opacity:.65; }
+.signin-divider { display:flex; align-items:center; gap:12px; color:#b9c9dc; font-size:14px; }
+.signin-divider::before,.signin-divider::after { content:""; flex:1; height:1px; background:#415067; }
+.game-enrollment-page .enrollment-back { margin-top:8px; }
+.game-enrollment-page .page-title { margin:0 0 6px; font-size:30px; line-height:1.2; }
+.enrollment-intro { color:#c7d7e6; line-height:1.5; margin:0 0 18px; }
+.game-enrollment { border:1px solid #456476; border-radius:22px; background:#0d1520; overflow:hidden; margin-bottom:20px; }
+.enrollment-game-summary { padding:18px 20px; background:linear-gradient(120deg,#15382b,#10212c); }
+.enrollment-game-summary h2 { font-size:20px; line-height:1.3; color:#fff; overflow-wrap:anywhere; }
+.enrollment-game-summary p:first-of-type { font-size:18px; font-weight:700; color:#f0fff7; }
+.enrollment-game-summary p:last-of-type { margin-bottom:0; }
+.game-signin { padding:20px; border-top:1px solid #507184; background:#152333; }
+.game-signin h3 { margin:0 0 16px; color:#fff; font-size:24px; font-weight:800; line-height:1.25; }
+.game-enrollment .enrollment-action { display:flex; margin:20px; width:calc(100% - 40px); }
+@media(max-width:360px) {
+  .ballers-shell.game-enrollment-page { padding-left:12px; padding-right:12px; }
+  .enrollment-game-summary,.game-signin { padding:16px; }
+  .game-enrollment-page .page-title { font-size:27px; }
+}
 .profile-optional summary, .home-more summary {
   min-height: 48px; padding: 12px 0; cursor: pointer; font-weight: 600;
 }
