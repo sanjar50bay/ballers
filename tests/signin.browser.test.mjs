@@ -170,7 +170,7 @@ async function send(s) {
     .getByLabel("Электронная почта", { exact: true })
     .fill("player@example.net");
   await s.page
-    .getByRole("button", { name: "Получить код", exact: true })
+    .getByRole("button", { name: "Отправить код на почту", exact: true })
     .click();
   await s.page.getByLabel("Код из письма", { exact: true }).waitFor();
 }
@@ -235,7 +235,7 @@ try {
     await s.page.goto(base);
     await s.page.getByLabel("Электронная почта").fill("player@example.net");
     await s.page
-      .getByRole("button", { name: "Получить код", exact: true })
+      .getByRole("button", { name: "Отправить код на почту", exact: true })
       .click();
     await s.page
       .getByRole("alert")
@@ -258,7 +258,7 @@ try {
     await s.page.getByLabel("Электронная почта").fill("player@example.net");
     await s.page.clock.install();
     await s.page
-      .getByRole("button", { name: "Получить код", exact: true })
+      .getByRole("button", { name: "Отправить код на почту", exact: true })
       .click();
     await s.page.clock.runFor(21000);
     await s.page
@@ -281,7 +281,7 @@ try {
     const s = await scenario({ locale: "kk" });
     await s.page.goto(base);
     await s.page.getByLabel("Электрондық пошта").fill("player@example.net");
-    await s.page.getByRole("button", { name: "Код алу", exact: true }).click();
+    await s.page.getByRole("button", { name: "Кодты поштаға жіберу", exact: true }).click();
     await s.page.getByLabel("Хаттағы код").waitFor();
     await shot(s.page, "signin-code-kk-320.png");
     pass("Kazakh email and code UI fits 320px");
